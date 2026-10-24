@@ -4,3 +4,5 @@ export * from "./case";
 export * from "./source";
 export * from "./border";
 export * from "./conflict";
+export * from "./person";
+export * from "./exposure";
