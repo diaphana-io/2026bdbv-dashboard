@@ -45,7 +45,30 @@ function aggregatesGeoJson(aggregates: MapAggregate[]) {
   };
 }
 
-export function ensureCaseLayers(map: MapLibreMap): void {
+export type CaseLayerMode = "light" | "dark";
+
+function casePaint(mode: CaseLayerMode) {
+  const dark = mode === "dark";
+  return {
+    "circle-radius": 6,
+    "circle-color": [
+      "match",
+      ["get", "classification"],
+      "confirmed",
+      dark ? "#f4f4f5" : "#18181b",
+      "suspected",
+      dark ? "#fbbf24" : "#d97706",
+      dark ? "#a1a1aa" : "#71717a",
+    ] as unknown as string,
+    "circle-stroke-width": 1.5,
+    "circle-stroke-color": dark ? "#18181b" : "#fafafa",
+  };
+}
+
+export function ensureCaseLayers(
+  map: MapLibreMap,
+  mode: CaseLayerMode = "light",
+): void {
   if (!map.getSource(CASES_SOURCE)) {
     map.addSource(CASES_SOURCE, {
       type: "geojson",
@@ -55,20 +78,7 @@ export function ensureCaseLayers(map: MapLibreMap): void {
       id: CASES_LAYER,
       type: "circle",
       source: CASES_SOURCE,
-      paint: {
-        "circle-radius": 6,
-        "circle-color": [
-          "match",
-          ["get", "classification"],
-          "confirmed",
-          "#18181b",
-          "suspected",
-          "#d97706",
-          "#71717a",
-        ],
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#fafafa",
-      },
+      paint: casePaint(mode),
     });
   }
 

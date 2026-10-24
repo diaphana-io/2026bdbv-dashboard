@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
-import { ensureCaseLayers, onCaseClick, updateCaseLayers } from "./case-layer";
+import {
+  ensureCaseLayers,
+  onCaseClick,
+  updateCaseLayers,
+  type CaseLayerMode,
+} from "./case-layer";
 import { CaseDrawer } from "./case-drawer";
 import {
   ensureExposureLayer,
@@ -18,10 +24,47 @@ type Props = {
   maxDate: string;
 };
 
+const BASEMAP = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+} as const;
+
+function mapMode(resolvedTheme: string | undefined): CaseLayerMode {
+  return resolvedTheme === "dark" ? "dark" : "light";
+}
+
+function waitForStyle(map: import("maplibre-gl").Map): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const t = window.setTimeout(() => {
+      if (map.isStyleLoaded()) {
+        resolve();
+        return;
+      }
+      reject(new Error("Basemap style timed out"));
+    }, 15_000);
+    const done = () => {
+      window.clearTimeout(t);
+      resolve();
+    };
+    if (map.isStyleLoaded()) {
+      done();
+      return;
+    }
+    map.once("style.load", done);
+  });
+}
+
 export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const travelRef = useRef<TravelLayerHandle | null>(null);
+  const removeClickRef = useRef<(() => void) | undefined>(undefined);
+  const appliedModeRef = useRef<CaseLayerMode | null>(null);
+  const snapshotRef = useRef(initialSnapshot);
+  const asOfRef = useRef(initialSnapshot.asOf);
+
+  const { resolvedTheme } = useTheme();
+  const [themeReady, setThemeReady] = useState(false);
   const [asOf, setAsOf] = useState(initialSnapshot.asOf);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
@@ -29,10 +72,20 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const [loading, setLoading] = useState<string | null>("maplibre-gl");
   const [mapError, setMapError] = useState<string | null>(null);
 
+  snapshotRef.current = snapshot;
+  asOfRef.current = asOf;
+
   useEffect(() => {
+    setThemeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!themeReady) return;
+
     let cancelled = false;
-    let removeClick: (() => void) | undefined;
     let resizeObserver: ResizeObserver | undefined;
+    const bootMode = mapMode(resolvedTheme);
+    appliedModeRef.current = bootMode;
 
     async function boot() {
       try {
@@ -41,10 +94,9 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         if (cancelled || !containerRef.current) return;
 
         setLoading("OutbreakMap");
-        // OpenFreeMap Positron — free, no API key. Revisit CARTO later if needed.
         const map = new maplibre.Map({
           container: containerRef.current,
-          style: "https://tiles.openfreemap.org/styles/positron",
+          style: BASEMAP[bootMode],
           center: [20, 3],
           zoom: 2.5,
           pitch: 30,
@@ -62,27 +114,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           console.warn("[OutbreakMap]", e.error);
         });
 
-        // Wait for style JSON readiness (not full tile paint) so a slow CDN
-        // does not hard-fail the map. Attach before resize/fitBounds.
         setLoading("basemap");
-        await new Promise<void>((resolve, reject) => {
-          const t = window.setTimeout(() => {
-            if (map.isStyleLoaded()) {
-              resolve();
-              return;
-            }
-            reject(new Error("Basemap style timed out"));
-          }, 15_000);
-          const done = () => {
-            window.clearTimeout(t);
-            resolve();
-          };
-          if (map.isStyleLoaded()) {
-            done();
-            return;
-          }
-          map.once("style.load", done);
-        });
+        await waitForStyle(map);
         if (cancelled) return;
 
         map.resize();
@@ -99,12 +132,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           { padding: 48, duration: 0, pitch: 30, bearing: 0 },
         );
 
-        ensureCaseLayers(map);
+        ensureCaseLayers(map, bootMode);
         ensureExposureLayer(map);
-        updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
-        updateExposureLayer(map, snapshot.exposures);
+        updateCaseLayers(
+          map,
+          snapshotRef.current.cases,
+          snapshotRef.current.aggregates,
+        );
+        updateExposureLayer(map, snapshotRef.current.exposures);
 
-        removeClick = onCaseClick(map, async (caseId) => {
+        removeClickRef.current = onCaseClick(map, async (caseId) => {
           setDetailLoading(true);
           setDetail(null);
           travelRef.current?.setHighlightCaseId(caseId);
@@ -126,14 +163,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           );
           return;
         }
-        // Basemap + case/exposure are ready — do not block UI on travel/three.
         setLoading(null);
 
         try {
           const { attachTravelLayer } = await import("./travel-layer");
           if (cancelled) return;
           travelRef.current = await attachTravelLayer(map);
-          travelRef.current.setTravels(snapshot.travels, asOf);
+          travelRef.current.setTravels(
+            snapshotRef.current.travels,
+            asOfRef.current,
+          );
         } catch (err) {
           console.error("[OutbreakMap] travel layer failed", err);
         }
@@ -152,14 +191,85 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     return () => {
       cancelled = true;
       resizeObserver?.disconnect();
-      removeClick?.();
+      removeClickRef.current?.();
+      removeClickRef.current = undefined;
       travelRef.current?.destroy();
       travelRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
+      appliedModeRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
-  }, []);
+    // Boot once after theme hydrates; style swaps handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once when themeReady
+  }, [themeReady]);
+
+  useEffect(() => {
+    if (!themeReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    const mode = mapMode(resolvedTheme);
+    if (appliedModeRef.current === mode) return;
+    appliedModeRef.current = mode;
+
+    let cancelled = false;
+    const active = map;
+
+    async function swapStyle() {
+      try {
+        travelRef.current?.destroy();
+        travelRef.current = null;
+        removeClickRef.current?.();
+        removeClickRef.current = undefined;
+
+        active.setStyle(BASEMAP[mode]);
+        await waitForStyle(active);
+        if (cancelled) return;
+
+        ensureCaseLayers(active, mode);
+        ensureExposureLayer(active);
+        updateCaseLayers(
+          active,
+          snapshotRef.current.cases,
+          snapshotRef.current.aggregates,
+        );
+        updateExposureLayer(active, snapshotRef.current.exposures);
+
+        removeClickRef.current = onCaseClick(active, async (caseId) => {
+          setDetailLoading(true);
+          setDetail(null);
+          travelRef.current?.setHighlightCaseId(caseId);
+          try {
+            const res = await fetch(
+              `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
+            );
+            if (res.ok) setDetail((await res.json()) as CaseDetail);
+          } finally {
+            setDetailLoading(false);
+          }
+        });
+
+        try {
+          const { attachTravelLayer } = await import("./travel-layer");
+          if (cancelled) return;
+          travelRef.current = await attachTravelLayer(active);
+          travelRef.current.setTravels(
+            snapshotRef.current.travels,
+            asOfRef.current,
+          );
+        } catch (err) {
+          console.error("[OutbreakMap] travel layer failed", err);
+        }
+      } catch (err) {
+        console.warn("[OutbreakMap] style swap failed", err);
+      }
+    }
+
+    void swapStyle();
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedTheme, themeReady]);
 
   const skipFetchRef = useRef(true);
 
@@ -191,7 +301,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   }, [asOf]);
 
   return (
-    <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-[#e8eef2]">
+    <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-background">
       <div
         ref={containerRef}
         className="absolute inset-0 h-full w-full [&_.maplibregl-map]:!h-full [&_.maplibregl-map]:!w-full"
