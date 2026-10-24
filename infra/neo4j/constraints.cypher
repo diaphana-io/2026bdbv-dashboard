@@ -15,6 +15,8 @@ CREATE CONSTRAINT lab_result_id IF NOT EXISTS FOR (l:LabResult) REQUIRE l.id IS 
 CREATE CONSTRAINT facility_id IF NOT EXISTS FOR (f:Facility) REQUIRE f.id IS UNIQUE;
 CREATE CONSTRAINT poe_id IF NOT EXISTS FOR (p:PointOfEntry) REQUIRE p.id IS UNIQUE;
 CREATE CONSTRAINT admin_id IF NOT EXISTS FOR (a:AdminUnit) REQUIRE a.id IS UNIQUE;
+CREATE CONSTRAINT travel_leg_id IF NOT EXISTS FOR (t:TravelLeg) REQUIRE t.id IS UNIQUE;
+CREATE CONSTRAINT hospitalization_id IF NOT EXISTS FOR (h:Hospitalization) REQUIRE h.id IS UNIQUE;
 CREATE CONSTRAINT event_id IF NOT EXISTS FOR (e:Event) REQUIRE e.id IS UNIQUE;
 CREATE CONSTRAINT cluster_id IF NOT EXISTS FOR (c:Cluster) REQUIRE c.id IS UNIQUE;
 CREATE CONSTRAINT border_measure_id IF NOT EXISTS FOR (b:BorderMeasure) REQUIRE b.id IS UNIQUE;
@@ -26,7 +28,11 @@ CREATE INDEX case_classification IF NOT EXISTS FOR (c:Case) ON (c.classification
 CREATE INDEX case_admin0 IF NOT EXISTS FOR (c:Case) ON (c.admin0_iso);
 CREATE INDEX case_dataset IF NOT EXISTS FOR (c:Case) ON (c.dataset);
 CREATE INDEX case_inclusion IF NOT EXISTS FOR (c:Case) ON (c.inclusion_reason);
+CREATE INDEX case_date_of_onset IF NOT EXISTS FOR (c:Case) ON (c.date_of_onset);
 CREATE INDEX claim_review_status IF NOT EXISTS FOR (c:Claim) ON (c.review_status);
+CREATE INDEX claim_as_of_date IF NOT EXISTS FOR (c:Claim) ON (c.as_of_date);
+CREATE INDEX admin_iso IF NOT EXISTS FOR (a:AdminUnit) ON (a.iso);
+CREATE INDEX admin_tracking_mode IF NOT EXISTS FOR (a:AdminUnit) ON (a.tracking_mode);
 CREATE INDEX source_curation_status IF NOT EXISTS FOR (s:SourceDocument) ON (s.curation_status);
 CREATE INDEX followup_status IF NOT EXISTS FOR (f:FollowUpWindow) ON (f.status);
 CREATE INDEX border_status IF NOT EXISTS FOR (b:BorderMeasure) ON (b.status);

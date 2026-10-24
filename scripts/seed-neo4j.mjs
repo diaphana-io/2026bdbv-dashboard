@@ -90,6 +90,9 @@ async function main() {
     const contacts = readJson("contacts.json");
     const measures = readJson("measures.json");
     const inbox = readJson("inbox_candidates.json");
+    const adminUnits = readJson("admin_units.json");
+    const travelLegs = readJson("travel_legs.json");
+    const hospitalizations = readJson("hospitalizations.json");
 
     await session.run(
       `
@@ -113,6 +116,33 @@ async function main() {
         countries: outbreak.countries ?? [],
       },
     );
+
+    for (const a of adminUnits) {
+      await session.run(
+        `
+        MERGE (u:AdminUnit {id: $id})
+        SET u.iso = $iso,
+            u.level = $level,
+            u.name = $name,
+            u.tracking_mode = $tracking_mode,
+            u.lat = $lat,
+            u.lon = $lon
+        WITH u
+        MATCH (o:Outbreak {id: $outbreak_id})
+        MERGE (o)-[:INCLUDES_ADMIN]->(u)
+        `,
+        {
+          id: a.id,
+          iso: a.iso,
+          level: a.level,
+          name: a.name,
+          tracking_mode: a.tracking_mode ?? null,
+          lat: a.lat ?? null,
+          lon: a.lon ?? null,
+          outbreak_id: outbreak.id,
+        },
+      );
+    }
 
     for (const s of sources) {
       await session.run(
@@ -399,6 +429,60 @@ async function main() {
       );
     }
 
+    for (const leg of travelLegs) {
+      await session.run(
+        `
+        MERGE (t:TravelLeg {id: $id})
+        SET t.departed_at = $departed_at,
+            t.arrived_at = $arrived_at,
+            t.mode = $mode
+        WITH t
+        MATCH (p:Person {id: $person_id})
+        MERGE (p)-[:TRAVELED]->(t)
+        WITH t
+        OPTIONAL MATCH (fromAdmin:AdminUnit {id: $from_admin_id})
+        FOREACH (_ IN CASE WHEN fromAdmin IS NULL THEN [] ELSE [1] END |
+          MERGE (t)-[:FROM]->(fromAdmin)
+        )
+        WITH t
+        OPTIONAL MATCH (toAdmin:AdminUnit {id: $to_admin_id})
+        FOREACH (_ IN CASE WHEN toAdmin IS NULL THEN [] ELSE [1] END |
+          MERGE (t)-[:TO]->(toAdmin)
+        )
+        `,
+        {
+          id: leg.id,
+          person_id: leg.person_id,
+          departed_at: leg.departed_at ?? null,
+          arrived_at: leg.arrived_at ?? null,
+          mode: leg.mode ?? "unknown",
+          from_admin_id: leg.from_admin_id ?? null,
+          to_admin_id: leg.to_admin_id ?? null,
+        },
+      );
+    }
+
+    for (const h of hospitalizations) {
+      await session.run(
+        `
+        MERGE (hosp:Hospitalization {id: $id})
+        SET hosp.admitted_at = $admitted_at,
+            hosp.discharged_at = $discharged_at,
+            hosp.facility_name = $facility_name
+        WITH hosp
+        MATCH (c:Case {id: $case_id})
+        MERGE (c)-[:HAS_HOSPITALIZATION]->(hosp)
+        `,
+        {
+          id: h.id,
+          case_id: h.case_id,
+          admitted_at: h.admitted_at ?? null,
+          discharged_at: h.discharged_at ?? null,
+          facility_name: h.facility_name ?? null,
+        },
+      );
+    }
+
     const counts = await session.run(`
       RETURN
         count { MATCH (o:Outbreak) RETURN o } AS outbreaks,
@@ -407,7 +491,10 @@ async function main() {
         count { MATCH (cf:ClaimConflict) RETURN cf } AS conflicts,
         count { MATCH (p:Person) WHERE p.role = 'contact' RETURN p } AS contacts,
         count { MATCH (s:SourceDocument) RETURN s } AS sources,
-        count { MATCH (b:BorderMeasure) RETURN b } AS measures
+        count { MATCH (b:BorderMeasure) RETURN b } AS measures,
+        count { MATCH (a:AdminUnit) RETURN a } AS admin_units,
+        count { MATCH (t:TravelLeg) RETURN t } AS travel_legs,
+        count { MATCH (h:Hospitalization) RETURN h } AS hospitalizations
     `);
     const row = counts.records[0];
     console.log("Seed complete:", {
@@ -418,6 +505,10 @@ async function main() {
       contacts: row.get("contacts").toNumber?.() ?? row.get("contacts"),
       sources: row.get("sources").toNumber?.() ?? row.get("sources"),
       measures: row.get("measures").toNumber?.() ?? row.get("measures"),
+      admin_units: row.get("admin_units").toNumber?.() ?? row.get("admin_units"),
+      travel_legs: row.get("travel_legs").toNumber?.() ?? row.get("travel_legs"),
+      hospitalizations:
+        row.get("hospitalizations").toNumber?.() ?? row.get("hospitalizations"),
     });
   } finally {
     await session.close();
