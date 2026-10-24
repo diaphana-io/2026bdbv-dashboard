@@ -1,38 +1,42 @@
 "use client";
 
-export function ResolveConflictActions({
-  onResolve,
-  disabled,
-}: {
-  onResolve: (status: "resolved_a" | "resolved_b" | "resolved_neither") => void;
-  disabled?: boolean;
-}) {
+import { useState } from "react";
+import { Button } from "../ui/button";
+
+export function ResolveConflictActions({ conflictId }: { conflictId: string }) {
+  const [status, setStatus] = useState<string | null>(null);
+
   return (
-    <div className="flex flex-wrap gap-2">
-      <button
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
         type="button"
-        disabled={disabled}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50"
-        onClick={() => onResolve("resolved_a")}
+        variant="outline"
+        disabled={!!status}
+        onClick={() => setStatus("resolved_a")}
       >
         Keep A
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        disabled={disabled}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50"
-        onClick={() => onResolve("resolved_b")}
+        variant="outline"
+        disabled={!!status}
+        onClick={() => setStatus("resolved_b")}
       >
         Keep B
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        disabled={disabled}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50"
-        onClick={() => onResolve("resolved_neither")}
+        variant="secondary"
+        disabled={!!status}
+        onClick={() => setStatus("resolved_neither")}
       >
         Keep neither
-      </button>
+      </Button>
+      {status && (
+        <span className="text-xs text-zinc-600">
+          {conflictId.slice(0, 8)}… → {status}
+        </span>
+      )}
     </div>
   );
 }

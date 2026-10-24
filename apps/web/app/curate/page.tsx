@@ -118,7 +118,7 @@ export default function CuratePage() {
                   confidence: c.claim_b.confidence,
                 }}
               />
-              <ResolveConflictActions onResolve={() => undefined} />
+              <ResolveConflictActions conflictId={c.conflict.id} />
             </div>
           ))}
           {conflicts.length === 0 && <div className="text-sm text-zinc-600">No open conflicts</div>}

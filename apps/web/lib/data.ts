@@ -1,27 +1,11 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-function rootFile(rel: string) {
-  const name = rel.replace(/^data\/curated\//, "");
-  const candidates = [
-    join(process.cwd(), "data", name),
-    join(process.cwd(), "data", "curated", name),
-    join(process.cwd(), "..", "..", "data", "curated", name),
-    join(process.cwd(), rel),
-  ];
-  for (const p of candidates) {
-    try {
-      return readFileSync(p, "utf8");
-    } catch {
-      /* try next */
-    }
-  }
-  throw new Error(`Missing data file: ${rel}`);
-}
-
-function loadJson<T>(rel: string): T {
-  return JSON.parse(rootFile(rel)) as T;
-}
+import casesData from "../data/cases.json";
+import claimsData from "../data/claims.json";
+import conflictsData from "../data/conflicts.json";
+import contactsData from "../data/contacts.json";
+import inboxData from "../data/inbox_candidates.json";
+import measuresData from "../data/measures.json";
+import outbreakData from "../data/outbreak.json";
+import sourcesData from "../data/sources.json";
 
 export type CaseRow = {
   id: string;
@@ -105,50 +89,32 @@ export type MeasureRow = {
   confidence: string;
 };
 
-function cases(): CaseRow[] {
-  return loadJson<CaseRow[]>("data/curated/cases.json");
-}
-function claims(): ClaimRow[] {
-  return loadJson<ClaimRow[]>("data/curated/claims.json");
-}
-function conflicts() {
-  return loadJson<
-    {
-      id: string;
-      claim_a_id: string;
-      claim_b_id: string;
-      subject_ref: string;
-      claim_type: string;
-      status: string;
-      detected_at: string;
-    }[]
-  >("data/curated/conflicts.json");
-}
-function contacts(): ContactRow[] {
-  return loadJson<ContactRow[]>("data/curated/contacts.json");
-}
-function measures(): MeasureRow[] {
-  return loadJson<MeasureRow[]>("data/curated/measures.json");
-}
-function sources(): SourceRow[] {
-  return loadJson<SourceRow[]>("data/curated/sources.json");
-}
-function inbox() {
-  return loadJson<
-    {
-      id: string;
-      url: string;
-      title?: string;
-      publisher?: string;
-      kind: string;
-      curation_status: string;
-      discovered_at?: string;
-    }[]
-  >("data/curated/inbox_candidates.json");
-}
+const cases = casesData as CaseRow[];
+const claims = claimsData as ClaimRow[];
+const conflicts = conflictsData as {
+  id: string;
+  claim_a_id: string;
+  claim_b_id: string;
+  subject_ref: string;
+  claim_type: string;
+  status: string;
+  detected_at: string;
+}[];
+const contacts = contactsData as ContactRow[];
+const measures = measuresData as MeasureRow[];
+const sources = sourcesData as SourceRow[];
+const inbox = inboxData as {
+  id: string;
+  url: string;
+  title?: string;
+  publisher?: string;
+  kind: string;
+  curation_status: string;
+  discovered_at?: string;
+}[];
 
 export function getOutbreak() {
-  return loadJson<Record<string, unknown>>("data/curated/outbreak.json");
+  return outbreakData as Record<string, unknown>;
 }
 
 export function getCases(opts?: {
@@ -156,7 +122,7 @@ export function getCases(opts?: {
   confirmedOnly?: boolean;
   includeTemporalSuspects?: boolean;
 }) {
-  let rows = cases().filter((c) => c.dataset === "production");
+  let rows = cases.filter((c) => c.dataset === "production");
   if (opts?.country && opts.country !== "ALL") {
     rows = rows.filter((c) => c.admin0_iso === opts.country);
   }
@@ -171,27 +137,27 @@ export function getCases(opts?: {
 }
 
 export function getSources() {
-  return sources();
+  return sources;
 }
 
 export function getClaims() {
-  return claims();
+  return claims;
 }
 
 export function getConflictViews() {
-  return conflicts()
+  return conflicts
     .filter((c) => c.status === "open")
     .map((conflict) => {
-      const claim_a = claims().find((c) => c.id === conflict.claim_a_id)!;
-      const claim_b = claims().find((c) => c.id === conflict.claim_b_id)!;
-      const source_a = sources().find((s) => s.id === claim_a.source_id);
-      const source_b = sources().find((s) => s.id === claim_b.source_id);
+      const claim_a = claims.find((c) => c.id === conflict.claim_a_id)!;
+      const claim_b = claims.find((c) => c.id === conflict.claim_b_id)!;
+      const source_a = sources.find((s) => s.id === claim_a.source_id);
+      const source_b = sources.find((s) => s.id === claim_b.source_id);
       return { conflict, claim_a, claim_b, source_a, source_b };
     });
 }
 
 export function getContacts(country?: string) {
-  let rows = contacts().filter((c) => c.dataset === "production");
+  let rows = contacts.filter((c) => c.dataset === "production");
   if (country && country !== "ALL") {
     rows = rows.filter((c) => c.admin0_iso === country);
   }
@@ -199,7 +165,7 @@ export function getContacts(country?: string) {
 }
 
 export function getMeasures(country?: string) {
-  let rows = measures();
+  let rows = [...measures];
   if (country && country !== "ALL") {
     rows = rows.filter((m) => m.applies_to_countries.includes(country));
   }
@@ -207,7 +173,7 @@ export function getMeasures(country?: string) {
 }
 
 export function getInboxCandidates() {
-  return inbox().filter((i) => i.curation_status === "candidate");
+  return inbox.filter((i) => i.curation_status === "candidate");
 }
 
 export function overviewKpis(country?: string) {
