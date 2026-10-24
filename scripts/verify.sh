@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Run the test gate for a commit unit. Usage: scripts/verify.sh [unit]
+# Units: scaffold | schema | engine | curation | data | dashboard | contacts | map | measures | all
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+UNIT="${1:-all}"
+
+run_schema() {
+  if [[ -f packages/schema/package.json ]]; then
+    npm run test -w @bdbv/schema
+  else
+    echo "schema package not ready; skip"
+  fi
+}
+
+run_rust() {
+  if [[ -f Cargo.toml ]]; then
+    cargo test --workspace
+  else
+    echo "rust workspace not ready; skip"
+  fi
+}
+
+run_web_typecheck() {
+  if [[ -d apps/web/node_modules ]]; then
+    npm run build -w @bdbv/web
+  else
+    echo "web deps missing; skip build"
+  fi
+}
+
+echo "==> verify: $UNIT"
+case "$UNIT" in
+  scaffold)
+    test -f apps/web/package.json
+    test -f Cargo.toml
+    test -f infra/docker-compose.yml
+    test -d crates/surv_geom
+    test -d crates/surv_engine
+    cargo check -p surv_geom
+    echo "scaffold OK"
+    ;;
+  schema)
+    run_schema
+    test -f infra/neo4j/constraints.cypher
+    echo "schema OK"
+    ;;
+  engine)
+    cargo test -p surv_geom -p surv_data -p surv_analysis -p surv_epi -p surv_engine
+    echo "engine OK"
+    ;;
+  curation)
+    cargo test -p surv_engine -- curation
+    run_schema
+    echo "curation OK"
+    ;;
+  data)
+    test -d data/curated
+    test -d seed
+    run_schema
+    echo "data OK"
+    ;;
+  dashboard|contacts|map|measures)
+    run_schema
+    run_rust
+    echo "$UNIT OK"
+    ;;
+  all)
+    run_schema
+    run_rust
+    echo "all OK"
+    ;;
+  *)
+    echo "unknown unit: $UNIT" >&2
+    exit 1
+    ;;
+esac

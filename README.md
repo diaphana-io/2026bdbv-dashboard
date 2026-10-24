@@ -1,0 +1,42 @@
+# 2026 BDBV Dashboard
+
+Surveillance dashboard for the 2026 Bundibugyo virus (BDBV) outbreak (NG / KE / UG focus).
+
+Repo: [diaphana-io/2026bdbv-dashboard](https://github.com/diaphana-io/2026bdbv-dashboard)
+
+## Stack
+
+- `apps/web` — vinext (Next.js) + Tailwind + shadcn/ui → Cloudflare Workers
+- `crates/surv_*` — RustGIS-inspired compute (Session / CommandSpec)
+- Neo4j — cases, contacts, follow-up, provenance
+- R2 + Vectorize — source snapshots and border-measure RAG
+
+## Local
+
+```bash
+# JS
+npm install
+npm run dev          # http://127.0.0.1:43127
+
+# Neo4j
+docker compose -f infra/docker-compose.yml up -d
+
+# Rust tests
+cargo test --workspace
+
+# Commit-unit gate
+bash scripts/verify.sh scaffold   # or schema|engine|curation|all
+```
+
+## Data policy
+
+- Production: curated real sources (official + news), human-approved claims only
+- Tests: `seed/` synthetic (`dataset=test`)
+- Extract backend: stub until Issue decision (Jev candidates)
+- **UI language: English only**
+- **Contradictions**: when sources disagree, both claims stay visible (`CONFLICTS_WITH` / open conflict) until a human resolves (`resolved_a` | `resolved_b` | `resolved_neither`)
+
+## Git
+
+- Feature branch only; `main` via PR
+- Meaningful commits; run `scripts/verify.sh <unit>` before each push
