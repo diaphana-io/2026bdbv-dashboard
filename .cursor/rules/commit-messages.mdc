@@ -5,34 +5,40 @@ alwaysApply: true
 
 # Commit messages
 
-Keep the message **1–2 lines**.
-
-Format:
+Keep messages **very short**: two lines, ~120 characters total.
 
 ```text
-<type>: <short topic>
+<type>: <topic>
 
-<one purpose-oriented sentence>
+<why>
 ```
 
-- **type** (required prefix): `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, or `ci`
-- **topic**: brief subject (what area), not a file list
-- **body line**: one sentence on **why** / purpose of the change (not a changelog of files)
+- **type**: `feat` | `fix` | `docs` | `refactor` | `test` | `chore` | `perf` | `ci`
+- **topic**: 2–5 words, area only (≤ ~40 chars). No verbs (`update`/`add`/`improve`), no file dumps.
+- **why**: one short sentence (≤ ~15 words) on purpose — not a list of edits.
 
-Examples:
+Good:
 
 ```text
 feat: map loading UI
 
-Show basemap as soon as MapLibre loads so travel-layer delays do not block the map.
+Show basemap as soon as MapLibre loads.
 ```
 
 ```text
-docs: agent UI conventions
+refactor: thin basemap style
 
-Prefer shadcn/ui primitives so agents do not invent one-off controls.
+Shrink style payload so the map paints sooner.
 ```
 
-Do not use multi-paragraph bodies, bullet lists, or "Made-with: Cursor" footers unless the user asks.
+Bad:
 
-**Sparkles note:** Cursor Generate Commit Message ignores `.cursor/rules` and AGENTS.md. The live prompt for that button is the repo-root `.cursorrules` file — keep it in sync with this rule.
+```text
+refactor: update OutbreakMap to use thin basemap style
+
+Replace hardcoded basemap URLs with a dynamic style function and adjust zoom levels for improved map performance.
+```
+
+No bullets, multi-paragraph bodies, or "Made-with: Cursor" unless the user asks.
+
+**Sparkles:** Generate Commit Message reads only repo-root `.cursorrules` — keep it in sync with this rule.

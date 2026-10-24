@@ -24,19 +24,19 @@ Human-curation cutover before automatic Extract:
 
 ## Commit messages
 
-Keep **1–2 lines** (no bullet changelogs).
+Keep messages **very short**: two lines, ~120 characters total (no bullet changelogs).
 
 ```text
-<type>: <short topic>
+<type>: <topic>
 
-<one purpose-oriented sentence>
+<why>
 ```
 
 - **type**: `feat` | `fix` | `docs` | `refactor` | `test` | `chore` | `perf` | `ci`
-- **topic**: concise area/subject (not a file dump)
-- Final sentence: **why** the change exists (purpose), not a list of edits
+- **topic**: 2–5 words, area only — no verbs like `update`/`add`, no file dumps
+- **why**: one short sentence on purpose, not a list of edits
 
-Example: `feat: map loading UI` then `Show basemap as soon as MapLibre loads so travel-layer delays do not block the map.`
+Example: `refactor: thin basemap style` then `Shrink style payload so the map paints sooner.`
 
 **Where the rule lives**
 
