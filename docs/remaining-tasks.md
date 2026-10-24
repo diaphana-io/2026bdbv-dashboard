@@ -12,7 +12,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 
 ## Still open (human / infra)
 
-1. **Extract backend spec** — [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
+1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
 2. **Aura Free instance cutover** — create with aura-cli (needs API client credentials), set Worker secrets, run `npm run seed:neo4j`, confirm `/api/health/neo4j` and `/app` read/write against the graph (`docs/neo4j-aura.md`).
 3. **Cloudflare Access** — code + docs ready (`docs/cloudflare-access-curate.md`); create/update the Zero Trust app for `2026bdbv.diaphana.io` paths; confirm `CF_ACCESS_*` on the Worker.
 4. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.

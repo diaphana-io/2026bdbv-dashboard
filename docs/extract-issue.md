@@ -1,6 +1,6 @@
 # Extract backend specification
 
-**Linear:** [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract)
+**GitHub:** [diaphana-io/2026bdbv-dashboard#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) → Linear [MATT-310](https://linear.app/diaphana/issue/MATT-310/bdbv-extract-backend-specification-blocks-production-extract) (one-way sync; supersedes MATT-309)
 
 ## Summary
 
@@ -24,4 +24,4 @@ Define the semi-automatic Extract pipeline for curation (`curate.extractClaims`)
 ## Acceptance
 
 - Staging can toggle `EXTRACT_ENABLED=true` for evaluation
-- Production remains `EXTRACT_ENABLED=false` until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is closed with an approved design
+- Production remains `EXTRACT_ENABLED=false` until [#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) is closed with an approved design

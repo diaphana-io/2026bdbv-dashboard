@@ -2,7 +2,7 @@
 
 ## Abstract
 
-This repository contains the source code for an interactive surveillance web application that tracks Bundibugyo virus disease (BDBV) cases and related claims during the 2026 multi-country outbreak, with a focus on Nigeria, Kenya, and Uganda. The application presents curated epidemiological entities (cases, contacts, measures, sources), surfaces unresolved contradictions between sources, and reads from a Neo4j graph when configured, falling back to static JSON for local development. A staging deployment is available at [https://2026bdbv.diaphana.io/app](https://2026bdbv.diaphana.io/app). The project is hosted on [GitHub](https://github.com/diaphana-io/2026bdbv-dashboard) and mirrored on [Cursor Origin](https://cursor.com/codebase/tetra4rnav/2026bdbv-dashboard).
+This repository provides the source code for an interactive dashboard that summarizes, in a visually comprehensible way, how Bundibugyo virus disease (BDBV) has spread from regional transmission in the Democratic Republic of the Congo to other countries—particularly Uganda, Kenya, and Nigeria—during the 2026 outbreak.
 
 ## Background
 
@@ -15,13 +15,17 @@ The web application (`apps/web`) exposes English-language views for outbreak ove
 ## Repository layout
 
 ```text
-apps/web/          Interactive dashboard (vinext / Next.js → Cloudflare Workers)
-packages/schema/   Shared TypeScript schemas for curated entities
-crates/surv_*/     Rust surveillance compute (engine, epi, data, geom, wasm)
-data/curated/      Human-approved production-oriented datasets
-infra/             Neo4j compose and graph constraints
-docs/              Operational and design notes
-scripts/           Seed, verify, and provisioning helpers
+.
+├── apps/
+│   └── web/              Interactive dashboard (vinext / Next.js → Cloudflare Workers)
+├── packages/
+│   └── schema/           Shared TypeScript schemas for curated entities
+├── crates/               Rust surveillance compute (surv_*)
+├── data/
+│   └── curated/          Human-approved production-oriented datasets
+├── infra/                Neo4j compose and graph constraints
+├── docs/                 Operational and design notes
+└── scripts/              Seed, verify, and provisioning helpers
 ```
 
 ## Architecture
@@ -30,38 +34,41 @@ The dashboard is a vinext (Next.js) application styled with Tailwind and shadcn/
 
 ## Data and provenance
 
-Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided ([MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract)). Synthetic fixtures under `seed/` support tests (`dataset=test`). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
-
-## Getting started
-
-```bash
-npm install
-npm run dev          # http://127.0.0.1:43127
-
-# Neo4j — Aura Free (preferred) or local compose
-# Full checklist: docs/neo4j-aura.md
-powershell -ExecutionPolicy Bypass -File scripts/install-aura-cli.ps1
-# aura-cli credential add … && aura-cli instance create --name bdbv-dashboard --type free-db --await
-# Put NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD in apps/web/.env
-npm run seed:neo4j
-# Optional offline:
-# docker compose -f infra/docker-compose.yml up -d
-
-# Without NEO4J_*: dashboard serves static JSON under apps/web/data
-
-cargo test --workspace
-bash scripts/verify.sh scaffold   # or schema|engine|curation|all
-```
-
-## Deployment
-
-The production host is `https://2026bdbv.diaphana.io` with the application mounted at `/app`. Curate routes are intended to sit behind Cloudflare Access; see [`docs/cloudflare-access-curate.md`](docs/cloudflare-access-curate.md). Full production extract remains blocked until the Extract specification is approved; staging may be used for evaluation in the interim.
-
-## Development
-
-Work proceeds on feature branches; changes reach `main` via pull request. Before each push, run the relevant commit-unit gate with `bash scripts/verify.sh <unit>` (or `all`). Deferred infrastructure and product items are tracked in [`docs/remaining-tasks.md`](docs/remaining-tasks.md); Neo4j Aura setup is documented in [`docs/neo4j-aura.md`](docs/neo4j-aura.md).
+Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided through the project’s issue tracker (issue-based gating). Synthetic fixtures under `seed/` support tests (`dataset=test`). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
 
 ## References
 
 1. <a id="ref-1"></a>World Health Organization. Ebola disease caused by Bundibugyo virus — Democratic Republic of the Congo & Uganda. Disease Outbreak News. 2026. Available from: https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON602
 2. <a id="ref-2"></a>World Health Organization. Ebola disease caused by Bundibugyo virus — Democratic Republic of the Congo, Kenya and Nigeria. Disease Outbreak News. 23 October 2026. Available from: https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON622
+
+## For Developers
+
+The following notes are for contributors who clone this repository to run or modify the dashboard locally. They are not required to use the deployed application.
+
+### Getting started
+
+```bash
+npm install
+npm run dev          # http://127.0.0.1:43127
+```
+
+Without `NEO4J_*`, the app serves static JSON under `apps/web/data`. For Aura Free or local Neo4j, seed, and verify gates, see [`docs/neo4j-aura.md`](docs/neo4j-aura.md) and [`docs/remaining-tasks.md`](docs/remaining-tasks.md).
+
+```bash
+# Optional graph backend
+powershell -ExecutionPolicy Bypass -File scripts/install-aura-cli.ps1
+# Put NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD in apps/web/.env
+npm run seed:neo4j
+# docker compose -f infra/docker-compose.yml up -d   # offline alternative
+
+cargo test --workspace
+bash scripts/verify.sh scaffold   # or schema|engine|curation|all
+```
+
+### Deployment
+
+Staging: [https://2026bdbv.diaphana.io/app](https://2026bdbv.diaphana.io/app) (`/app` base path). Curate routes sit behind Cloudflare Access ([`docs/cloudflare-access-curate.md`](docs/cloudflare-access-curate.md)). Production extract remains blocked until the Extract specification is approved. Hosting: [GitHub](https://github.com/diaphana-io/2026bdbv-dashboard); [Cursor Origin](https://cursor.com/codebase/tetra4rnav/2026bdbv-dashboard).
+
+### Workflow
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, PR, verify, and issue-tracking requirements.

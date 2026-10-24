@@ -7,7 +7,7 @@
 | staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
 | production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
 
-Production must not ship an automatic Extract backend until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is decided (Jev candidates, etc.).
+Production must not ship an automatic Extract backend until [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) (Linear **MATT-310**) is decided (Jev candidates, etc.).
 
 ## Cloudflare Access
 
