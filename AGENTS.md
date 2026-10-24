@@ -19,8 +19,9 @@ Setup (workspace admin): Linear → Settings → Features → Integrations → G
 Human-curation cutover before automatic Extract:
 
 1. Neo4j Aura Free cutover (graph read/write + Curate persist) — see `docs/neo4j-aura.md`
-2. Cloudflare Access for `/app/curate` + `/api/curate` — see `docs/cloudflare-access-curate.md`
-3. Extract backend specification (keeps production `EXTRACT_ENABLED=false` until decided) — see `docs/extract-issue.md`
+2. Curate graph serving on Workers (hard Bolt timeout + snapshot/cache reads; avoid Error 1101) — see `docs/curate-graph-serving.md`
+3. Cloudflare Access for `/app/curate` + `/api/curate` — see `docs/cloudflare-access-curate.md`
+4. Extract backend specification (keeps production `EXTRACT_ENABLED=false` until decided) — see `docs/extract-issue.md`. Shared constraint: Workers must not hold responses hostage to Bolt.
 
 ## Commit messages
 
