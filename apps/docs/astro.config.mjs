@@ -24,6 +24,7 @@ export default defineConfig({
 					label: 'Outbreak information',
 					items: [
 						{ label: 'Overview', slug: 'index' },
+						{ label: 'About', slug: 'about' },
 					],
 				},
 			],
