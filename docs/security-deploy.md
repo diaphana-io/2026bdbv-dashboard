@@ -23,6 +23,7 @@ Use Cloudflare Zero Trust Access (email OTP or IdP). Dashboard routes may be pub
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura)
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
+- `APP_BASE_PATH=/2026bdbv/app` for production (and staging when previewed under that path)
 - Optional: Workers AI / Vectorize bindings for measures RAG
 
 ## Headers

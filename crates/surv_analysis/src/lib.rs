@@ -31,7 +31,7 @@ pub fn point_in_ring(p: LatLon, ring: &[[f64; 2]]) -> bool {
     inside
 }
 
-pub fn assign_admin<'a>(point: LatLon, admins: &'a [Feature]) -> Option<&'a Feature> {
+pub fn assign_admin(point: LatLon, admins: &[Feature]) -> Option<&Feature> {
     for admin in admins {
         if let Geometry::Polygon { coordinates } = &admin.geometry {
             if let Some(ring) = coordinates.first() {

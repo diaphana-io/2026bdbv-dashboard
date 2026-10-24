@@ -52,8 +52,7 @@ pub fn haversine_m(a: LatLon, b: LatLon) -> f64 {
     let d_lon = (b.lon - a.lon).to_radians();
     let lat1 = a.lat.to_radians();
     let lat2 = b.lat.to_radians();
-    let h = (d_lat / 2.0).sin().powi(2)
-        + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+    let h = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
     2.0 * R * h.sqrt().asin()
 }
 

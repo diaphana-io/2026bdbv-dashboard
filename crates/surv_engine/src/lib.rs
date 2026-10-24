@@ -50,14 +50,12 @@ fn cmd_ping(_s: &mut Session, _p: &Value) -> CmdResult {
 pub(crate) fn gp_count_points(_s: &mut Session, params: &Value) -> CmdResult {
     use surv_analysis::count_points_in_admins;
     use surv_data::Feature;
-    let points: Vec<Feature> = serde_json::from_value(
-        params.get("points").cloned().unwrap_or_else(|| json!([])),
-    )
-    .map_err(|e| EngineError::Failed(e.to_string()))?;
-    let admins: Vec<Feature> = serde_json::from_value(
-        params.get("admins").cloned().unwrap_or_else(|| json!([])),
-    )
-    .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let points: Vec<Feature> =
+        serde_json::from_value(params.get("points").cloned().unwrap_or_else(|| json!([])))
+            .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let admins: Vec<Feature> =
+        serde_json::from_value(params.get("admins").cloned().unwrap_or_else(|| json!([])))
+            .map_err(|e| EngineError::Failed(e.to_string()))?;
     let counts = count_points_in_admins(&points, &admins);
     Ok(json!({ "counts": counts }))
 }
@@ -73,20 +71,18 @@ pub(crate) fn epi_followup(_s: &mut Session, params: &Value) -> CmdResult {
         .unwrap_or(21) as u32;
     let w = surv_epi::followup_window(last, days)
         .ok_or_else(|| EngineError::Failed("invalid date".into()))?;
-    Ok(serde_json::to_value(w).map_err(|e| EngineError::Failed(e.to_string()))?)
+    serde_json::to_value(w).map_err(|e| EngineError::Failed(e.to_string()))
 }
 
 pub(crate) fn export_geojson(_s: &mut Session, params: &Value) -> CmdResult {
     use surv_analysis::count_points_in_admins;
     use surv_data::Feature;
-    let points: Vec<Feature> = serde_json::from_value(
-        params.get("points").cloned().unwrap_or_else(|| json!([])),
-    )
-    .map_err(|e| EngineError::Failed(e.to_string()))?;
-    let admins: Vec<Feature> = serde_json::from_value(
-        params.get("admins").cloned().unwrap_or_else(|| json!([])),
-    )
-    .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let points: Vec<Feature> =
+        serde_json::from_value(params.get("points").cloned().unwrap_or_else(|| json!([])))
+            .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let admins: Vec<Feature> =
+        serde_json::from_value(params.get("admins").cloned().unwrap_or_else(|| json!([])))
+            .map_err(|e| EngineError::Failed(e.to_string()))?;
     let counts = count_points_in_admins(&points, &admins);
     let mut features = Vec::new();
     for admin in &admins {
@@ -119,7 +115,11 @@ pub(crate) fn epi_curve(_s: &mut Session, params: &Value) -> CmdResult {
         .unwrap_or_default();
     let mut pairs = Vec::new();
     for r in rows {
-        let date = r.get("date").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let date = r
+            .get("date")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
         let class = r
             .get("classification")
             .and_then(|v| v.as_str())

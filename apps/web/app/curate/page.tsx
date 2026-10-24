@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
 import { getConflictViews, getInboxCandidates } from "../../lib/data";
 import { ConflictPair } from "../../components/conflicts/conflict-pair";
 import { ResolveConflictActions } from "../../components/conflicts/resolve-conflict-actions";
+import { InboxActions } from "../../components/curate/inbox-actions";
 
 export default function CuratePage() {
   const inbox = getInboxCandidates();
@@ -51,17 +51,7 @@ export default function CuratePage() {
                     <Badge variant="outline">{i.kind}</Badge>
                   </TD>
                   <TD>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/curate/review?url=${encodeURIComponent(i.url)}`}
-                        className="rounded-md border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50"
-                      >
-                        Accept
-                      </Link>
-                      <span className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-400">
-                        Dismiss
-                      </span>
-                    </div>
+                    <InboxActions url={i.url} />
                   </TD>
                 </TR>
               ))}

@@ -41,6 +41,10 @@ bash scripts/verify.sh scaffold   # or schema|engine|curation|all
 - **UI language: English only**
 - **Contradictions**: when sources disagree, both claims stay visible (`CONFLICTS_WITH` / open conflict) until a human resolves (`resolved_a` | `resolved_b` | `resolved_neither`)
 
+## Remaining work
+
+See [`docs/remaining-tasks.md`](docs/remaining-tasks.md) for deferred items (Neo4j, Access, Extract issue, Vectorize, discovery cron).
+
 ## Git
 
 - Feature branch only; `main` via PR

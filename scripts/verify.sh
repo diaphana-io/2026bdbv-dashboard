@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the test gate for a commit unit. Usage: scripts/verify.sh [unit]
-# Units: scaffold | schema | engine | curation | data | dashboard | contacts | map | measures | all
+# Units: scaffold | schema | engine | curation | data | dashboard | contacts | map | measures | lint | all
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -22,8 +22,15 @@ run_rust() {
   fi
 }
 
-run_web_typecheck() {
-  if [[ -d apps/web/node_modules ]]; then
+run_lint() {
+  if [[ -f Cargo.toml ]]; then
+    cargo fmt --all -- --check
+    cargo clippy --workspace -- -D warnings
+  fi
+}
+
+run_web_build() {
+  if [[ -d node_modules ]] || [[ -d apps/web/node_modules ]]; then
     npm run build -w @bdbv/web
   else
     echo "web deps missing; skip build"
@@ -61,14 +68,21 @@ case "$UNIT" in
     run_schema
     echo "data OK"
     ;;
+  lint)
+    run_lint
+    echo "lint OK"
+    ;;
   dashboard|contacts|map|measures)
     run_schema
     run_rust
+    run_web_build
     echo "$UNIT OK"
     ;;
   all)
+    run_lint
     run_schema
     run_rust
+    run_web_build
     echo "all OK"
     ;;
   *)

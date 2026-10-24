@@ -58,7 +58,10 @@ pub fn parse_feature_collection(json: &str) -> Result<Vec<Feature>, DataError> {
             .and_then(|x| x.as_str())
             .map(str::to_string)
             .unwrap_or_else(|| format!("f{i}"));
-        let props = f.get("properties").cloned().unwrap_or(Value::Object(Default::default()));
+        let props = f
+            .get("properties")
+            .cloned()
+            .unwrap_or(Value::Object(Default::default()));
         let geom = f.get("geometry").ok_or(DataError::MissingGeometry)?;
         let geometry: Geometry = serde_json::from_value(geom.clone())?;
         out.push(Feature {

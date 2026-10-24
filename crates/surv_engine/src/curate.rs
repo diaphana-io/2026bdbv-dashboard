@@ -8,13 +8,11 @@ pub fn normalize_url(url: &str) -> String {
         // drop tracking query
         u = base.to_string();
     }
-    while u.ends_with('/') && u.matches("://").count() == 1 {
+    if u.ends_with('/') && u.matches("://").count() == 1 {
         let without = u.trim_end_matches('/');
-        if without.ends_with(":/") || without.is_empty() {
-            break;
+        if !(without.ends_with(":/") || without.is_empty()) {
+            u = without.to_string();
         }
-        u = without.to_string();
-        break;
     }
     u
 }
@@ -31,10 +29,7 @@ pub fn claim_fingerprint(
     as_of_date: &str,
     object_value: &Value,
 ) -> String {
-    let payload = format!(
-        "{claim_type}|{subject_ref}|{as_of_date}|{}",
-        object_value.to_string()
-    );
+    let payload = format!("{claim_type}|{subject_ref}|{as_of_date}|{object_value}");
     content_hash(&payload)
 }
 
@@ -46,7 +41,9 @@ pub fn check_duplicate(_s: &mut Session, params: &Value) -> CmdResult {
         .cloned()
         .unwrap_or_default();
     let normalized = normalize_url(url);
-    let is_dup = existing.iter().any(|v| v.as_str() == Some(normalized.as_str()));
+    let is_dup = existing
+        .iter()
+        .any(|v| v.as_str() == Some(normalized.as_str()));
     Ok(json!({
         "normalized_url": normalized,
         "duplicate": is_dup,
@@ -115,7 +112,9 @@ pub fn approve_claim(_s: &mut Session, params: &Value) -> CmdResult {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     if duplicate {
-        return Err(EngineError::Failed("exact duplicate cannot be approved".into()));
+        return Err(EngineError::Failed(
+            "exact duplicate cannot be approved".into(),
+        ));
     }
     // Near/conflict: still approve, but surface both claims for human resolution later.
     let conflicts_with = params.get("conflicts_with_claim_id").cloned();
@@ -156,10 +155,7 @@ pub fn reject_claim(_s: &mut Session, params: &Value) -> CmdResult {
 }
 
 pub fn resolve_conflict(_s: &mut Session, params: &Value) -> CmdResult {
-    let resolution = params
-        .get("status")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let resolution = params.get("status").and_then(|v| v.as_str()).unwrap_or("");
     match resolution {
         "resolved_a" | "resolved_b" | "resolved_neither" => Ok(json!({
             "status": resolution,
@@ -229,5 +225,14 @@ mod curation_tests {
         assert_eq!(r["conflict"], true);
         assert_eq!(r["display"], "show_both");
         assert_eq!(r["resolution_required"], true);
+    }
+
+    #[test]
+    fn resolve_conflict_accepts_known_status() {
+        let mut s = Session::new("test");
+        let r = resolve_conflict(&mut s, &json!({ "status": "resolved_a" })).unwrap();
+        assert_eq!(r["resolved"], true);
+        assert_eq!(r["status"], "resolved_a");
+        assert!(resolve_conflict(&mut s, &json!({ "status": "nope" })).is_err());
     }
 }

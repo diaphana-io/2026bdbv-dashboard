@@ -1,6 +1,6 @@
 import { Badge } from "../../../components/ui/badge";
-import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
+import { ClaimReviewForm } from "../../../components/curate/claim-review-form";
 
 export default async function CurateReviewPage({
   searchParams,
@@ -25,33 +25,8 @@ export default async function CurateReviewPage({
         </Card>
         <Card>
           <CardHeader className="text-sm font-semibold">Claim</CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-zinc-600">claim_type</label>
-            <input
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-              defaultValue="case_count"
-            />
-            <label className="text-xs font-medium text-zinc-600">subject_ref</label>
-            <input
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-              defaultValue="KE"
-            />
-            <label className="text-xs font-medium text-zinc-600">as_of_date</label>
-            <input
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-              defaultValue="2026-10-20"
-            />
-            <label className="text-xs font-medium text-zinc-600">object_value (JSON)</label>
-            <textarea
-              className="min-h-24 rounded-md border border-zinc-300 px-3 py-1.5 font-mono text-xs"
-              defaultValue='{"confirmed":9,"deaths":1}'
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button type="button">Approve</Button>
-              <Button type="button" variant="destructive">
-                Reject
-              </Button>
-            </div>
+          <CardContent>
+            <ClaimReviewForm sourceUrl={url} />
           </CardContent>
         </Card>
       </div>
