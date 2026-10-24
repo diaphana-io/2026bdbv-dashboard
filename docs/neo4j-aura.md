@@ -68,13 +68,20 @@ If these are unset, the web app keeps serving static JSON under `apps/web/data` 
 
 ## Seed + health
 
+Requires `NEO4J_*` in the environment or `apps/web/.env`.
+
 ```bash
 npm run seed:neo4j
-# then with the app running:
+# re-run is idempotent (MERGE)
+npm run seed:neo4j
+
+# with the app running and same env:
 curl -s http://127.0.0.1:43127/api/health/neo4j
 ```
 
 Expect `{ "ok": true, "configured": true }` when Aura/local credentials work.
+
+Without Docker Desktop / Aura credentials, unit tests (`npm test -w @bdbv/web`) still cover config detection.
 
 ## Checklist
 
