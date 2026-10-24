@@ -1,10 +1,29 @@
-export default function Home() {
+import dynamic from "next/dynamic";
+import { getMapSnapshot } from "../lib/data";
+
+const OutbreakMap = dynamic(
+  () =>
+    import("../components/map/outbreak-map").then((m) => m.OutbreakMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[calc(100vh-3.25rem)] items-center justify-center bg-[#e8eef2] text-sm text-zinc-600">
+        Loading map…
+      </div>
+    ),
+  },
+);
+
+const MIN_DATE = "2026-05-01";
+const MAX_DATE = "2026-10-23";
+
+export default async function Home() {
+  const initialSnapshot = await getMapSnapshot(MAX_DATE);
   return (
-    <main className="flex min-h-[60vh] flex-col items-center justify-center gap-2 text-center">
-      <h1 className="text-lg font-semibold tracking-tight">2026 BDBV</h1>
-      <p className="max-w-md text-sm text-zinc-600">
-        Map-first surveillance view — coming next.
-      </p>
-    </main>
+    <OutbreakMap
+      initialSnapshot={initialSnapshot}
+      minDate={MIN_DATE}
+      maxDate={MAX_DATE}
+    />
   );
 }
