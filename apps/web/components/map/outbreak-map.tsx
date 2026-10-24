@@ -57,37 +57,40 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           "top-left",
         );
         mapRef.current = map;
-        map.resize();
-        map.fitBounds(
-          [
-            [-18, -35],
-            [52, 38],
-          ],
-          { padding: 48, duration: 0, pitch: 30, bearing: 0 },
-        );
-
-        resizeObserver = new ResizeObserver(() => {
-          map.resize();
-        });
-        resizeObserver.observe(containerRef.current);
 
         map.on("error", (e) => {
           console.warn("[OutbreakMap]", e.error);
         });
 
+        // Wait for style JSON readiness (not full tile paint) so a slow CDN
+        // does not hard-fail the map. Attach before resize/fitBounds.
         setLoading("basemap");
         await new Promise<void>((resolve, reject) => {
           const t = window.setTimeout(() => {
-            reject(new Error("Basemap load timed out"));
-          }, 20_000);
-          map.once("load", () => {
+            if (map.isStyleLoaded()) {
+              resolve();
+              return;
+            }
+            reject(new Error("Basemap style timed out"));
+          }, 15_000);
+          const done = () => {
             window.clearTimeout(t);
             resolve();
-          });
+          };
+          if (map.isStyleLoaded()) {
+            done();
+            return;
+          }
+          map.once("style.load", done);
         });
         if (cancelled) return;
 
         map.resize();
+        resizeObserver = new ResizeObserver(() => {
+          map.resize();
+        });
+        resizeObserver.observe(containerRef.current);
+
         map.fitBounds(
           [
             [-18, -35],
