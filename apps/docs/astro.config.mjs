@@ -11,6 +11,7 @@ export default defineConfig({
 			title: '2026 BDBV outbreak',
 			description:
 				'Background and references for the 2026 Bundibugyo virus disease (BDBV) outbreak in Africa.',
+			customCss: ['./src/styles/custom.css'],
 			social: [
 				{
 					icon: 'github',
