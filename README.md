@@ -2,7 +2,12 @@
 
 Surveillance dashboard for the 2026 Bundibugyo virus (BDBV) outbreak (NG / KE / UG focus).
 
-Repo: [diaphana-io/2026bdbv-dashboard](https://github.com/diaphana-io/2026bdbv-dashboard)
+- GitHub: [diaphana-io/2026bdbv-dashboard](https://github.com/diaphana-io/2026bdbv-dashboard)
+- Origin: [tetra4rnav/2026bdbv-dashboard](https://cursor.com/codebase/tetra4rnav/2026bdbv-dashboard)
+- Production target: `https://www.diaphana.io/2026bdbv/app` (blocked until Extract spec approved; staging only until then)
+- UI language: English
+- Curate routes: Cloudflare Access
+- Contradictions: show both claims until human resolve
 
 ## Stack
 
