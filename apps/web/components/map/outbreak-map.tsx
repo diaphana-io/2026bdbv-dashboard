@@ -41,29 +41,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         if (cancelled || !containerRef.current) return;
 
         setLoading("OutbreakMap");
+        // OpenFreeMap Positron — free, no API key. Revisit CARTO later if needed.
         const map = new maplibre.Map({
           container: containerRef.current,
-          style: {
-            version: 8,
-            glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-            sources: {
-              carto: {
-                type: "raster",
-                tiles: [
-                  "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-                ],
-                tileSize: 256,
-                attribution: "&copy; OpenStreetMap &copy; CARTO",
-              },
-            },
-            layers: [
-              {
-                id: "carto",
-                type: "raster",
-                source: "carto",
-              },
-            ],
-          },
+          style: "https://tiles.openfreemap.org/styles/positron",
           center: [20, 3],
           zoom: 2.5,
           pitch: 30,
@@ -94,9 +75,15 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           console.warn("[OutbreakMap]", e.error);
         });
 
-        setLoading("basemap (CARTO)");
-        await new Promise<void>((resolve) => {
-          map.once("load", () => resolve());
+        setLoading("basemap");
+        await new Promise<void>((resolve, reject) => {
+          const t = window.setTimeout(() => {
+            reject(new Error("Basemap load timed out"));
+          }, 20_000);
+          map.once("load", () => {
+            window.clearTimeout(t);
+            resolve();
+          });
         });
         if (cancelled) return;
 
@@ -109,7 +96,6 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           { padding: 48, duration: 0, pitch: 30, bearing: 0 },
         );
 
-        setLoading("case-layer / exposure-layer");
         ensureCaseLayers(map);
         ensureExposureLayer(map);
         updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
@@ -129,25 +115,6 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           }
         });
 
-        await new Promise<void>((resolve) => {
-          map.once("idle", () => resolve());
-          requestAnimationFrame(() => {
-            if (map.loaded()) resolve();
-          });
-        });
-        if (cancelled) return;
-
-        setLoading("travel-layer + three");
-        try {
-          const { attachTravelLayer } = await import("./travel-layer");
-          if (cancelled) return;
-          travelRef.current = await attachTravelLayer(map);
-          travelRef.current.setTravels(snapshot.travels, asOf);
-        } catch (err) {
-          console.error("[OutbreakMap] travel layer failed", err);
-        }
-
-        if (cancelled) return;
         map.resize();
         const canvas = map.getCanvas();
         if (!canvas.width || !canvas.height) {
@@ -156,7 +123,17 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           );
           return;
         }
+        // Basemap + case/exposure are ready — do not block UI on travel/three.
         setLoading(null);
+
+        try {
+          const { attachTravelLayer } = await import("./travel-layer");
+          if (cancelled) return;
+          travelRef.current = await attachTravelLayer(map);
+          travelRef.current.setTravels(snapshot.travels, asOf);
+        } catch (err) {
+          console.error("[OutbreakMap] travel layer failed", err);
+        }
       } catch (err) {
         if (!cancelled) {
           setMapError(
