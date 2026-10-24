@@ -1,6 +1,7 @@
 "use client";
 
 import type { CaseDetail } from "../../lib/data-types";
+import { Spinner } from "../ui/spinner";
 
 type Props = {
   detail: CaseDetail | null;
@@ -34,7 +35,10 @@ export function CaseDrawer({ detail, loading, onClose }: Props) {
       </div>
       <div className="overflow-y-auto px-3 py-2">
         {loading ? (
-          <p className="text-xs text-zinc-500">Loading…</p>
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <Spinner className="size-3.5" />
+            Loading…
+          </div>
         ) : (
           <ol className="space-y-2">
             {detail?.events.map((ev, i) => (

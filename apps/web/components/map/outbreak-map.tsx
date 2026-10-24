@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
+import { Spinner } from "../ui/spinner";
 import { ensureCaseLayers, onCaseClick, updateCaseLayers } from "./case-layer";
 import { CaseDrawer } from "./case-drawer";
 import {
@@ -31,11 +33,11 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   useEffect(() => {
     let cancelled = false;
     let removeClick: (() => void) | undefined;
+    let resizeObserver: ResizeObserver | undefined;
 
     async function boot() {
       try {
         const maplibre = await import("maplibre-gl");
-        await import("maplibre-gl/dist/maplibre-gl.css");
         if (cancelled || !containerRef.current) return;
 
         const map = new maplibre.Map({
@@ -73,11 +75,24 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         );
         mapRef.current = map;
 
-        map.on("load", async () => {
+        resizeObserver = new ResizeObserver(() => {
+          map.resize();
+        });
+        resizeObserver.observe(containerRef.current);
+
+        map.on("error", (e) => {
+          console.error("[OutbreakMap]", e.error);
+        });
+
+        map.once("load", () => {
+          if (cancelled) return;
+          map.resize();
           ensureCaseLayers(map);
           ensureExposureLayer(map);
           updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
           updateExposureLayer(map, snapshot.exposures);
+          setMapReady(true);
+
           removeClick = onCaseClick(map, async (caseId) => {
             setDetailLoading(true);
             setDetail(null);
@@ -92,11 +107,19 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
             }
           });
 
-          const { attachTravelLayer } = await import("./travel-layer");
-          if (cancelled) return;
-          travelRef.current = await attachTravelLayer(map);
-          travelRef.current.setTravels(snapshot.travels, asOf);
-          if (!cancelled) setMapReady(true);
+          void import("./travel-layer")
+            .then(({ attachTravelLayer }) => {
+              if (cancelled) return undefined;
+              return attachTravelLayer(map);
+            })
+            .then((handle) => {
+              if (cancelled || !handle) return;
+              travelRef.current = handle;
+              travelRef.current.setTravels(snapshot.travels, asOf);
+            })
+            .catch((err) => {
+              console.error("[OutbreakMap] travel layer failed", err);
+            });
         });
       } catch (err) {
         if (!cancelled) {
@@ -111,6 +134,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       removeClick?.();
       travelRef.current?.destroy();
       travelRef.current = null;
@@ -153,8 +177,9 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-[#e8eef2]">
       <div ref={containerRef} className="absolute inset-0" />
       {!mapReady && !mapError ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-zinc-600">
-          Loading map…
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#e8eef2]/80 text-sm text-zinc-600">
+          <Spinner className="size-6 text-zinc-500" />
+          <span>Loading map…</span>
         </div>
       ) : null}
       {mapError ? (
