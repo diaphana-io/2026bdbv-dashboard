@@ -1,21 +1,39 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isAccessEnforced, isAccessProtectedPath, verifyAccessJwt } from "./lib/access";
 
 /**
- * Staging/production gate notes:
- * - Cloudflare Access should protect /curate at the edge (preferred).
- * - This middleware enforces APP_ENV=production + EXTRACT_ENABLED≠true messaging only.
+ * Staging/production gates:
+ * - Cloudflare Access at the edge protects /curate (+ /api/curate) — preferred.
+ * - When CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set, this middleware
+ *   validates Cf-Access-Jwt-Assertion as defense in depth.
+ * - Production never serves Extract-enabled Curate until MATT-309 closes.
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const appEnv = process.env.APP_ENV ?? "staging";
   const extractEnabled = process.env.EXTRACT_ENABLED === "true";
 
-  if (appEnv === "production" && extractEnabled && pathname.startsWith("/curate")) {
-    // Hard stop: do not allow Extract-enabled production until issue resolved.
+  if (appEnv === "production" && extractEnabled && isAccessProtectedPath(pathname)) {
     return new NextResponse("Extract disabled in production until specification is approved", {
       status: 503,
     });
+  }
+
+  const accessEnv = {
+    teamDomain: process.env.CF_ACCESS_TEAM_DOMAIN,
+    audience: process.env.CF_ACCESS_AUD,
+  };
+
+  if (isAccessEnforced(accessEnv) && isAccessProtectedPath(pathname)) {
+    const token = request.headers.get("cf-access-jwt-assertion");
+    const err = await verifyAccessJwt(token, accessEnv);
+    if (err) {
+      return new NextResponse(err, {
+        status: 401,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
+    }
   }
 
   const res = NextResponse.next();
