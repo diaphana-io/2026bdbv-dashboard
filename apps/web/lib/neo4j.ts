@@ -79,6 +79,64 @@ function driverCacheKey(env: Neo4jEnv): string {
   return `${normalizeNeo4jUri(env.uri!)}\0${env.user}\0${env.password}\0${resolveNeo4jDatabase(env)}`;
 }
 
+/** Hard ceiling so a hung Bolt connect cannot yield Workers Error 1101. */
+export function neo4jSessionTimeoutMs(
+  source: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = source.NEO4J_SESSION_TIMEOUT_MS;
+  const n = raw ? Number(raw) : 2_500;
+  return Number.isFinite(n) && n > 0 ? n : 2_500;
+}
+
+export class Neo4jTimeoutError extends Error {
+  readonly ms: number;
+  constructor(ms: number) {
+    super(`neo4j_timeout:${ms}ms`);
+    this.name = "Neo4jTimeoutError";
+    this.ms = ms;
+  }
+}
+
+export function isNeo4jTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Neo4jTimeoutError ||
+    (err instanceof Error && err.name === "Neo4jTimeoutError") ||
+    (err instanceof Error && /^neo4j_timeout:/i.test(err.message))
+  );
+}
+
+/**
+ * Race `promise` against a hard deadline. Used so SSR/API always settle even
+ * when Aura Free's Bolt handshake never resolves.
+ */
+export function withHardTimeout<T>(
+  promise: Promise<T>,
+  ms: number = neo4jSessionTimeoutMs(),
+): Promise<T> {
+  if (!Number.isFinite(ms) || ms <= 0) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Neo4jTimeoutError(ms)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+function resetDriver(): void {
+  if (driver) {
+    void driver.close().catch(() => undefined);
+  }
+  driver = null;
+  driverKey = null;
+}
+
 export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
   if (!isNeo4jConfigured(env)) {
     throw new Error("neo4j_not_configured");
@@ -92,11 +150,12 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
     const uri = normalizeNeo4jUri(env.uri!);
     // Aura Free allows only a few concurrent Bolt connections; Workers
     // isolates share this driver — keep the pool tiny.
+    const sessionMs = neo4jSessionTimeoutMs();
     driver = neo4j.driver(uri, neo4j.auth.basic(env.user!, env.password!), {
       maxConnectionPoolSize: 1,
-      // Fail fast into JSON fallback instead of hanging the Worker ~10s.
-      connectionAcquisitionTimeout: 3_000,
-      connectionTimeout: 5_000,
+      // Stay under the hard session ceiling so pool waits lose to withHardTimeout.
+      connectionAcquisitionTimeout: Math.min(3_000, sessionMs),
+      connectionTimeout: Math.min(5_000, sessionMs),
       maxConnectionLifetime: 30_000,
       disableLosslessIntegers: true,
     });
@@ -109,10 +168,14 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
  * Serialize Bolt sessions inside one Worker isolate. Aura Free rejects /
  * stalls when many sessions race on a tiny pool (and across isolates the
  * instance still has a low concurrent-connection ceiling).
+ *
+ * Every queued run is wrapped in {@link withHardTimeout} so a hung session
+ * cannot wedge `sessionTail` forever (Workers Error 1101).
  */
 let sessionTail: Promise<unknown> = Promise.resolve();
 
 function isTransientNeo4jError(err: unknown): boolean {
+  if (isNeo4jTimeoutError(err)) return false;
   const msg = err instanceof Error ? err.message : String(err);
   return (
     /acquisition timed out/i.test(msg) ||
@@ -126,6 +189,8 @@ export async function withSession<T>(
   fn: (session: Session) => Promise<T>,
   env: Neo4jEnv = readNeo4jEnv(),
 ): Promise<T> {
+  const budgetMs = neo4jSessionTimeoutMs();
+
   const runOnce = async () => {
     const session = getDriver(env).session({
       database: resolveNeo4jDatabase(env),
@@ -149,7 +214,19 @@ export async function withSession<T>(
     }
   };
 
-  const next = sessionTail.then(run, run);
+  const guarded = async () => {
+    try {
+      return await withHardTimeout(run(), budgetMs);
+    } catch (err) {
+      if (isNeo4jTimeoutError(err)) {
+        // Drop hung connections so later requests can open a fresh driver.
+        resetDriver();
+      }
+      throw err;
+    }
+  };
+
+  const next = sessionTail.then(guarded, guarded);
   sessionTail = next.then(
     () => undefined,
     () => undefined,

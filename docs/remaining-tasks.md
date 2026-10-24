@@ -11,14 +11,15 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 - `scripts/verify.sh all` runs rustfmt + clippy + schema + rust tests + web build
 - Cloudflare Access for Curate (Zero Trust app **BDBV Curate** + Worker `CF_ACCESS_*`; preview AUD branched in `cloudflare.config.ts`) — [GitHub #4](https://github.com/diaphana-io/2026bdbv-dashboard/issues/4) / **MATT-312**
 - Neo4j Aura Free cutover (instance `bdbv-dashboard` / `928c135c` seeded; Worker `NEO4J_*` secrets; health ok) — [GitHub #3](https://github.com/diaphana-io/2026bdbv-dashboard/issues/3) / **MATT-311**
+- Curate graph serving design: hard Bolt timeout + isolate read cache + JSON fallback so Curate SSR cannot 1101 — [`docs/curate-graph-serving.md`](./curate-graph-serving.md) / [GitHub #7](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7) / **MATT-314**
 
 ## Still open (human / infra)
 
-1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
+1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then. Shared constraint with Curate: Workers must not hold responses hostage to Bolt ([`docs/curate-graph-serving.md`](./curate-graph-serving.md) / **MATT-314**).
 2. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
 3. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
-4. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet.
-5. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place.
+4. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet (R2 curated snapshots also complete the Curate read path in MATT-314).
+5. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place. After deploy, confirm Curate no longer intermittent-1101s (MATT-314 verify checkbox).
 
 ## Out of scope until Extract decision
 

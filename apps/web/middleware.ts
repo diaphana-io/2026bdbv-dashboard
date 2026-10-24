@@ -8,6 +8,8 @@ import { isAccessEnforced, isAccessProtectedPath, verifyAccessJwt } from "./lib/
  * - When CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set, this middleware
  *   validates Cf-Access-Jwt-Assertion as defense in depth.
  * - Production never serves Extract-enabled Curate until GitHub #2 / MATT-310 closes.
+ * - Never touch Neo4j here: Access/prefetch must not depend on Bolt
+ *   (see docs/curate-graph-serving.md / MATT-314).
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

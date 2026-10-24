@@ -59,9 +59,13 @@ bash scripts/provision-access-curate.sh
 
 The script creates a reusable Allow policy (email OTP-friendly email list from `ACCESS_ALLOWED_EMAILS`) and a self-hosted app for the four paths. It prints the AUD for `CF_ACCESS_AUD`. Do **not** re-run if **BDBV Curate** already exists (duplicates the app).
 
+## Prefetch / Neo4j
+
+Access login and Worker JWT middleware must **not** await Neo4j. Graph reads for Curate SSR use a hard Bolt timeout + JSON/stale fallback so a hung Aura connect cannot surface as Error 1101 after Access succeeds — see [`docs/curate-graph-serving.md`](./curate-graph-serving.md) (MATT-314).
+
 ## Verify
 
 1. Unauthenticated: `https://2026bdbv.diaphana.io/app/curate` → Access login.
-2. Authenticated curator: Curate UI loads; resolve/dismiss/review APIs succeed (graph persist needs Neo4j secrets separately).
+2. Authenticated curator: Curate UI loads; resolve/dismiss/review APIs succeed (graph persist needs Neo4j secrets separately). Opening Curate must not intermittent-1101 when Aura flaps.
 3. Public: `https://2026bdbv.diaphana.io/app/` stays reachable without login (Map). There is no `/app/cases` route today.
 4. After a preview deploy: Access login on preview Curate → no middleware 401 from AUD mismatch.
