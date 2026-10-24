@@ -28,7 +28,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 43127 --host 127.0.0.1",
-    "build": "vite build",
+    "build": "APP_BASE_PATH=/app vite build",
     "start": "vite preview --port 43127 --host 127.0.0.1",
     "deploy": "vinext-cloudflare deploy",
     "test": "vitest run"

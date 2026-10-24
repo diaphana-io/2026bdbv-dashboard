@@ -28,7 +28,8 @@ When `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set on the Worker, middlewa
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura)
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
-- `APP_BASE_PATH=/app` for production on `2026bdbv.diaphana.io` (also set as a Builds build variable)
+- `APP_BASE_PATH=/app` on the Worker (runtime) — production `vite build` defaults to `/app` when unset
+- Optional: Cloudflare Redirect Rule `2026bdbv.diaphana.io/` → `/app` so the apex path lands on the app
 - `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` after Access app is created
 - Optional: Workers AI / Vectorize bindings for measures RAG
 
