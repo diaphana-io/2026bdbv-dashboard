@@ -1,0 +1,18 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000099",
+    "visual_id": "TEST-KE-001",
+    "dataset": "test",
+    "classification": "confirmed",
+    "pathogen_identified": true,
+    "virus_species": "BDBV",
+    "identification_status": "lab_confirmed",
+    "in_outbreak_window": true,
+    "inclusion_reason": "lab_confirmed_bdbv",
+    "admin0_iso": "KE",
+    "confidence": "official",
+    "is_synthetic": true,
+    "date_of_onset": "2026-10-01",
+    "outcome": "alive"
+  }
+]

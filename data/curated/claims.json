@@ -1,0 +1,47 @@
+[
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000001",
+    "claim_type": "case_count",
+    "subject_ref": "KE",
+    "object_value": { "confirmed": 9, "deaths": 1, "contacts": 135 },
+    "as_of_date": "2026-10-20",
+    "claim_fingerprint": "ke-case-count-2026-10-20-official",
+    "confidence": "official",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:00:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "excerpt": "As of 20 October 2026, a total of nine cases of BVD including one death, has been reported in Kenya."
+  },
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000002",
+    "claim_type": "case_count",
+    "subject_ref": "NG",
+    "object_value": { "confirmed": 1, "deaths": 0, "contacts": 44 },
+    "as_of_date": "2026-10-20",
+    "claim_fingerprint": "ng-case-count-2026-10-20-official",
+    "confidence": "official",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:05:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000003",
+    "excerpt": "Nigeria confirmed one imported case... 44 contacts have been identified."
+  },
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000003",
+    "claim_type": "case_count",
+    "subject_ref": "KE",
+    "object_value": { "confirmed": 11, "deaths": 1 },
+    "as_of_date": "2026-10-21",
+    "claim_fingerprint": "ke-case-count-2026-10-21-news",
+    "confidence": "news_single",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:10:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000004",
+    "excerpt": "News report citing a higher Kenya case total pending official reconciliation."
+  }
+]

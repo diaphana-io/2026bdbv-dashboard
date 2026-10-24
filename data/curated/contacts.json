@@ -1,0 +1,83 @@
+[
+  {
+    "id": "a1111111-0000-4000-8000-000000000001",
+    "visual_id": "KE-C-001",
+    "dataset": "production",
+    "role": "contact",
+    "admin0_iso": "KE",
+    "risk_level": "high",
+    "was_quarantined": true,
+    "is_healthcare_worker": false,
+    "is_synthetic": false,
+    "exposure": {
+      "id": "a2222222-0000-4000-8000-000000000001",
+      "to_case_visual_id": "KE-2026-001",
+      "date_of_last_contact": "2026-10-05",
+      "exposure_setting": "household",
+      "intensity": "high",
+      "certainty": "confirmed",
+      "relationship": "family"
+    },
+    "followup": {
+      "id": "a3333333-0000-4000-8000-000000000001",
+      "window_start": "2026-10-05",
+      "window_end": "2026-10-26",
+      "incubation_max_days": 21,
+      "status": "became_case"
+    }
+  },
+  {
+    "id": "a1111111-0000-4000-8000-000000000002",
+    "visual_id": "KE-C-002",
+    "dataset": "production",
+    "role": "contact",
+    "admin0_iso": "KE",
+    "risk_level": "high",
+    "was_quarantined": true,
+    "is_healthcare_worker": true,
+    "is_synthetic": false,
+    "exposure": {
+      "id": "a2222222-0000-4000-8000-000000000002",
+      "to_case_visual_id": "KE-2026-001",
+      "date_of_last_contact": "2026-10-05",
+      "exposure_setting": "health_facility",
+      "intensity": "high",
+      "certainty": "confirmed",
+      "relationship": "healthcare_worker"
+    },
+    "followup": {
+      "id": "a3333333-0000-4000-8000-000000000002",
+      "window_start": "2026-10-05",
+      "window_end": "2026-10-26",
+      "incubation_max_days": 21,
+      "status": "active"
+    }
+  },
+  {
+    "id": "a1111111-0000-4000-8000-000000000010",
+    "visual_id": "NG-C-001",
+    "dataset": "production",
+    "role": "contact",
+    "admin0_iso": "NG",
+    "risk_level": "medium",
+    "was_quarantined": true,
+    "is_healthcare_worker": false,
+    "is_synthetic": false,
+    "exposure": {
+      "id": "a2222222-0000-4000-8000-000000000010",
+      "to_case_visual_id": "NG-2026-001",
+      "date_of_last_contact": "2026-10-11",
+      "exposure_setting": "health_facility",
+      "intensity": "medium",
+      "certainty": "probable",
+      "relationship": "healthcare_setting"
+    },
+    "followup": {
+      "id": "a3333333-0000-4000-8000-000000000010",
+      "window_start": "2026-10-11",
+      "window_end": "2026-11-01",
+      "incubation_max_days": 21,
+      "status": "active"
+    }
+  }
+]
