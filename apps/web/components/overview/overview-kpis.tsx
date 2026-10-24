@@ -1,8 +1,8 @@
 import { overviewKpis } from "../../lib/data";
 import { KpiTile } from "./kpi-tile";
 
-export function OverviewKpis({ country }: { country?: string }) {
-  const k = overviewKpis(country);
+export async function OverviewKpis({ country }: { country?: string }) {
+  const k = await overviewKpis(country);
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <KpiTile label="Confirmed" value={String(k.confirmed)} country={country ?? "NG+KE+UG"} />

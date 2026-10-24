@@ -12,7 +12,7 @@ export default async function ContactsPage({
 }) {
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
-  const rows = getContacts(country === "ALL" ? undefined : country);
+  const rows = await getContacts(country === "ALL" ? undefined : country);
 
   return (
     <main className="flex flex-col gap-4">

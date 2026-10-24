@@ -13,8 +13,8 @@ export default async function Home({
 }) {
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
-  const k = overviewKpis(country === "ALL" ? undefined : country);
-  const conflicts = getConflictViews();
+  const k = await overviewKpis(country === "ALL" ? undefined : country);
+  const conflicts = await getConflictViews();
 
   return (
     <main className="flex flex-col gap-4">

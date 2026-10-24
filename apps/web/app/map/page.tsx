@@ -10,10 +10,12 @@ export default async function MapPage({
 }) {
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
-  const rows = getCases({
-    country: country === "ALL" ? undefined : country,
-    includeTemporalSuspects: true,
-  }).filter((c) => typeof c.lat === "number" && typeof c.lon === "number");
+  const rows = (
+    await getCases({
+      country: country === "ALL" ? undefined : country,
+      includeTemporalSuspects: true,
+    })
+  ).filter((c) => typeof c.lat === "number" && typeof c.lon === "number");
 
   return (
     <main className="flex flex-col gap-4">

@@ -2,14 +2,15 @@ import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { getCases, getSources } from "../../lib/data";
 
-export default function TimelinePage() {
+export default async function TimelinePage() {
+  const [cases, sources] = await Promise.all([getCases(), getSources()]);
   const events = [
-    ...getCases().map((c) => ({
+    ...cases.map((c) => ({
       date: c.date_of_reporting ?? c.date_of_onset ?? "",
       label: `${c.visual_id} · ${c.classification}`,
       kind: "case" as const,
     })),
-    ...getSources().map((s) => ({
+    ...sources.map((s) => ({
       date: (s.published_at ?? "").slice(0, 10),
       label: s.title ?? s.url,
       kind: s.kind.startsWith("official") ? ("official" as const) : ("news" as const),

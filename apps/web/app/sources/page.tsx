@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
 import { getSources } from "../../lib/data";
 
-export default function SourcesPage() {
-  const rows = getSources();
+export default async function SourcesPage() {
+  const rows = await getSources();
   return (
     <main className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold">Sources</h1>

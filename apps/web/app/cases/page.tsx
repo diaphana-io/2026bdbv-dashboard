@@ -12,7 +12,7 @@ export default async function CasesPage({
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
   const confirmedOnly = sp.confirmed === "1";
-  const rows = getCases({
+  const rows = await getCases({
     country: country === "ALL" ? undefined : country,
     confirmedOnly,
     includeTemporalSuspects: !confirmedOnly,
