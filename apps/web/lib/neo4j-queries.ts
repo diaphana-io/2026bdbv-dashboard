@@ -1,11 +1,18 @@
 import type { Integer, Node, Record as Neo4jRecord } from "neo4j-driver";
 import type {
+  CaseDetail,
+  CaseDetailEvent,
   CaseQueryOpts,
   CaseRow,
   ClaimRow,
   ConflictView,
   ContactRow,
   InboxRow,
+  MapAggregate,
+  MapCase,
+  MapExposure,
+  MapSnapshot,
+  MapTravel,
   MeasureRow,
   SourceRow,
 } from "./data-types";
@@ -327,5 +334,255 @@ export async function overviewKpisNeo4j(country?: string) {
         : "2026-10-23";
 
     return { confirmed, deaths, temporal, followup, asOf };
+  });
+}
+
+export async function getMapSnapshotNeo4j(asOf: string): Promise<MapSnapshot> {
+  return withSession(async (session) => {
+    const aggRes = await session.run(
+      `
+      MATCH (a:AdminUnit {tracking_mode: 'aggregate'})
+      OPTIONAL MATCH (cl:Claim)
+      WHERE cl.claim_type = 'case_count'
+        AND cl.subject_ref = a.iso
+        AND cl.review_status = 'approved'
+        AND cl.as_of_date <= $asOf
+      WITH a, cl
+      ORDER BY cl.as_of_date DESC
+      WITH a, collect(cl)[0] AS latest
+      WHERE latest IS NOT NULL AND a.lat IS NOT NULL AND a.lon IS NOT NULL
+      RETURN a, latest
+      `,
+      { asOf },
+    );
+    const aggregates: MapAggregate[] = aggRes.records.map((r) => {
+      const a = props(r.get("a") as Node);
+      const claim = claimFromNode(r.get("latest") as Node);
+      return {
+        admin_iso: String(a.iso),
+        name: String(a.name),
+        lat: num(a.lat)!,
+        lon: num(a.lon)!,
+        confirmed: Number(claim.object_value.confirmed ?? 0),
+        deaths: Number(claim.object_value.deaths ?? 0),
+        as_of_date: claim.as_of_date,
+      };
+    });
+
+    const caseRes = await session.run(
+      `
+      MATCH (c:Case)
+      WHERE c.dataset = 'production'
+        AND c.lat IS NOT NULL AND c.lon IS NOT NULL
+        AND coalesce(c.date_of_reporting, c.date_of_onset) <= $asOf
+      RETURN c
+      ORDER BY c.visual_id
+      `,
+      { asOf },
+    );
+    const mapCases: MapCase[] = caseRes.records.map((r) => {
+      const c = caseFromNode(r.get("c") as Node);
+      return {
+        id: c.id,
+        visual_id: c.visual_id,
+        admin0_iso: c.admin0_iso,
+        classification: c.classification,
+        lat: c.lat!,
+        lon: c.lon!,
+        date_of_onset: c.date_of_onset ?? null,
+        date_of_reporting: c.date_of_reporting ?? null,
+      };
+    });
+
+    const travelRes = await session.run(
+      `
+      MATCH (p:Person)-[:TRAVELED]->(t:TravelLeg)
+      OPTIONAL MATCH (t)-[:FROM]->(fromA:AdminUnit)
+      OPTIONAL MATCH (t)-[:TO]->(toA:AdminUnit)
+      OPTIONAL MATCH (p)-[:HAS_CASE]->(c:Case)
+      WHERE coalesce(t.departed_at, t.arrived_at) <= $asOf
+        AND fromA.lat IS NOT NULL AND toA.lat IS NOT NULL
+      RETURN t, p, fromA, toA, c
+      `,
+      { asOf },
+    );
+    const travels: MapTravel[] = travelRes.records.map((r) => {
+      const t = props(r.get("t") as Node);
+      const p = props(r.get("p") as Node);
+      const fromA = props(r.get("fromA") as Node);
+      const toA = props(r.get("toA") as Node);
+      const c = r.get("c") as Node | null;
+      return {
+        id: String(t.id),
+        person_id: String(p.id),
+        case_id: c ? String(props(c).id) : null,
+        mode: String(t.mode ?? "unknown"),
+        departed_at: (t.departed_at as string | null) ?? null,
+        arrived_at: (t.arrived_at as string | null) ?? null,
+        from: {
+          admin_id: String(fromA.id),
+          iso: String(fromA.iso),
+          lat: num(fromA.lat)!,
+          lon: num(fromA.lon)!,
+        },
+        to: {
+          admin_id: String(toA.id),
+          iso: String(toA.iso),
+          lat: num(toA.lat)!,
+          lon: num(toA.lon)!,
+        },
+      };
+    });
+
+    const expRes = await session.run(
+      `
+      MATCH (p:Person)-[e:EXPOSED_TO]->(c:Case)
+      WHERE p.role = 'contact'
+        AND p.dataset = 'production'
+        AND e.date_of_last_contact <= $asOf
+      RETURN p, e, c
+      `,
+      { asOf },
+    );
+    const exposures: MapExposure[] = expRes.records.map((r) => {
+      const p = props(r.get("p") as Node);
+      const e = r.get("e").properties as Record<string, unknown>;
+      const c = caseFromNode(r.get("c") as Node);
+      return {
+        from_person_id: String(p.id),
+        from_visual_id: String(p.visual_id),
+        to_case_id: c.id,
+        to_case_visual_id: c.visual_id,
+        date_of_last_contact: String(e.date_of_last_contact),
+        to_lat: c.lat,
+        to_lon: c.lon,
+      };
+    });
+
+    return { asOf, aggregates, cases: mapCases, travels, exposures };
+  });
+}
+
+export async function getCaseDetailNeo4j(
+  caseId: string,
+): Promise<CaseDetail | null> {
+  return withSession(async (session) => {
+    const caseRes = await session.run(
+      `MATCH (c:Case {id: $caseId}) RETURN c LIMIT 1`,
+      { caseId },
+    );
+    if (caseRes.records.length === 0) return null;
+    const cNode = caseRes.records[0].get("c") as Node;
+    const c = caseFromNode(cNode);
+    const events: CaseDetailEvent[] = [];
+    if (c.date_of_onset) {
+      events.push({
+        kind: "onset",
+        at: c.date_of_onset,
+        label: "Symptom onset",
+      });
+    }
+    if (c.date_of_reporting) {
+      events.push({
+        kind: "reporting",
+        at: c.date_of_reporting,
+        label: "Reported",
+      });
+    }
+
+    const travelRes = await session.run(
+      `
+      MATCH (p:Person)-[:HAS_CASE]->(c:Case {id: $caseId})
+      MATCH (p)-[:TRAVELED]->(t:TravelLeg)
+      OPTIONAL MATCH (t)-[:FROM]->(fromA:AdminUnit)
+      OPTIONAL MATCH (t)-[:TO]->(toA:AdminUnit)
+      RETURN t, fromA, toA
+      `,
+      { caseId },
+    );
+    for (const r of travelRes.records) {
+      const t = props(r.get("t") as Node);
+      const fromA = r.get("fromA") as Node | null;
+      const toA = r.get("toA") as Node | null;
+      const at =
+        (t.arrived_at as string | null) ?? (t.departed_at as string | null);
+      if (!at) continue;
+      events.push({
+        kind: "travel",
+        at,
+        label: `Travel ${fromA ? props(fromA).iso : "?"} → ${toA ? props(toA).iso : "?"} (${t.mode})`,
+        meta: {
+          mode: t.mode,
+          departed_at: t.departed_at,
+          arrived_at: t.arrived_at,
+        },
+      });
+    }
+
+    const hospRes = await session.run(
+      `
+      MATCH (c:Case {id: $caseId})-[:HAS_HOSPITALIZATION]->(h:Hospitalization)
+      RETURN h
+      `,
+      { caseId },
+    );
+    for (const r of hospRes.records) {
+      const h = props(r.get("h") as Node);
+      if (!h.admitted_at) continue;
+      events.push({
+        kind: "hospitalization",
+        at: String(h.admitted_at),
+        label: h.facility_name
+          ? `Admitted · ${h.facility_name}`
+          : "Admitted",
+        meta: {
+          discharged_at: h.discharged_at,
+          facility_name: h.facility_name,
+        },
+      });
+    }
+
+    const expRes = await session.run(
+      `
+      MATCH (p:Person)-[e:EXPOSED_TO]->(c:Case {id: $caseId})
+      RETURN p, e
+      `,
+      { caseId },
+    );
+    for (const r of expRes.records) {
+      const p = props(r.get("p") as Node);
+      const e = r.get("e").properties as Record<string, unknown>;
+      events.push({
+        kind: "exposure",
+        at: String(e.date_of_last_contact),
+        label: `Contact ${p.visual_id}`,
+        meta: { contact_id: p.id, intensity: e.intensity },
+      });
+    }
+
+    if (c.outcome && c.outcome !== "unknown") {
+      const outcomeAt =
+        (props(cNode).date_of_outcome as string | undefined) ??
+        c.date_of_reporting ??
+        c.date_of_onset;
+      if (outcomeAt) {
+        events.push({
+          kind: "outcome",
+          at: String(outcomeAt),
+          label: `Outcome: ${c.outcome}`,
+        });
+      }
+    }
+
+    events.sort((a, b) => a.at.localeCompare(b.at));
+    return {
+      id: c.id,
+      visual_id: c.visual_id,
+      admin0_iso: c.admin0_iso,
+      classification: c.classification,
+      lat: c.lat,
+      lon: c.lon,
+      events,
+    };
   });
 }

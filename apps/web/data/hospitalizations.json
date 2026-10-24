@@ -1,0 +1,23 @@
+[
+  {
+    "id": "a1111111-0000-4000-8000-000000000101",
+    "case_id": "cccccccc-0000-4000-8000-000000000001",
+    "admitted_at": "2026-10-03",
+    "discharged_at": "2026-10-05",
+    "facility_name": "Kenyatta National Hospital"
+  },
+  {
+    "id": "a1111111-0000-4000-8000-000000000102",
+    "case_id": "cccccccc-0000-4000-8000-000000000003",
+    "admitted_at": "2026-10-11",
+    "discharged_at": null,
+    "facility_name": "National Hospital Abuja"
+  },
+  {
+    "id": "a1111111-0000-4000-8000-000000000103",
+    "case_id": "cccccccc-0000-4000-8000-000000000004",
+    "admitted_at": "2026-05-16",
+    "discharged_at": "2026-06-02",
+    "facility_name": "Entebbe Regional Referral Hospital"
+  }
+]

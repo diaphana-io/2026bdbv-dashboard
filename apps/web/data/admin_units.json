@@ -1,0 +1,38 @@
+[
+  {
+    "id": "admin0-CD",
+    "iso": "CD",
+    "level": "admin0",
+    "name": "Democratic Republic of the Congo",
+    "tracking_mode": "aggregate",
+    "lat": 0.515,
+    "lon": 29.291
+  },
+  {
+    "id": "admin0-UG",
+    "iso": "UG",
+    "level": "admin0",
+    "name": "Uganda",
+    "tracking_mode": "individual",
+    "lat": 0.3476,
+    "lon": 32.5825
+  },
+  {
+    "id": "admin0-KE",
+    "iso": "KE",
+    "level": "admin0",
+    "name": "Kenya",
+    "tracking_mode": "individual",
+    "lat": -1.2921,
+    "lon": 36.8219
+  },
+  {
+    "id": "admin0-NG",
+    "iso": "NG",
+    "level": "admin0",
+    "name": "Nigeria",
+    "tracking_mode": "individual",
+    "lat": 9.0765,
+    "lon": 7.3986
+  }
+]
