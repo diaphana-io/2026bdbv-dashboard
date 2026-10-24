@@ -1,3 +1,4 @@
+import tls from "node:tls";
 import neo4j, { type Driver, type Session } from "neo4j-driver";
 
 export type Neo4jEnv = {
@@ -5,6 +6,29 @@ export type Neo4jEnv = {
   user?: string;
   password?: string;
 };
+
+/**
+ * neo4j-driver always passes `rejectUnauthorized` into `tls.connect`.
+ * Cloudflare Workers' node:tls throws if that option is present at all
+ * (certs are still verified by the runtime). Strip it before connect.
+ */
+let tlsPatchedForWorkers = false;
+function patchTlsConnectForWorkers(): void {
+  if (tlsPatchedForWorkers) return;
+  tlsPatchedForWorkers = true;
+  const original = tls.connect.bind(tls);
+  // Overloads: connect(options), connect(port, options), connect(port, host, options), …
+  (tls as typeof tls & { connect: typeof tls.connect }).connect = ((
+    ...args: unknown[]
+  ) => {
+    for (const arg of args) {
+      if (arg && typeof arg === "object" && "rejectUnauthorized" in arg) {
+        delete (arg as { rejectUnauthorized?: boolean }).rejectUnauthorized;
+      }
+    }
+    return (original as (...a: unknown[]) => tls.TLSSocket)(...args);
+  }) as typeof tls.connect;
+}
 
 export function readNeo4jEnv(
   source: NodeJS.ProcessEnv | Neo4jEnv = process.env,
@@ -50,15 +74,14 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
   if (!isNeo4jConfigured(env)) {
     throw new Error("neo4j_not_configured");
   }
+  patchTlsConnectForWorkers();
   const key = driverCacheKey(env);
   if (!driver || driverKey !== key) {
     if (driver) {
       void driver.close().catch(() => undefined);
     }
-    driver = neo4j.driver(
-      normalizeNeo4jUri(env.uri!),
-      neo4j.auth.basic(env.user!, env.password!),
-    );
+    const uri = normalizeNeo4jUri(env.uri!);
+    driver = neo4j.driver(uri, neo4j.auth.basic(env.user!, env.password!));
     driverKey = key;
   }
   return driver;
