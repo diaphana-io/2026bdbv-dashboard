@@ -7,6 +7,7 @@ import type {
   ClaimRow,
   ConflictView,
   ContactRow,
+  CountryStatRow,
   InboxRow,
   MapAggregate,
   MapCase,
@@ -585,4 +586,11 @@ export async function getCaseDetailNeo4j(
       events,
     };
   });
+}
+
+/** Stub — country stats are not derived from MapCase rollups. */
+export async function getCountryStatsNeo4j(
+  _asOf?: string,
+): Promise<CountryStatRow[]> {
+  return [];
 }

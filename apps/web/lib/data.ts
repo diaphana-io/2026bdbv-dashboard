@@ -4,6 +4,7 @@ import {
   getClaimsJson,
   getConflictViewsJson,
   getContactsJson,
+  getCountryStatsJson,
   getInboxCandidatesJson,
   getMapSnapshotJson,
   getMeasuresJson,
@@ -19,6 +20,7 @@ import {
   getClaimsNeo4j,
   getConflictViewsNeo4j,
   getContactsNeo4j,
+  getCountryStatsNeo4j,
   getInboxCandidatesNeo4j,
   getMapSnapshotNeo4j,
   getMeasuresNeo4j,
@@ -35,6 +37,7 @@ export type {
   ConflictRow,
   ConflictView,
   ContactRow,
+  CountryStatRow,
   InboxRow,
   MapSnapshot,
   MeasureRow,
@@ -113,5 +116,13 @@ export async function getCaseDetail(caseId: string) {
   return fromNeo4jOrJson(
     () => getCaseDetailNeo4j(caseId),
     () => getCaseDetailJson(caseId),
+  );
+}
+
+/** Country-level stats seam — stubs return [] until real records exist. */
+export async function getCountryStats(asOf?: string) {
+  return fromNeo4jOrJson(
+    () => getCountryStatsNeo4j(asOf),
+    () => getCountryStatsJson(asOf),
   );
 }

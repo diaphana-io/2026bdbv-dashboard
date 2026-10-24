@@ -65,3 +65,30 @@ export function thinBasemapStyle(mode: CaseLayerMode): StyleSpecification {
     ],
   };
 }
+
+export const BASEMAPS = {
+  "natural-earth-light": {
+    label: "Natural Earth (light)",
+    mode: "light" as const satisfies CaseLayerMode,
+    style: () => thinBasemapStyle("light"),
+  },
+  "natural-earth-dark": {
+    label: "Natural Earth (dark)",
+    mode: "dark" as const satisfies CaseLayerMode,
+    style: () => thinBasemapStyle("dark"),
+  },
+} as const;
+
+export type BasemapId = keyof typeof BASEMAPS;
+
+export function isBasemapId(value: string): value is BasemapId {
+  return value in BASEMAPS;
+}
+
+export function basemapIdForUiTheme(
+  resolvedTheme: string | undefined,
+): BasemapId {
+  return resolvedTheme === "dark"
+    ? "natural-earth-dark"
+    : "natural-earth-light";
+}

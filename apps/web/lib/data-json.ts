@@ -18,6 +18,7 @@ import type {
   ConflictRow,
   ConflictView,
   ContactRow,
+  CountryStatRow,
   InboxRow,
   MapAggregate,
   MapSnapshot,
@@ -328,4 +329,9 @@ export function getCaseDetailJson(caseId: string): CaseDetail | null {
     lon: c.lon,
     events,
   };
+}
+
+/** Stub — country stats are not derived from MapCase rollups. */
+export function getCountryStatsJson(_asOf?: string): CountryStatRow[] {
+  return [];
 }

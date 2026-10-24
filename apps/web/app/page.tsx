@@ -1,3 +1,4 @@
+import { MapShell } from "../components/layout/map-shell";
 import { OutbreakMap } from "../components/map/outbreak-map";
 import { getMapSnapshot } from "../lib/data";
 
@@ -7,10 +8,12 @@ const MAX_DATE = "2026-10-23";
 export default async function Home() {
   const initialSnapshot = await getMapSnapshot(MAX_DATE);
   return (
-    <OutbreakMap
-      initialSnapshot={initialSnapshot}
-      minDate={MIN_DATE}
-      maxDate={MAX_DATE}
-    />
+    <MapShell>
+      <OutbreakMap
+        initialSnapshot={initialSnapshot}
+        minDate={MIN_DATE}
+        maxDate={MAX_DATE}
+      />
+    </MapShell>
   );
 }

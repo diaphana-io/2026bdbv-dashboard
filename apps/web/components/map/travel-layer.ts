@@ -54,6 +54,7 @@ function progressAt(asOf: string, departed: string, arrived: string): number {
 export type TravelLayerHandle = {
   setTravels: (travels: MapTravel[], asOf: string) => void;
   setHighlightCaseId: (caseId: string | null) => void;
+  setVisible: (visible: boolean) => void;
   destroy: () => void;
 };
 
@@ -71,6 +72,7 @@ export async function attachTravelLayer(
   const arcs: ArcState[] = [];
   let asOfDate = "2099-01-01";
   let highlightCaseId: string | null = null;
+  let layerVisible = true;
 
   const layer: CustomLayerInterface = {
     id: "bdbv-travel-three",
@@ -86,6 +88,10 @@ export async function attachTravelLayer(
     },
     render(_gl, args) {
       if (!renderer) return;
+      if (!layerVisible) {
+        renderer.resetState();
+        return;
+      }
       const matrix =
         "defaultProjectionData" in args &&
         args.defaultProjectionData &&
@@ -186,6 +192,10 @@ export async function attachTravelLayer(
     },
     setHighlightCaseId(caseId: string | null) {
       highlightCaseId = caseId;
+      map.triggerRepaint();
+    },
+    setVisible(visible: boolean) {
+      layerVisible = visible;
       map.triggerRepaint();
     },
     destroy() {

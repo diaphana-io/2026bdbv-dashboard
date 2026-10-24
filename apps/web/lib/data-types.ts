@@ -187,3 +187,18 @@ export type CaseDetail = {
   lon?: number;
   events: CaseDetailEvent[];
 };
+
+/**
+ * Country-level statistics — a separate concept from summing MapCase rows
+ * or MapAggregate claim counts. Do not derive these from person-level cases.
+ */
+export type CountryStatRow = {
+  admin0_iso: string;
+  name: string;
+  confirmed: number;
+  suspected: number;
+  probable?: number;
+  recovered: number;
+  deceased: number;
+  asOf: string;
+};
