@@ -17,10 +17,12 @@ export default defineConfig(({ isPreview }) => ({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-24",
     compatibilityFlags: ["nodejs_compat"],
-    // Production stays on the custom domain only. Previews need workers.dev /
-    // preview URLs so branch deploys are reachable without touching production.
-    workersDev: isPreview,
-    previewUrls: isPreview,
+    // Production: custom domain only (workers.dev Production stays off).
+    // previewUrls must stay true on every deploy — it is a Worker-level host
+    // flag; gating it on isPreview lets production deploys turn Preview off,
+    // which makes `cf previews deploy` succeed with empty preview_urls.
+    workersDev: false,
+    previewUrls: true,
     domains: isPreview ? [] : ["2026bdbv.diaphana.io"],
     assets: {
       htmlHandling: "none",
