@@ -66,17 +66,7 @@ export default function CuratePage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Extract</span>
-          <a
-            className="text-xs text-blue-700 hover:underline"
-            href="https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Spec issue (MATT-309)
-          </a>
-        </CardHeader>
+        <CardHeader className="text-sm font-semibold">Extract</CardHeader>
         <CardContent className="text-sm text-zinc-700">
           {extractEnabled
             ? "Extract backend enabled"
