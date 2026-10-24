@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import "maplibre-gl/dist/maplibre-gl.css";
 import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
-import { Spinner } from "../ui/spinner";
 import { ensureCaseLayers, onCaseClick, updateCaseLayers } from "./case-layer";
 import { CaseDrawer } from "./case-drawer";
 import {
   ensureExposureLayer,
   updateExposureLayer,
 } from "./exposure-layer";
+import { MapBootStatus } from "./map-boot-status";
 import { TimeSlider } from "./time-slider";
 import type { TravelLayerHandle } from "./travel-layer";
 
@@ -27,7 +26,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
+  const [loading, setLoading] = useState<string | null>("maplibre-gl");
   const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,13 +36,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     async function boot() {
       try {
+        setLoading("maplibre-gl");
         const maplibre = await import("maplibre-gl");
         if (cancelled || !containerRef.current) return;
 
+        setLoading("OutbreakMap");
         const map = new maplibre.Map({
           container: containerRef.current,
           style: {
             version: 8,
+            glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
             sources: {
               carto: {
                 type: "raster",
@@ -62,10 +64,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
               },
             ],
           },
-          center: [28, 2],
-          zoom: 3.2,
-          pitch: 45,
-          bearing: -10,
+          center: [20, 3],
+          zoom: 2.5,
+          pitch: 30,
+          bearing: 0,
           minZoom: 0,
           maxZoom: 14,
         });
@@ -74,6 +76,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           "top-left",
         );
         mapRef.current = map;
+        map.resize();
+        map.fitBounds(
+          [
+            [-18, -35],
+            [52, 38],
+          ],
+          { padding: 48, duration: 0, pitch: 30, bearing: 0 },
+        );
 
         resizeObserver = new ResizeObserver(() => {
           map.resize();
@@ -81,51 +91,78 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         resizeObserver.observe(containerRef.current);
 
         map.on("error", (e) => {
-          console.error("[OutbreakMap]", e.error);
+          console.warn("[OutbreakMap]", e.error);
         });
 
-        map.once("load", () => {
-          if (cancelled) return;
-          map.resize();
-          ensureCaseLayers(map);
-          ensureExposureLayer(map);
-          updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
-          updateExposureLayer(map, snapshot.exposures);
-          setMapReady(true);
+        setLoading("basemap (CARTO)");
+        await new Promise<void>((resolve) => {
+          map.once("load", () => resolve());
+        });
+        if (cancelled) return;
 
-          removeClick = onCaseClick(map, async (caseId) => {
-            setDetailLoading(true);
-            setDetail(null);
-            travelRef.current?.setHighlightCaseId(caseId);
-            try {
-              const res = await fetch(
-                `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
-              );
-              if (res.ok) setDetail((await res.json()) as CaseDetail);
-            } finally {
-              setDetailLoading(false);
-            }
+        map.resize();
+        map.fitBounds(
+          [
+            [-18, -35],
+            [52, 38],
+          ],
+          { padding: 48, duration: 0, pitch: 30, bearing: 0 },
+        );
+
+        setLoading("case-layer / exposure-layer");
+        ensureCaseLayers(map);
+        ensureExposureLayer(map);
+        updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
+        updateExposureLayer(map, snapshot.exposures);
+
+        removeClick = onCaseClick(map, async (caseId) => {
+          setDetailLoading(true);
+          setDetail(null);
+          travelRef.current?.setHighlightCaseId(caseId);
+          try {
+            const res = await fetch(
+              `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
+            );
+            if (res.ok) setDetail((await res.json()) as CaseDetail);
+          } finally {
+            setDetailLoading(false);
+          }
+        });
+
+        await new Promise<void>((resolve) => {
+          map.once("idle", () => resolve());
+          requestAnimationFrame(() => {
+            if (map.loaded()) resolve();
           });
-
-          void import("./travel-layer")
-            .then(({ attachTravelLayer }) => {
-              if (cancelled) return undefined;
-              return attachTravelLayer(map);
-            })
-            .then((handle) => {
-              if (cancelled || !handle) return;
-              travelRef.current = handle;
-              travelRef.current.setTravels(snapshot.travels, asOf);
-            })
-            .catch((err) => {
-              console.error("[OutbreakMap] travel layer failed", err);
-            });
         });
+        if (cancelled) return;
+
+        setLoading("travel-layer + three");
+        try {
+          const { attachTravelLayer } = await import("./travel-layer");
+          if (cancelled) return;
+          travelRef.current = await attachTravelLayer(map);
+          travelRef.current.setTravels(snapshot.travels, asOf);
+        } catch (err) {
+          console.error("[OutbreakMap] travel layer failed", err);
+        }
+
+        if (cancelled) return;
+        map.resize();
+        const canvas = map.getCanvas();
+        if (!canvas.width || !canvas.height) {
+          setMapError(
+            `Map canvas is ${canvas.width}×${canvas.height}px — layout/CSS failed`,
+          );
+          return;
+        }
+        setLoading(null);
       } catch (err) {
         if (!cancelled) {
           setMapError(
             err instanceof Error ? err.message : "Failed to initialize map",
           );
+          setLoading(null);
         }
       }
     }
@@ -175,18 +212,11 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
   return (
     <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-[#e8eef2]">
-      <div ref={containerRef} className="absolute inset-0" />
-      {!mapReady && !mapError ? (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#e8eef2]/80 text-sm text-zinc-600">
-          <Spinner className="size-6 text-zinc-500" />
-          <span>Loading map…</span>
-        </div>
-      ) : null}
-      {mapError ? (
-        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-red-700">
-          {mapError}
-        </div>
-      ) : null}
+      <div
+        ref={containerRef}
+        className="absolute inset-0 h-full w-full [&_.maplibregl-map]:!h-full [&_.maplibregl-map]:!w-full"
+      />
+      <MapBootStatus loading={loading} error={mapError} />
       <CaseDrawer
         detail={detail}
         loading={detailLoading}
@@ -195,7 +225,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           travelRef.current?.setHighlightCaseId(null);
         }}
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
         <TimeSlider
           min={minDate}
           max={maxDate}
