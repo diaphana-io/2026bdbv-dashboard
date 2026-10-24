@@ -37,7 +37,7 @@ Create Free instance, seed, and wire secrets: [`docs/neo4j-aura.md`](./neo4j-aur
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
 - `APP_BASE_PATH=/app` on the Worker (runtime) — production `vite build` defaults to `/app` when unset
-- Optional: Cloudflare Redirect Rule `2026bdbv.diaphana.io/` → `/app` so the apex path lands on the app
+- Cloudflare Single Redirect: `2026bdbv.diaphana.io/` → `https://2026bdbv.diaphana.io/app` (`http_request_dynamic_redirect`; also mirrored in `apps/web/next.config.ts` redirects)
 - `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` after Access app is created
 - Optional: Workers AI / Vectorize bindings for measures RAG
 
