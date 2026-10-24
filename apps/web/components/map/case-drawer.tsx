@@ -1,7 +1,8 @@
 "use client";
 
 import type { CaseDetail } from "../../lib/data-types";
-import { Spinner } from "../ui/spinner";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
   detail: CaseDetail | null;
@@ -25,13 +26,9 @@ export function CaseDrawer({ detail, loading, onClose }: Props) {
             </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100"
-        >
+        <Button type="button" variant="ghost" size="xs" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
       <div className="overflow-y-auto px-3 py-2">
         {loading ? (

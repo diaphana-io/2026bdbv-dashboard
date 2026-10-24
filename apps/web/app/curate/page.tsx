@@ -1,6 +1,13 @@
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
 import { getConflictViews, getInboxCandidates } from "../../lib/data";
 import { ConflictPair } from "../../components/conflicts/conflict-pair";
 import { ResolveConflictActions } from "../../components/conflicts/resolve-conflict-actions";
@@ -32,37 +39,37 @@ export default async function CuratePage() {
         </CardHeader>
         <CardContent className="p-0">
           <Table>
-            <THead>
-              <TR>
-                <TH>Title</TH>
-                <TH>Publisher</TH>
-                <TH>Kind</TH>
-                <TH>Actions</TH>
-              </TR>
-            </THead>
-            <TBody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Publisher</TableHead>
+                <TableHead>Kind</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {inbox.map((i) => (
-                <TR key={i.id}>
-                  <TD>
+                <TableRow key={i.id}>
+                  <TableCell>
                     <a href={i.url} className="text-blue-700 hover:underline" target="_blank" rel="noreferrer">
                       {i.title ?? i.url}
                     </a>
-                  </TD>
-                  <TD>{i.publisher ?? "—"}</TD>
-                  <TD>
+                  </TableCell>
+                  <TableCell>{i.publisher ?? "—"}</TableCell>
+                  <TableCell>
                     <Badge variant="outline">{i.kind}</Badge>
-                  </TD>
-                  <TD>
+                  </TableCell>
+                  <TableCell>
                     <InboxActions url={i.url} />
-                  </TD>
-                </TR>
+                  </TableCell>
+                </TableRow>
               ))}
               {inbox.length === 0 && (
-                <TR>
-                  <TD colSpan={4}>No candidates</TD>
-                </TR>
+                <TableRow>
+                  <TableCell colSpan={4}>No candidates</TableCell>
+                </TableRow>
               )}
-            </TBody>
+            </TableBody>
           </Table>
         </CardContent>
       </Card>

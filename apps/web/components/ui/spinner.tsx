@@ -1,16 +1,10 @@
-import type { HTMLAttributes } from "react";
+import { cn } from "cn"
+import { Loader2Icon } from "lucide-react"
 
-/** shadcn-style spinner (CSS-only; no lucide dependency). */
-export function Spinner({
-  className = "",
-  ...props
-}: HTMLAttributes<HTMLSpanElement>) {
+function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   return (
-    <span
-      role="status"
-      aria-label="Loading"
-      className={`inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
-      {...props}
-    />
-  );
+    <Loader2Icon data-slot="spinner" role="status" aria-label="Loading" className={cn("size-4 animate-spin", className)} {...props} />
+  )
 }
+
+export { Spinner }

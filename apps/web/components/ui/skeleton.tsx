@@ -1,14 +1,13 @@
-import type { HTMLAttributes } from "react";
+import { cn } from "cn"
 
-/** shadcn-style skeleton placeholder. */
-export function Skeleton({
-  className = "",
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={`animate-pulse rounded-md bg-zinc-200/80 ${className}`}
+      data-slot="skeleton"
+      className={cn("animate-pulse rounded-md bg-muted", className)}
       {...props}
     />
-  );
+  )
 }
+
+export { Skeleton }
