@@ -31,6 +31,7 @@ run_lint() {
 
 run_web_build() {
   if [[ -d node_modules ]] || [[ -d apps/web/node_modules ]]; then
+    npm run test -w @bdbv/web
     npm run build -w @bdbv/web
   else
     echo "web deps missing; skip build"
