@@ -35,8 +35,12 @@ export default defineConfig(({ isPreview }) => ({
       CF_ACCESS_TEAM_DOMAIN: bindings.text(
         "https://tetra4rnav.cloudflareaccess.com",
       ),
+      // Production: BDBV Curate path-scoped Access app.
+      // Preview: Workers Preview Access app (whole-preview gate).
       CF_ACCESS_AUD: bindings.text(
-        "30f260613dd004af14e3735da0b4cefb3b1ed822a7ef5804173a3d46c0b5550d",
+        isPreview
+          ? "0ce99c26cf4e6266bdcad189995e6d35418cadd43d1c4882f4182255d0942cb7"
+          : "30f260613dd004af14e3735da0b4cefb3b1ed822a7ef5804173a3d46c0b5550d",
       ),
       // Set via Worker secrets / .dev.vars — never commit values.
       NEO4J_URI: bindings.secret(),
