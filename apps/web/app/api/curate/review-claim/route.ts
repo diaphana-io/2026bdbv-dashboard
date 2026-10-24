@@ -1,3 +1,6 @@
+import { isNeo4jConfigured } from "../../../../lib/neo4j";
+import { persistReviewClaim } from "../../../../lib/neo4j-curate";
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -26,10 +29,28 @@ export async function POST(request: Request) {
       typeof record.rejection_reason === "string" && record.rejection_reason
         ? record.rejection_reason
         : "rejected";
+    let persisted = false;
+    let claimId: string | undefined =
+      typeof record.claim_id === "string" ? record.claim_id : undefined;
+    if (isNeo4jConfigured()) {
+      try {
+        const out = await persistReviewClaim({
+          action: "reject",
+          claimId,
+          rejectionReason: reason,
+        });
+        claimId = out.claimId;
+        persisted = true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "neo4j_write_failed";
+        return Response.json({ error: message }, { status: 503 });
+      }
+    }
     return Response.json({
       review_status: "rejected",
       rejection_reason: reason,
-      persisted: false,
+      claim_id: claimId ?? null,
+      persisted,
     });
   }
 
@@ -59,19 +80,51 @@ export async function POST(request: Request) {
     return Response.json({ error: "object_value required" }, { status: 400 });
   }
 
+  const sourceUrl =
+    typeof record.source_url === "string" ? record.source_url : null;
+  const conflictsWith =
+    typeof record.conflicts_with_claim_id === "string"
+      ? record.conflicts_with_claim_id
+      : null;
+  const claimIdIn =
+    typeof record.claim_id === "string" ? record.claim_id : undefined;
+
+  let persisted = false;
+  let claimId = claimIdIn;
+  if (isNeo4jConfigured()) {
+    try {
+      const out = await persistReviewClaim({
+        action: "approve",
+        claimId: claimIdIn,
+        claimType,
+        subjectRef,
+        asOfDate,
+        objectValue: objectValue as Record<string, unknown>,
+        sourceUrl,
+        conflictsWithClaimId: conflictsWith,
+      });
+      claimId = out.claimId;
+      persisted = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      return Response.json({ error: message }, { status: 503 });
+    }
+  }
+
   return Response.json({
     review_status: "approved",
     applied: true,
-    open_conflict: Boolean(record.conflicts_with_claim_id),
-    conflicts_with_claim_id: record.conflicts_with_claim_id ?? null,
+    open_conflict: Boolean(conflictsWith),
+    conflicts_with_claim_id: conflictsWith,
     display_policy: "show_both_until_resolved",
-    persisted: false,
+    persisted,
+    claim_id: claimId ?? null,
     claim: {
       claim_type: claimType,
       subject_ref: subjectRef,
       as_of_date: asOfDate,
       object_value: objectValue,
-      source_url: typeof record.source_url === "string" ? record.source_url : null,
+      source_url: sourceUrl,
     },
   });
 }

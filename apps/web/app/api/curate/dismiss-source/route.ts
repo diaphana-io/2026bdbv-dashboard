@@ -1,4 +1,6 @@
 import { normalizeUrl } from "../../../../lib/curate-api";
+import { isNeo4jConfigured } from "../../../../lib/neo4j";
+import { persistDismissSource } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -15,9 +17,20 @@ export async function POST(request: Request) {
   }
 
   const normalized = normalizeUrl(url);
+  let persisted = false;
+  if (isNeo4jConfigured()) {
+    try {
+      await persistDismissSource(normalized);
+      persisted = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      return Response.json({ error: message }, { status: 503 });
+    }
+  }
+
   return Response.json({
     normalized_url: normalized,
     curation_status: "dismissed",
-    persisted: false,
+    persisted,
   });
 }
