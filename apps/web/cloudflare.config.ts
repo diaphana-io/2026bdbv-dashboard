@@ -3,20 +3,25 @@ import { bindings, defineConfig, defineWorker } from "cf/config";
 /**
  * Production: https://2026bdbv.diaphana.io/app
  *
+ * Non-main branches use `cf previews deploy` (Worker Previews) so they get a
+ * preview URL instead of writing to the production custom domain.
+ *
  * `domains` attaches the subdomain (Cloudflare creates DNS + cert).
  * APP_BASE_PATH=/app mounts the vinext app under /app.
  * Also set APP_BASE_PATH=/app as a Workers Builds *build* variable
  * so next.config.ts picks it up at compile time.
  */
-export default defineConfig({
+export default defineConfig(({ isPreview }) => ({
   worker: defineWorker({
     name: "bdbv-dashboard",
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-24",
     compatibilityFlags: ["nodejs_compat"],
-    workersDev: false,
-    previewUrls: false,
-    domains: ["2026bdbv.diaphana.io"],
+    // Production stays on the custom domain only. Previews need workers.dev /
+    // preview URLs so branch deploys are reachable without touching production.
+    workersDev: isPreview,
+    previewUrls: isPreview,
+    domains: isPreview ? [] : ["2026bdbv.diaphana.io"],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
@@ -25,7 +30,7 @@ export default defineConfig({
     env: {
       ASSETS: bindings.assets(),
       APP_BASE_PATH: bindings.text("/app"),
-      APP_ENV: bindings.text("production"),
+      APP_ENV: bindings.text(isPreview ? "staging" : "production"),
       EXTRACT_ENABLED: bindings.text("false"),
       CF_ACCESS_TEAM_DOMAIN: bindings.text(
         "https://tetra4rnav.cloudflareaccess.com",
@@ -39,4 +44,4 @@ export default defineConfig({
       NEO4J_PASSWORD: bindings.secret(),
     },
   }),
-});
+}));

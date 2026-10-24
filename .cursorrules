@@ -1,0 +1,53 @@
+# Generate Commit Message (sparkles)
+
+Cursor Source Control sparkles only reads this file (not `.cursor/rules` or AGENTS.md).
+
+## Hard output rules
+
+- Output **exactly** two lines of English (subject, blank line is optional, then one body line). Prefer no blank line if the UI allows a single subject+body block as two lines.
+- **Total length ≤ ~120 characters** across both lines. Shorter is better.
+- No bullets, no file lists, no PR descriptions, no "Made-with: Cursor", no trailing period on the subject.
+
+## Format
+
+```text
+<type>: <topic>
+
+<why>
+```
+
+1. `<type>`: one of `feat` | `fix` | `docs` | `refactor` | `test` | `chore` | `perf` | `ci`
+2. `<topic>`: **2–5 words**, area only. Max ~40 characters after the colon.
+   - Do **not** use verbs (`update`, `add`, `implement`, `refactor`, `improve`, `change`, `fix`).
+   - Do **not** name files/components as a changelog (`OutbreakMap`, `route.ts`).
+3. `<why>`: **one short sentence** (≤ ~15 words) on purpose only — why this exists for the user/system.
+   - Do **not** list what changed, how it was done, or multiple edits joined with "and".
+
+## Good
+
+```text
+feat: map loading UI
+
+Show basemap as soon as MapLibre loads.
+```
+
+```text
+refactor: thin basemap style
+
+Shrink style payload so the map paints sooner.
+```
+
+## Bad (never generate)
+
+```text
+refactor: update OutbreakMap to use thin basemap style
+
+Replace hardcoded basemap URLs with a dynamic style function and adjust zoom levels for improved map performance.
+```
+
+```text
+Refactor OutbreakMap loading logic and improve error handling
+
+- Enhanced the loading process...
+- Improved error handling...
+```

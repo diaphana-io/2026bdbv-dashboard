@@ -4,10 +4,12 @@
 
 | Env | URL (target) | Extract | Data | Access |
 |-----|----------------|---------|------|--------|
-| staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
-| production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+| staging / non-`main` | Worker Preview URL (not the production hostname) | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+| production (`main`) | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
 
-Production must not ship an automatic Extract backend until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is decided (Jev candidates, etc.).
+Workers Builds: `main` runs `npm run deploy:ci` → `cf deploy` (production domain). Other branches run the same script, which detects `WORKERS_CI_BRANCH` and runs `cf previews deploy` so the push lands on a Preview URL only.
+
+Production must not ship an automatic Extract backend until [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) (Linear **MATT-310**) is decided (Jev candidates, etc.).
 
 ## Cloudflare Access
 
@@ -37,7 +39,7 @@ Create Free instance, seed, and wire secrets: [`docs/neo4j-aura.md`](./neo4j-aur
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
 - `APP_BASE_PATH=/app` on the Worker (runtime) — production `vite build` defaults to `/app` when unset
-- Optional: Cloudflare Redirect Rule `2026bdbv.diaphana.io/` → `/app` so the apex path lands on the app
+- Cloudflare Single Redirect: `2026bdbv.diaphana.io/` → `https://2026bdbv.diaphana.io/app` (`http_request_dynamic_redirect`; also mirrored in `apps/web/next.config.ts` redirects)
 - `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` after Access app is created
 - Optional: Workers AI / Vectorize bindings for measures RAG
 

@@ -22,6 +22,19 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_BASE_PATH: basePath,
   },
+  // When basePath is /app, bare `/` is outside the app mount. Prefer a
+  // Cloudflare Single Redirect at the edge; this covers Worker-handled `/`.
+  async redirects() {
+    if (!basePath) return [];
+    return [
+      {
+        source: "/",
+        destination: basePath,
+        permanent: false,
+        basePath: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

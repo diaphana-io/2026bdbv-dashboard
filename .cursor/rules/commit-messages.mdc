@@ -1,0 +1,44 @@
+---
+description: Commit message format for agents (sparkles uses repo-root .cursorrules)
+alwaysApply: true
+---
+
+# Commit messages
+
+Keep messages **very short**: two lines, ~120 characters total.
+
+```text
+<type>: <topic>
+
+<why>
+```
+
+- **type**: `feat` | `fix` | `docs` | `refactor` | `test` | `chore` | `perf` | `ci`
+- **topic**: 2–5 words, area only (≤ ~40 chars). No verbs (`update`/`add`/`improve`), no file dumps.
+- **why**: one short sentence (≤ ~15 words) on purpose — not a list of edits.
+
+Good:
+
+```text
+feat: map loading UI
+
+Show basemap as soon as MapLibre loads.
+```
+
+```text
+refactor: thin basemap style
+
+Shrink style payload so the map paints sooner.
+```
+
+Bad:
+
+```text
+refactor: update OutbreakMap to use thin basemap style
+
+Replace hardcoded basemap URLs with a dynamic style function and adjust zoom levels for improved map performance.
+```
+
+No bullets, multi-paragraph bodies, or "Made-with: Cursor" unless the user asks.
+
+**Sparkles:** Generate Commit Message reads only repo-root `.cursorrules` — keep it in sync with this rule.

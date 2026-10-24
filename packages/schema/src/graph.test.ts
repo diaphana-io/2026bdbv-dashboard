@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { AdminUnitSchema } from "./admin-unit";
 import { ConflictPairViewSchema } from "./conflict";
 import { ExposureSchema, FollowUpWindowSchema } from "./exposure";
+import { HospitalizationSchema } from "./hospitalization";
 import { PersonSchema } from "./person";
+import { TravelLegSchema } from "./travel-leg";
 
 describe("graph-related schemas", () => {
   it("parses exposure and follow-up window", () => {
@@ -74,5 +77,48 @@ describe("graph-related schemas", () => {
       is_synthetic: false,
     });
     expect(p.role).toBe("contact");
+  });
+
+  it("parses admin unit tracking modes, travel leg, hospitalization", () => {
+    const ke = AdminUnitSchema.parse({
+      id: "admin0-KE",
+      iso: "KE",
+      level: "admin0",
+      name: "Kenya",
+      tracking_mode: "individual",
+      lat: -1.2921,
+      lon: 36.8219,
+    });
+    const cd = AdminUnitSchema.parse({
+      id: "admin0-CD",
+      iso: "CD",
+      level: "admin0",
+      name: "Democratic Republic of the Congo",
+      tracking_mode: "aggregate",
+      lat: 0.515,
+      lon: 29.291,
+    });
+    expect(ke.tracking_mode).toBe("individual");
+    expect(cd.tracking_mode).toBe("aggregate");
+
+    const leg = TravelLegSchema.parse({
+      id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      departed_at: "2026-09-28",
+      arrived_at: "2026-09-29",
+      mode: "air",
+      from_admin_id: "admin0-CD",
+      to_admin_id: "admin0-KE",
+    });
+    expect(leg.mode).toBe("air");
+
+    const hosp = HospitalizationSchema.parse({
+      id: "99999999-9999-9999-9999-999999999999",
+      case_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      admitted_at: "2026-10-03",
+      discharged_at: "2026-10-05",
+      facility_name: "Kenyatta National Hospital",
+    });
+    expect(hosp.facility_name).toContain("Kenyatta");
   });
 });

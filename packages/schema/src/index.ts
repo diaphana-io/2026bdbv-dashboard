@@ -6,3 +6,6 @@ export * from "./border";
 export * from "./conflict";
 export * from "./person";
 export * from "./exposure";
+export * from "./admin-unit";
+export * from "./travel-leg";
+export * from "./hospitalization";

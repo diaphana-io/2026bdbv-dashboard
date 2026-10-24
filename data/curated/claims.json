@@ -43,5 +43,50 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000004",
     "excerpt": "News report citing a higher Kenya case total pending official reconciliation."
+  },
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000010",
+    "claim_type": "case_count",
+    "subject_ref": "CD",
+    "object_value": { "confirmed": 48, "deaths": 28 },
+    "as_of_date": "2026-06-15",
+    "claim_fingerprint": "cd-case-count-2026-06-15-official",
+    "confidence": "official",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:20:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "excerpt": "DRC aggregate series (Ituri epicentre); no individual Case nodes for CD."
+  },
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000011",
+    "claim_type": "case_count",
+    "subject_ref": "CD",
+    "object_value": { "confirmed": 92, "deaths": 51 },
+    "as_of_date": "2026-08-01",
+    "claim_fingerprint": "cd-case-count-2026-08-01-official",
+    "confidence": "official",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:21:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "excerpt": "DRC multi-province epidemic growth (aggregate claims only)."
+  },
+  {
+    "id": "eeeeeeee-0000-4000-8000-000000000012",
+    "claim_type": "case_count",
+    "subject_ref": "CD",
+    "object_value": { "confirmed": 146, "deaths": 78 },
+    "as_of_date": "2026-10-20",
+    "claim_fingerprint": "cd-case-count-2026-10-20-official",
+    "confidence": "official",
+    "extractor": "human",
+    "review_status": "approved",
+    "reviewed_at": "2026-10-23T12:22:00.000Z",
+    "reviewed_by": "curator",
+    "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "excerpt": "As of 20 October 2026, DRC remains the aggregate epicentre for BDBV."
   }
 ]

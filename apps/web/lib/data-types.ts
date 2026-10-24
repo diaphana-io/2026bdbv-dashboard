@@ -113,3 +113,77 @@ export type CaseQueryOpts = {
   confirmedOnly?: boolean;
   includeTemporalSuspects?: boolean;
 };
+
+export type MapAggregate = {
+  admin_iso: string;
+  name: string;
+  lat: number;
+  lon: number;
+  confirmed: number;
+  deaths: number;
+  as_of_date: string;
+};
+
+export type MapCase = {
+  id: string;
+  visual_id: string;
+  admin0_iso: string;
+  classification: string;
+  lat: number;
+  lon: number;
+  date_of_onset?: string | null;
+  date_of_reporting?: string | null;
+};
+
+export type MapTravelEndpoint = {
+  admin_id: string;
+  iso?: string;
+  lat: number;
+  lon: number;
+};
+
+export type MapTravel = {
+  id: string;
+  person_id: string;
+  case_id?: string | null;
+  mode: string;
+  departed_at?: string | null;
+  arrived_at?: string | null;
+  from: MapTravelEndpoint;
+  to: MapTravelEndpoint;
+};
+
+export type MapExposure = {
+  from_person_id: string;
+  from_visual_id?: string;
+  to_case_id: string;
+  to_case_visual_id: string;
+  date_of_last_contact: string;
+  to_lat?: number;
+  to_lon?: number;
+};
+
+export type MapSnapshot = {
+  asOf: string;
+  aggregates: MapAggregate[];
+  cases: MapCase[];
+  travels: MapTravel[];
+  exposures: MapExposure[];
+};
+
+export type CaseDetailEvent = {
+  kind: "onset" | "reporting" | "travel" | "hospitalization" | "exposure" | "outcome";
+  at: string;
+  label: string;
+  meta?: Record<string, unknown>;
+};
+
+export type CaseDetail = {
+  id: string;
+  visual_id: string;
+  admin0_iso: string;
+  classification: string;
+  lat?: number;
+  lon?: number;
+  events: CaseDetailEvent[];
+};

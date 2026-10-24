@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { AdminUnitSchema } from "./admin-unit";
 import { CaseSchema } from "./case";
 import { ClaimSchema } from "./claim";
 import { ClaimConflictSchema } from "./conflict";
+import { HospitalizationSchema } from "./hospitalization";
+import { TravelLegSchema } from "./travel-leg";
 
 const curated = join(__dirname, "../../../data/curated");
 
@@ -28,6 +31,10 @@ describe("curated production data", () => {
         }),
       ).not.toThrow();
     }
+    expect(rows.some((r: { visual_id: string }) => r.visual_id === "UG-2026-SUMMARY")).toBe(
+      false,
+    );
+    expect(rows.filter((r: { admin0_iso: string }) => r.admin0_iso === "CD")).toHaveLength(0);
   });
 
   it("claims and open conflict validate", () => {
@@ -47,10 +54,36 @@ describe("curated production data", () => {
         }),
       ).not.toThrow();
     }
+    const cdSeries = claims.filter(
+      (c: { subject_ref: string; claim_type: string }) =>
+        c.subject_ref === "CD" && c.claim_type === "case_count",
+    );
+    expect(cdSeries.length).toBeGreaterThanOrEqual(2);
     const conflicts = JSON.parse(readFileSync(join(curated, "conflicts.json"), "utf8"));
     for (const row of conflicts) {
       expect(() => ClaimConflictSchema.parse(row)).not.toThrow();
     }
     expect(conflicts.some((c: { status: string }) => c.status === "open")).toBe(true);
+  });
+
+  it("admin units, travel legs, hospitalizations validate", () => {
+    const admins = JSON.parse(readFileSync(join(curated, "admin_units.json"), "utf8"));
+    for (const row of admins) {
+      expect(() => AdminUnitSchema.parse(row)).not.toThrow();
+    }
+    const byIso = Object.fromEntries(admins.map((a: { iso: string }) => [a.iso, a]));
+    expect(byIso.KE.tracking_mode).toBe("individual");
+    expect(byIso.UG.tracking_mode).toBe("individual");
+    expect(byIso.NG.tracking_mode).toBe("individual");
+    expect(byIso.CD.tracking_mode).toBe("aggregate");
+
+    const legs = JSON.parse(readFileSync(join(curated, "travel_legs.json"), "utf8"));
+    for (const row of legs) {
+      expect(() => TravelLegSchema.parse(row)).not.toThrow();
+    }
+    const hosps = JSON.parse(readFileSync(join(curated, "hospitalizations.json"), "utf8"));
+    for (const row of hosps) {
+      expect(() => HospitalizationSchema.parse(row)).not.toThrow();
+    }
   });
 });

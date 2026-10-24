@@ -1,12 +1,17 @@
+import adminUnitsData from "../data/admin_units.json";
 import casesData from "../data/cases.json";
 import claimsData from "../data/claims.json";
 import conflictsData from "../data/conflicts.json";
 import contactsData from "../data/contacts.json";
+import hospitalizationsData from "../data/hospitalizations.json";
 import inboxData from "../data/inbox_candidates.json";
 import measuresData from "../data/measures.json";
 import outbreakData from "../data/outbreak.json";
 import sourcesData from "../data/sources.json";
+import travelLegsData from "../data/travel_legs.json";
 import type {
+  CaseDetail,
+  CaseDetailEvent,
   CaseQueryOpts,
   CaseRow,
   ClaimRow,
@@ -14,9 +19,39 @@ import type {
   ConflictView,
   ContactRow,
   InboxRow,
+  MapAggregate,
+  MapSnapshot,
   MeasureRow,
   SourceRow,
 } from "./data-types";
+
+type AdminUnitRow = {
+  id: string;
+  iso: string;
+  level: string;
+  name: string;
+  tracking_mode?: string | null;
+  lat?: number | null;
+  lon?: number | null;
+};
+
+type TravelLegRow = {
+  id: string;
+  person_id: string;
+  departed_at?: string | null;
+  arrived_at?: string | null;
+  mode: string;
+  from_admin_id?: string | null;
+  to_admin_id?: string | null;
+};
+
+type HospitalizationRow = {
+  id: string;
+  case_id: string;
+  admitted_at?: string | null;
+  discharged_at?: string | null;
+  facility_name?: string | null;
+};
 
 const cases = casesData as CaseRow[];
 const claims = claimsData as ClaimRow[];
@@ -25,6 +60,19 @@ const contacts = contactsData as ContactRow[];
 const measures = measuresData as MeasureRow[];
 const sources = sourcesData as SourceRow[];
 const inbox = inboxData as InboxRow[];
+const adminUnits = adminUnitsData as AdminUnitRow[];
+const travelLegs = travelLegsData as TravelLegRow[];
+const hospitalizations = hospitalizationsData as HospitalizationRow[];
+
+function onOrBefore(date: string | null | undefined, asOf: string): boolean {
+  if (!date) return false;
+  return date.slice(0, 10) <= asOf;
+}
+
+function adminById(id: string | null | undefined) {
+  if (!id) return undefined;
+  return adminUnits.find((a) => a.id === id);
+}
 
 export function getOutbreakJson() {
   return outbreakData as Record<string, unknown>;
@@ -93,4 +141,191 @@ export function overviewKpisJson(country?: string) {
   const followup = getContactsJson(country).filter((c) => c.followup.status === "active")
     .length;
   return { confirmed, deaths, temporal, followup, asOf: "2026-10-23" };
+}
+
+function caseVisibleBy(asOf: string, c: CaseRow): boolean {
+  const d = c.date_of_reporting ?? c.date_of_onset ?? null;
+  return onOrBefore(d, asOf);
+}
+
+export function getMapSnapshotJson(asOf: string): MapSnapshot {
+  const aggregates: MapAggregate[] = [];
+  for (const unit of adminUnits.filter((a) => a.tracking_mode === "aggregate")) {
+    if (unit.lat == null || unit.lon == null) continue;
+    const series = claims
+      .filter(
+        (c) =>
+          c.claim_type === "case_count" &&
+          c.subject_ref === unit.iso &&
+          c.review_status === "approved" &&
+          onOrBefore(c.as_of_date, asOf),
+      )
+      .sort((a, b) => a.as_of_date.localeCompare(b.as_of_date));
+    const latest = series[series.length - 1];
+    if (!latest) continue;
+    const ov = latest.object_value;
+    aggregates.push({
+      admin_iso: unit.iso,
+      name: unit.name,
+      lat: unit.lat,
+      lon: unit.lon,
+      confirmed: Number(ov.confirmed ?? 0),
+      deaths: Number(ov.deaths ?? 0),
+      as_of_date: latest.as_of_date,
+    });
+  }
+
+  const mapCases = getCasesJson({ includeTemporalSuspects: true })
+    .filter((c) => caseVisibleBy(asOf, c) && c.lat != null && c.lon != null)
+    .map((c) => ({
+      id: c.id,
+      visual_id: c.visual_id,
+      admin0_iso: c.admin0_iso,
+      classification: c.classification,
+      lat: c.lat!,
+      lon: c.lon!,
+      date_of_onset: c.date_of_onset ?? null,
+      date_of_reporting: c.date_of_reporting ?? null,
+    }));
+
+  const personToCase = new Map(
+    cases
+      .filter((c) => (c as CaseRow & { person_id?: string }).person_id)
+      .map((c) => [(c as CaseRow & { person_id?: string }).person_id!, c.id]),
+  );
+
+  const travels = travelLegs
+    .filter((leg) => {
+      const start = leg.departed_at ?? leg.arrived_at;
+      return start != null && onOrBefore(start, asOf);
+    })
+    .flatMap((leg) => {
+      const from = adminById(leg.from_admin_id);
+      const to = adminById(leg.to_admin_id);
+      if (
+        from?.lat == null ||
+        from.lon == null ||
+        to?.lat == null ||
+        to.lon == null
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: leg.id,
+          person_id: leg.person_id,
+          case_id: personToCase.get(leg.person_id) ?? null,
+          mode: leg.mode,
+          departed_at: leg.departed_at ?? null,
+          arrived_at: leg.arrived_at ?? null,
+          from: {
+            admin_id: from.id,
+            iso: from.iso,
+            lat: from.lat,
+            lon: from.lon,
+          },
+          to: { admin_id: to.id, iso: to.iso, lat: to.lat, lon: to.lon },
+        },
+      ];
+    });
+
+  const caseByVisual = new Map(cases.map((c) => [c.visual_id, c]));
+  const exposures = getContactsJson()
+    .filter((ct) => onOrBefore(ct.exposure.date_of_last_contact, asOf))
+    .map((ct) => {
+      const toCase = caseByVisual.get(ct.exposure.to_case_visual_id);
+      return {
+        from_person_id: ct.id,
+        from_visual_id: ct.visual_id,
+        to_case_id: toCase?.id ?? "",
+        to_case_visual_id: ct.exposure.to_case_visual_id,
+        date_of_last_contact: ct.exposure.date_of_last_contact,
+        to_lat: toCase?.lat,
+        to_lon: toCase?.lon,
+      };
+    })
+    .filter((e) => e.to_case_id);
+
+  return { asOf, aggregates, cases: mapCases, travels, exposures };
+}
+
+export function getCaseDetailJson(caseId: string): CaseDetail | null {
+  const c = cases.find((row) => row.id === caseId);
+  if (!c) return null;
+  const events: CaseDetailEvent[] = [];
+  if (c.date_of_onset) {
+    events.push({ kind: "onset", at: c.date_of_onset, label: "Symptom onset" });
+  }
+  if (c.date_of_reporting) {
+    events.push({
+      kind: "reporting",
+      at: c.date_of_reporting,
+      label: "Reported",
+    });
+  }
+  const personId = (c as CaseRow & { person_id?: string }).person_id;
+  for (const leg of travelLegs.filter((t) => t.person_id === personId)) {
+    const from = adminById(leg.from_admin_id);
+    const to = adminById(leg.to_admin_id);
+    const at = leg.arrived_at ?? leg.departed_at;
+    if (!at) continue;
+    events.push({
+      kind: "travel",
+      at,
+      label: `Travel ${from?.iso ?? "?"} → ${to?.iso ?? "?"} (${leg.mode})`,
+      meta: {
+        mode: leg.mode,
+        departed_at: leg.departed_at,
+        arrived_at: leg.arrived_at,
+      },
+    });
+  }
+  for (const h of hospitalizations.filter((x) => x.case_id === caseId)) {
+    if (h.admitted_at) {
+      events.push({
+        kind: "hospitalization",
+        at: h.admitted_at,
+        label: h.facility_name
+          ? `Admitted · ${h.facility_name}`
+          : "Admitted",
+        meta: {
+          discharged_at: h.discharged_at,
+          facility_name: h.facility_name,
+        },
+      });
+    }
+  }
+  for (const ct of getContactsJson().filter(
+    (x) => x.exposure.to_case_visual_id === c.visual_id,
+  )) {
+    events.push({
+      kind: "exposure",
+      at: ct.exposure.date_of_last_contact,
+      label: `Contact ${ct.visual_id}`,
+      meta: { contact_id: ct.id, intensity: ct.exposure.intensity },
+    });
+  }
+  if (c.outcome && c.outcome !== "unknown") {
+    const outcomeAt =
+      (c as CaseRow & { date_of_outcome?: string }).date_of_outcome ??
+      c.date_of_reporting ??
+      c.date_of_onset;
+    if (outcomeAt) {
+      events.push({
+        kind: "outcome",
+        at: outcomeAt,
+        label: `Outcome: ${c.outcome}`,
+      });
+    }
+  }
+  events.sort((a, b) => a.at.localeCompare(b.at));
+  return {
+    id: c.id,
+    visual_id: c.visual_id,
+    admin0_iso: c.admin0_iso,
+    classification: c.classification,
+    lat: c.lat,
+    lon: c.lon,
+    events,
+  };
 }

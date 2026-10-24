@@ -1,9 +1,11 @@
 import {
+  getCaseDetailJson,
   getCasesJson,
   getClaimsJson,
   getConflictViewsJson,
   getContactsJson,
   getInboxCandidatesJson,
+  getMapSnapshotJson,
   getMeasuresJson,
   getOutbreakJson,
   getSourcesJson,
@@ -12,11 +14,13 @@ import {
 import type { CaseQueryOpts } from "./data-types";
 import { isNeo4jConfigured } from "./neo4j";
 import {
+  getCaseDetailNeo4j,
   getCasesNeo4j,
   getClaimsNeo4j,
   getConflictViewsNeo4j,
   getContactsNeo4j,
   getInboxCandidatesNeo4j,
+  getMapSnapshotNeo4j,
   getMeasuresNeo4j,
   getOutbreakNeo4j,
   getSourcesNeo4j,
@@ -24,6 +28,7 @@ import {
 } from "./neo4j-queries";
 
 export type {
+  CaseDetail,
   CaseQueryOpts,
   CaseRow,
   ClaimRow,
@@ -31,6 +36,7 @@ export type {
   ConflictView,
   ContactRow,
   InboxRow,
+  MapSnapshot,
   MeasureRow,
   SourceRow,
 } from "./data-types";
@@ -93,5 +99,19 @@ export async function overviewKpis(country?: string) {
   return fromNeo4jOrJson(
     () => overviewKpisNeo4j(country),
     () => overviewKpisJson(country),
+  );
+}
+
+export async function getMapSnapshot(asOf: string) {
+  return fromNeo4jOrJson(
+    () => getMapSnapshotNeo4j(asOf),
+    () => getMapSnapshotJson(asOf),
+  );
+}
+
+export async function getCaseDetail(caseId: string) {
+  return fromNeo4jOrJson(
+    () => getCaseDetailNeo4j(caseId),
+    () => getCaseDetailJson(caseId),
   );
 }
