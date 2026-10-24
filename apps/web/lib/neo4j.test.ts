@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isNeo4jConfigured, readNeo4jEnv } from "./neo4j";
+import {
+  isNeo4jConfigured,
+  readNeo4jEnv,
+  resolveNeo4jDatabase,
+} from "./neo4j";
 
 describe("readNeo4jEnv / isNeo4jConfigured", () => {
   it("is false when any field is missing", () => {
@@ -33,7 +37,26 @@ describe("readNeo4jEnv / isNeo4jConfigured", () => {
       uri: "bolt://127.0.0.1:7687",
       user: "neo4j",
       password: "bdbvlocal",
+      database: undefined,
     });
     expect(isNeo4jConfigured(env)).toBe(true);
+  });
+
+  it("resolves Aura instance database from user when unset", () => {
+    expect(
+      resolveNeo4jDatabase({
+        uri: "neo4j+s://928c135c.databases.neo4j.io",
+        user: "928c135c",
+        password: "x",
+      }),
+    ).toBe("928c135c");
+    expect(
+      resolveNeo4jDatabase({
+        uri: "bolt://127.0.0.1:7687",
+        user: "neo4j",
+        password: "x",
+        database: "neo4j",
+      }),
+    ).toBe("neo4j");
   });
 });

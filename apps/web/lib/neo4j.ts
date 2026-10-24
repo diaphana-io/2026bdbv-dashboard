@@ -5,6 +5,8 @@ export type Neo4jEnv = {
   uri?: string;
   user?: string;
   password?: string;
+  /** Aura instance DB name; defaults to NEO4J_USER (instance id) or "neo4j". */
+  database?: string;
 };
 
 /**
@@ -39,6 +41,7 @@ export function readNeo4jEnv(
       uri: e.uri?.trim() || undefined,
       user: e.user?.trim() || undefined,
       password: e.password || undefined,
+      database: e.database?.trim() || undefined,
     };
   }
   const env = source as NodeJS.ProcessEnv;
@@ -46,7 +49,13 @@ export function readNeo4jEnv(
     uri: env.NEO4J_URI?.trim() || undefined,
     user: env.NEO4J_USER?.trim() || undefined,
     password: env.NEO4J_PASSWORD || undefined,
+    database: env.NEO4J_DATABASE?.trim() || undefined,
   };
+}
+
+/** Aura Free names the DB after the instance id (same as NEO4J_USER). */
+export function resolveNeo4jDatabase(env: Neo4jEnv = readNeo4jEnv()): string {
+  return env.database || env.user || "neo4j";
 }
 
 export function isNeo4jConfigured(env: Neo4jEnv = readNeo4jEnv()): boolean {
@@ -67,7 +76,7 @@ let driver: Driver | null = null;
 let driverKey: string | null = null;
 
 function driverCacheKey(env: Neo4jEnv): string {
-  return `${normalizeNeo4jUri(env.uri!)}\0${env.user}\0${env.password}`;
+  return `${normalizeNeo4jUri(env.uri!)}\0${env.user}\0${env.password}\0${resolveNeo4jDatabase(env)}`;
 }
 
 export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
@@ -81,7 +90,13 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
       void driver.close().catch(() => undefined);
     }
     const uri = normalizeNeo4jUri(env.uri!);
-    driver = neo4j.driver(uri, neo4j.auth.basic(env.user!, env.password!));
+    // Aura Free allows only a few concurrent Bolt connections; Workers
+    // isolates share this driver — keep the pool tiny.
+    driver = neo4j.driver(uri, neo4j.auth.basic(env.user!, env.password!), {
+      maxConnectionPoolSize: 1,
+      connectionAcquisitionTimeout: 10_000,
+      disableLosslessIntegers: true,
+    });
     driverKey = key;
   }
   return driver;
@@ -91,7 +106,9 @@ export async function withSession<T>(
   fn: (session: Session) => Promise<T>,
   env: Neo4jEnv = readNeo4jEnv(),
 ): Promise<T> {
-  const session = getDriver(env).session();
+  const session = getDriver(env).session({
+    database: resolveNeo4jDatabase(env),
+  });
   try {
     return await fn(session);
   } finally {

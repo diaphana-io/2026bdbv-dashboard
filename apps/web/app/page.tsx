@@ -26,7 +26,10 @@ export default async function Home({
           <CountryFilter active={country} basePath="/" />
         </div>
       </div>
-      <OverviewKpis country={country === "ALL" ? undefined : country} />
+      <OverviewKpis
+        country={country === "ALL" ? undefined : country}
+        kpis={k}
+      />
       {conflicts.length > 0 && (
         <Card>
           <CardHeader className="flex items-center justify-between gap-2">

@@ -35,47 +35,63 @@ export type {
   SourceRow,
 } from "./data-types";
 
+async function fromNeo4jOrJson<T>(
+  neo4jFn: () => Promise<T>,
+  jsonFn: () => T | Promise<T>,
+): Promise<T> {
+  if (!isNeo4jConfigured()) return jsonFn();
+  try {
+    return await neo4jFn();
+  } catch (err) {
+    console.error("[data] neo4j query failed; falling back to JSON", err);
+    return jsonFn();
+  }
+}
+
 export async function getOutbreak() {
-  if (isNeo4jConfigured()) return getOutbreakNeo4j();
-  return getOutbreakJson();
+  return fromNeo4jOrJson(getOutbreakNeo4j, getOutbreakJson);
 }
 
 export async function getCases(opts?: CaseQueryOpts) {
-  if (isNeo4jConfigured()) return getCasesNeo4j(opts);
-  return getCasesJson(opts);
+  return fromNeo4jOrJson(
+    () => getCasesNeo4j(opts),
+    () => getCasesJson(opts),
+  );
 }
 
 export async function getSources() {
-  if (isNeo4jConfigured()) return getSourcesNeo4j();
-  return getSourcesJson();
+  return fromNeo4jOrJson(getSourcesNeo4j, getSourcesJson);
 }
 
 export async function getClaims() {
-  if (isNeo4jConfigured()) return getClaimsNeo4j();
-  return getClaimsJson();
+  return fromNeo4jOrJson(getClaimsNeo4j, getClaimsJson);
 }
 
 export async function getConflictViews() {
-  if (isNeo4jConfigured()) return getConflictViewsNeo4j();
-  return getConflictViewsJson();
+  return fromNeo4jOrJson(getConflictViewsNeo4j, getConflictViewsJson);
 }
 
 export async function getContacts(country?: string) {
-  if (isNeo4jConfigured()) return getContactsNeo4j(country);
-  return getContactsJson(country);
+  return fromNeo4jOrJson(
+    () => getContactsNeo4j(country),
+    () => getContactsJson(country),
+  );
 }
 
 export async function getMeasures(country?: string) {
-  if (isNeo4jConfigured()) return getMeasuresNeo4j(country);
-  return getMeasuresJson(country);
+  return fromNeo4jOrJson(
+    () => getMeasuresNeo4j(country),
+    () => getMeasuresJson(country),
+  );
 }
 
 export async function getInboxCandidates() {
-  if (isNeo4jConfigured()) return getInboxCandidatesNeo4j();
-  return getInboxCandidatesJson();
+  return fromNeo4jOrJson(getInboxCandidatesNeo4j, getInboxCandidatesJson);
 }
 
 export async function overviewKpis(country?: string) {
-  if (isNeo4jConfigured()) return overviewKpisNeo4j(country);
-  return overviewKpisJson(country);
+  return fromNeo4jOrJson(
+    () => overviewKpisNeo4j(country),
+    () => overviewKpisJson(country),
+  );
 }

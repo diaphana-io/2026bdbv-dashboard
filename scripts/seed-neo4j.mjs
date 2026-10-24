@@ -39,6 +39,8 @@ loadDotEnv(join(root, ".env"));
 const uri = process.env.NEO4J_URI?.trim();
 const user = process.env.NEO4J_USER?.trim() || "neo4j";
 const password = process.env.NEO4J_PASSWORD;
+const database =
+  process.env.NEO4J_DATABASE?.trim() || user || "neo4j";
 if (!uri || !password) {
   console.error(
     "Missing NEO4J_URI / NEO4J_PASSWORD. Set env or apps/web/.env (see docs/neo4j-aura.md).",
@@ -68,10 +70,14 @@ async function runStatements(session, cypherText) {
 
 async function main() {
   const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
-  const session = driver.session();
+  const session = driver.session({ database });
   try {
     await driver.verifyConnectivity();
-    console.log("Connected:", uri.replace(/:[^:@/]+@/, ":****@"));
+    console.log(
+      "Connected:",
+      uri.replace(/:[^:@/]+@/, ":****@"),
+      `database=${database}`,
+    );
 
     console.log("Applying constraints…");
     await runStatements(session, readFileSync(constraintsPath, "utf8"));
