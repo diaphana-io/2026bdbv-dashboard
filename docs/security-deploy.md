@@ -4,8 +4,10 @@
 
 | Env | URL (target) | Extract | Data | Access |
 |-----|----------------|---------|------|--------|
-| staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
-| production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+| staging / non-`main` | Worker Preview URL (not the production hostname) | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+| production (`main`) | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+
+Workers Builds: `main` runs `npm run deploy:ci` → `cf deploy` (production domain). Other branches run the same script, which detects `WORKERS_CI_BRANCH` and runs `cf previews deploy` so the push lands on a Preview URL only.
 
 Production must not ship an automatic Extract backend until [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) (Linear **MATT-310**) is decided (Jev candidates, etc.).
 

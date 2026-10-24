@@ -67,7 +67,7 @@ bash scripts/verify.sh scaffold   # or schema|engine|curation|all
 
 ### Deployment
 
-Staging: [https://2026bdbv.diaphana.io/app](https://2026bdbv.diaphana.io/app) (`/app` base path). Curate routes sit behind Cloudflare Access ([`docs/cloudflare-access-curate.md`](docs/cloudflare-access-curate.md)). Production extract remains blocked until the Extract specification is approved. Hosting: [GitHub](https://github.com/diaphana-io/2026bdbv-dashboard); [Cursor Origin](https://cursor.com/codebase/tetra4rnav/2026bdbv-dashboard).
+Production: [https://2026bdbv.diaphana.io/app](https://2026bdbv.diaphana.io/app) (`main` → `/app` base path). Non-`main` branch pushes deploy to Worker Preview URLs only (not the production hostname). Curate routes sit behind Cloudflare Access ([`docs/cloudflare-access-curate.md`](docs/cloudflare-access-curate.md)). Production extract remains blocked until the Extract specification is approved. Hosting: [GitHub](https://github.com/diaphana-io/2026bdbv-dashboard); [Cursor Origin](https://cursor.com/codebase/tetra4rnav/2026bdbv-dashboard).
 
 ### Workflow
 

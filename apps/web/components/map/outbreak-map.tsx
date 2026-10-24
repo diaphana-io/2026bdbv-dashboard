@@ -25,72 +25,86 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let removeClick: (() => void) | undefined;
 
     async function boot() {
-      const maplibre = await import("maplibre-gl");
-      await import("maplibre-gl/dist/maplibre-gl.css");
-      if (cancelled || !containerRef.current) return;
+      try {
+        const maplibre = await import("maplibre-gl");
+        await import("maplibre-gl/dist/maplibre-gl.css");
+        if (cancelled || !containerRef.current) return;
 
-      const map = new maplibre.Map({
-        container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            carto: {
-              type: "raster",
-              tiles: [
-                "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-              ],
-              tileSize: 256,
-              attribution: "&copy; OpenStreetMap &copy; CARTO",
+        const map = new maplibre.Map({
+          container: containerRef.current,
+          style: {
+            version: 8,
+            sources: {
+              carto: {
+                type: "raster",
+                tiles: [
+                  "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+                ],
+                tileSize: 256,
+                attribution: "&copy; OpenStreetMap &copy; CARTO",
+              },
             },
+            layers: [
+              {
+                id: "carto",
+                type: "raster",
+                source: "carto",
+              },
+            ],
           },
-          layers: [
-            {
-              id: "carto",
-              type: "raster",
-              source: "carto",
-            },
-          ],
-        },
-        center: [28, 2],
-        zoom: 3.2,
-        pitch: 45,
-        bearing: -10,
-        minZoom: 0,
-        maxZoom: 14,
-      });
-      map.addControl(new maplibre.NavigationControl({ visualizePitch: true }), "top-left");
-      mapRef.current = map;
-
-      map.on("load", async () => {
-        ensureCaseLayers(map);
-        ensureExposureLayer(map);
-        updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
-        updateExposureLayer(map, snapshot.exposures);
-        removeClick = onCaseClick(map, async (caseId) => {
-          setDetailLoading(true);
-          setDetail(null);
-          travelRef.current?.setHighlightCaseId(caseId);
-          try {
-            const res = await fetch(
-              `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
-            );
-            if (res.ok) setDetail((await res.json()) as CaseDetail);
-          } finally {
-            setDetailLoading(false);
-          }
+          center: [28, 2],
+          zoom: 3.2,
+          pitch: 45,
+          bearing: -10,
+          minZoom: 0,
+          maxZoom: 14,
         });
+        map.addControl(
+          new maplibre.NavigationControl({ visualizePitch: true }),
+          "top-left",
+        );
+        mapRef.current = map;
 
-        const { attachTravelLayer } = await import("./travel-layer");
-        if (cancelled) return;
-        travelRef.current = await attachTravelLayer(map);
-        travelRef.current.setTravels(snapshot.travels, asOf);
-      });
+        map.on("load", async () => {
+          ensureCaseLayers(map);
+          ensureExposureLayer(map);
+          updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
+          updateExposureLayer(map, snapshot.exposures);
+          removeClick = onCaseClick(map, async (caseId) => {
+            setDetailLoading(true);
+            setDetail(null);
+            travelRef.current?.setHighlightCaseId(caseId);
+            try {
+              const res = await fetch(
+                `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
+              );
+              if (res.ok) setDetail((await res.json()) as CaseDetail);
+            } finally {
+              setDetailLoading(false);
+            }
+          });
+
+          const { attachTravelLayer } = await import("./travel-layer");
+          if (cancelled) return;
+          travelRef.current = await attachTravelLayer(map);
+          travelRef.current.setTravels(snapshot.travels, asOf);
+          if (!cancelled) setMapReady(true);
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setMapError(
+            err instanceof Error ? err.message : "Failed to initialize map",
+          );
+        }
+      }
     }
 
     void boot();
@@ -138,6 +152,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   return (
     <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-[#e8eef2]">
       <div ref={containerRef} className="absolute inset-0" />
+      {!mapReady && !mapError ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-zinc-600">
+          Loading map…
+        </div>
+      ) : null}
+      {mapError ? (
+        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-red-700">
+          {mapError}
+        </div>
+      ) : null}
       <CaseDrawer
         detail={detail}
         loading={detailLoading}
