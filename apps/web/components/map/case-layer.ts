@@ -117,6 +117,19 @@ export function updateCaseLayers(
   aggSrc?.setData(aggregatesGeoJson(aggregates));
 }
 
+export function setCaseLayersVisible(
+  map: MapLibreMap,
+  visible: boolean,
+): void {
+  const value = visible ? "visible" : "none";
+  if (map.getLayer(CASES_LAYER)) {
+    map.setLayoutProperty(CASES_LAYER, "visibility", value);
+  }
+  if (map.getLayer(AGG_LAYER)) {
+    map.setLayoutProperty(AGG_LAYER, "visibility", value);
+  }
+}
+
 export function onCaseClick(
   map: MapLibreMap,
   handler: (caseId: string) => void,

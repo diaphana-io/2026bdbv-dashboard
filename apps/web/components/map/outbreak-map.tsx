@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
-import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
-import { thinBasemapStyle } from "./basemap-style";
+import type { MapSnapshot } from "../../lib/data-types";
+import { BASEMAPS, type BasemapId } from "./basemap-style";
+import {
+  ensureBoundaryLayer,
+  setBoundaryLayerVisible,
+} from "./boundary-layer";
 import {
   ensureCaseLayers,
   onCaseClick,
+  setCaseLayersVisible,
   updateCaseLayers,
-  type CaseLayerMode,
 } from "./case-layer";
-import { CaseDrawer } from "./case-drawer";
 import {
   ensureExposureLayer,
+  setExposureLayerVisible,
   updateExposureLayer,
 } from "./exposure-layer";
 import { MapBootStatus } from "./map-boot-status";
+import { useMapUi } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
 import type { TravelLayerHandle } from "./travel-layer";
 
@@ -24,10 +28,6 @@ type Props = {
   minDate: string;
   maxDate: string;
 };
-
-function mapMode(resolvedTheme: string | undefined): CaseLayerMode {
-  return resolvedTheme === "dark" ? "dark" : "light";
-}
 
 function waitForStyle(map: import("maplibre-gl").Map): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -55,33 +55,51 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const travelRef = useRef<TravelLayerHandle | null>(null);
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
-  const appliedModeRef = useRef<CaseLayerMode | null>(null);
+  const appliedBasemapRef = useRef<BasemapId | null>(null);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
+  const layersRef = useRef({
+    boundaries: true,
+    cases: true,
+    exposures: true,
+    travels: true,
+  });
 
-  const { resolvedTheme } = useTheme();
-  const [themeReady, setThemeReady] = useState(false);
+  const { basemapId, layers, openCaseDetail, selectedCaseId } = useMapUi();
+  const openCaseDetailRef = useRef(openCaseDetail);
+  openCaseDetailRef.current = openCaseDetail;
+
   const [asOf, setAsOf] = useState(initialSnapshot.asOf);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [detail, setDetail] = useState<CaseDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState<string | null>("maplibre-gl");
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   snapshotRef.current = snapshot;
   asOfRef.current = asOf;
+  layersRef.current = layers;
+
+  function applyLayerVisibility(map: import("maplibre-gl").Map) {
+    const vis = layersRef.current;
+    setBoundaryLayerVisible(map, vis.boundaries);
+    setCaseLayersVisible(map, vis.cases);
+    setExposureLayerVisible(map, vis.exposures);
+    travelRef.current?.setVisible(vis.travels);
+  }
+
+  function wireCaseClick(map: import("maplibre-gl").Map) {
+    removeClickRef.current?.();
+    removeClickRef.current = onCaseClick(map, (caseId) => {
+      travelRef.current?.setHighlightCaseId(caseId);
+      openCaseDetailRef.current(caseId);
+    });
+  }
 
   useEffect(() => {
-    setThemeReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!themeReady) return;
-
     let cancelled = false;
     let resizeObserver: ResizeObserver | undefined;
-    const bootMode = mapMode(resolvedTheme);
-    appliedModeRef.current = bootMode;
+    const bootId = basemapId;
+    appliedBasemapRef.current = bootId;
 
     async function boot() {
       try {
@@ -90,9 +108,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         if (cancelled || !containerRef.current) return;
 
         setLoading("OutbreakMap");
+        const entry = BASEMAPS[bootId];
         const map = new maplibre.Map({
           container: containerRef.current,
-          style: thinBasemapStyle(bootMode),
+          style: entry.style(),
           center: [20, 3],
           zoom: 2.5,
           pitch: 0,
@@ -129,7 +148,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           { padding: 48, duration: 0, pitch: 0, bearing: 0 },
         );
 
-        ensureCaseLayers(map, bootMode);
+        ensureBoundaryLayer(map);
+        ensureCaseLayers(map, entry.mode);
         ensureExposureLayer(map);
         updateCaseLayers(
           map,
@@ -137,20 +157,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           snapshotRef.current.aggregates,
         );
         updateExposureLayer(map, snapshotRef.current.exposures);
-
-        removeClickRef.current = onCaseClick(map, async (caseId) => {
-          setDetailLoading(true);
-          setDetail(null);
-          travelRef.current?.setHighlightCaseId(caseId);
-          try {
-            const res = await fetch(
-              `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
-            );
-            if (res.ok) setDetail((await res.json()) as CaseDetail);
-          } finally {
-            setDetailLoading(false);
-          }
-        });
+        applyLayerVisibility(map);
+        wireCaseClick(map);
 
         map.resize();
         const canvas = map.getCanvas();
@@ -161,6 +169,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           return;
         }
         setLoading(null);
+        setMapReady(true);
 
         try {
           const { attachTravelLayer } = await import("./travel-layer");
@@ -170,6 +179,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
             snapshotRef.current.travels,
             asOfRef.current,
           );
+          travelRef.current.setVisible(layersRef.current.travels);
         } catch (err) {
           console.error("[OutbreakMap] travel layer failed", err);
         }
@@ -194,23 +204,22 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       travelRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
-      appliedModeRef.current = null;
+      appliedBasemapRef.current = null;
+      setMapReady(false);
     };
-    // Boot once after theme hydrates; style swaps handled below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once when themeReady
-  }, [themeReady]);
+    // Boot once; basemap swaps handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
+  }, []);
 
   useEffect(() => {
-    if (!themeReady) return;
     const map = mapRef.current;
-    if (!map) return;
-
-    const mode = mapMode(resolvedTheme);
-    if (appliedModeRef.current === mode) return;
-    appliedModeRef.current = mode;
+    if (!map || !mapReady) return;
+    if (appliedBasemapRef.current === basemapId) return;
+    appliedBasemapRef.current = basemapId;
 
     let cancelled = false;
     const active = map;
+    const entry = BASEMAPS[basemapId];
 
     async function swapStyle() {
       try {
@@ -219,11 +228,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         removeClickRef.current?.();
         removeClickRef.current = undefined;
 
-        active.setStyle(thinBasemapStyle(mode));
+        active.setStyle(entry.style());
         await waitForStyle(active);
         if (cancelled) return;
 
-        ensureCaseLayers(active, mode);
+        ensureBoundaryLayer(active);
+        ensureCaseLayers(active, entry.mode);
         ensureExposureLayer(active);
         updateCaseLayers(
           active,
@@ -231,20 +241,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           snapshotRef.current.aggregates,
         );
         updateExposureLayer(active, snapshotRef.current.exposures);
-
-        removeClickRef.current = onCaseClick(active, async (caseId) => {
-          setDetailLoading(true);
-          setDetail(null);
-          travelRef.current?.setHighlightCaseId(caseId);
-          try {
-            const res = await fetch(
-              `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
-            );
-            if (res.ok) setDetail((await res.json()) as CaseDetail);
-          } finally {
-            setDetailLoading(false);
-          }
-        });
+        applyLayerVisibility(active);
+        wireCaseClick(active);
 
         try {
           const { attachTravelLayer } = await import("./travel-layer");
@@ -254,6 +252,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
             snapshotRef.current.travels,
             asOfRef.current,
           );
+          travelRef.current.setVisible(layersRef.current.travels);
         } catch (err) {
           console.error("[OutbreakMap] travel layer failed", err);
         }
@@ -266,7 +265,19 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [resolvedTheme, themeReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- basemapId drives swap
+  }, [basemapId, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    applyLayerVisibility(map);
+  }, [layers, mapReady]);
+
+  useEffect(() => {
+    if (selectedCaseId) return;
+    travelRef.current?.setHighlightCaseId(null);
+  }, [selectedCaseId]);
 
   const skipFetchRef = useRef(true);
 
@@ -288,8 +299,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       if (map?.isStyleLoaded()) {
         updateCaseLayers(map, next.cases, next.aggregates);
         updateExposureLayer(map, next.exposures);
+        applyLayerVisibility(map);
       }
       travelRef.current?.setTravels(next.travels, asOf);
+      travelRef.current?.setVisible(layersRef.current.travels);
     }
     void load();
     return () => {
@@ -298,20 +311,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   }, [asOf]);
 
   return (
-    <div className="relative h-[calc(100vh-3.25rem)] w-full overflow-hidden bg-background">
+    <div className="relative h-full min-h-0 w-full overflow-hidden bg-background">
       <div
         ref={containerRef}
-        className="absolute inset-0 h-full w-full [&_.maplibregl-map]:!h-full [&_.maplibregl-map]:!w-full"
+        className="absolute inset-0 h-full w-full [&_.maplibregl-map]:!h-full [&_.maplibregl-map]:!w-full [&_.maplibregl-ctrl-top-left]:!top-11"
       />
       <MapBootStatus loading={loading} error={mapError} />
-      <CaseDrawer
-        detail={detail}
-        loading={detailLoading}
-        onClose={() => {
-          setDetail(null);
-          travelRef.current?.setHighlightCaseId(null);
-        }}
-      />
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
         <TimeSlider
           min={minDate}

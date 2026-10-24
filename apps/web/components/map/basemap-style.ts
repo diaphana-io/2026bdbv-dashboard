@@ -1,14 +1,32 @@
+import type { StyleSpecification } from "maplibre-gl";
 import type { CaseLayerMode } from "./case-layer";
 
 /**
  * Thin free basemap: Natural Earth shaded relief (raster, maxzoom 6, overzooms).
  * Avoids full OpenFreeMap Positron vector PBFs (roads/labels) that stall first paint.
  * See https://github.com/diaphana-io/2026bdbv-dashboard/issues/5
+ *
+ * Adaptive globe: sphere when zoomed out, flat mercator when zoomed in.
+ * Default MapLibre `globe` transitions at zoom 11→12, but this app caps at
+ * maxZoom 11 — so use lower breakpoints aligned with Natural Earth maxzoom 6.
  */
-export function thinBasemapStyle(mode: CaseLayerMode) {
+const GLOBE_PROJECTION: NonNullable<StyleSpecification["projection"]> = {
+  type: [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    4,
+    "vertical-perspective",
+    5.5,
+    "mercator",
+  ],
+};
+
+export function thinBasemapStyle(mode: CaseLayerMode): StyleSpecification {
   const dark = mode === "dark";
   return {
-    version: 8 as const,
+    version: 8,
+    projection: GLOBE_PROJECTION,
     sources: {
       ne2: {
         type: "raster" as const,
@@ -46,4 +64,31 @@ export function thinBasemapStyle(mode: CaseLayerMode) {
       },
     ],
   };
+}
+
+export const BASEMAPS = {
+  "natural-earth-light": {
+    label: "Natural Earth (light)",
+    mode: "light" as const satisfies CaseLayerMode,
+    style: () => thinBasemapStyle("light"),
+  },
+  "natural-earth-dark": {
+    label: "Natural Earth (dark)",
+    mode: "dark" as const satisfies CaseLayerMode,
+    style: () => thinBasemapStyle("dark"),
+  },
+} as const;
+
+export type BasemapId = keyof typeof BASEMAPS;
+
+export function isBasemapId(value: string): value is BasemapId {
+  return value in BASEMAPS;
+}
+
+export function basemapIdForUiTheme(
+  resolvedTheme: string | undefined,
+): BasemapId {
+  return resolvedTheme === "dark"
+    ? "natural-earth-dark"
+    : "natural-earth-light";
 }

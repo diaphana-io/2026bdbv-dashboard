@@ -72,3 +72,11 @@ export function updateExposureLayer(
     | undefined;
   src?.setData(exposuresGeoJson(exposures));
 }
+
+export function setExposureLayerVisible(
+  map: MapLibreMap,
+  visible: boolean,
+): void {
+  if (!map.getLayer(LAYER)) return;
+  map.setLayoutProperty(LAYER, "visibility", visible ? "visible" : "none");
+}
