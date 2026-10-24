@@ -10,15 +10,15 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 - aura-cli install docs (`docs/neo4j-aura.md`, `scripts/install-aura-cli.ps1`)
 - `scripts/verify.sh all` runs rustfmt + clippy + schema + rust tests + web build
 - Cloudflare Access for Curate (Zero Trust app **BDBV Curate** + Worker `CF_ACCESS_*`; preview AUD branched in `cloudflare.config.ts`) — [GitHub #4](https://github.com/diaphana-io/2026bdbv-dashboard/issues/4) / **MATT-312**
+- Neo4j Aura Free cutover (instance `bdbv-dashboard` / `928c135c` seeded; Worker `NEO4J_*` secrets; health ok) — [GitHub #3](https://github.com/diaphana-io/2026bdbv-dashboard/issues/3) / **MATT-311**
 
 ## Still open (human / infra)
 
 1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
-2. **Aura Free instance cutover** — [GitHub #3](https://github.com/diaphana-io/2026bdbv-dashboard/issues/3); create with aura-cli (needs API client credentials), set Worker secrets, run `npm run seed:neo4j`, confirm `/api/health/neo4j` and `/app` read/write against the graph (`docs/neo4j-aura.md`).
-3. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
-4. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
-5. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet.
-6. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard can go live once Aura secrets are set (Access for Curate is done).
+2. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
+3. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
+4. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet.
+5. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place.
 
 ## Out of scope until Extract decision
 
