@@ -1,0 +1,36 @@
+---
+description: Commit message format for Generate Commit Message (sparkles) and agents
+alwaysApply: true
+---
+
+# Commit messages
+
+Keep the message **1–2 lines**.
+
+Format:
+
+```text
+<type>: <short topic>
+
+<one purpose-oriented sentence>
+```
+
+- **type** (required prefix): `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, or `ci`
+- **topic**: brief subject (what area), not a file list
+- **body line**: one sentence on **why** / purpose of the change (not a changelog of files)
+
+Examples:
+
+```text
+feat: map loading UI
+
+Show basemap as soon as MapLibre loads so travel-layer delays do not block the map.
+```
+
+```text
+docs: agent UI conventions
+
+Prefer shadcn/ui primitives so agents do not invent one-off controls.
+```
+
+Do not use multi-paragraph bodies, bullet lists, or "Made-with: Cursor" footers unless the user asks.
