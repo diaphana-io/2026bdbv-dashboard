@@ -37,7 +37,7 @@ bash scripts/verify.sh scaffold   # or schema|engine|curation|all
 
 - Production: curated real sources (official + news), human-approved claims only
 - Tests: `seed/` synthetic (`dataset=test`)
-- Extract backend: stub until Issue decision (Jev candidates)
+- Extract backend: stub until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) decision (Jev candidates)
 - **UI language: English only**
 - **Contradictions**: when sources disagree, both claims stay visible (`CONFLICTS_WITH` / open conflict) until a human resolves (`resolved_a` | `resolved_b` | `resolved_neither`)
 

@@ -10,7 +10,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 
 ## Still open (human / infra)
 
-1. **Extract backend spec** — file/close GitHub Issue from `docs/extract-issue.md` (Jev candidates). Keep `EXTRACT_ENABLED=false` in production until then.
+1. **Extract backend spec** — [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
 2. **Neo4j persistence** — wire Aura / local compose so Curate mutations and dashboard reads use the graph (today: static JSON under `apps/web/data` + `data/curated`).
 3. **Cloudflare Access** — protect `/curate` and `/curate/*` at the edge (see `docs/security-deploy.md`).
 4. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.

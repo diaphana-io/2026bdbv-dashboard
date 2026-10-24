@@ -70,11 +70,11 @@ export default function CuratePage() {
           <span className="text-sm font-semibold">Extract</span>
           <a
             className="text-xs text-blue-700 hover:underline"
-            href="https://github.com/diaphana-io/2026bdbv-dashboard/issues"
+            href="https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract"
             target="_blank"
             rel="noreferrer"
           >
-            Spec issue
+            Spec issue (MATT-309)
           </a>
         </CardHeader>
         <CardContent className="text-sm text-zinc-700">
