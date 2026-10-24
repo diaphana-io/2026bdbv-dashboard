@@ -22,8 +22,9 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_BASE_PATH: basePath,
   },
-  // When basePath is /app, bare `/` is outside the app mount. Prefer a
-  // Cloudflare Single Redirect at the edge; this covers Worker-handled `/`.
+  // Production Worker is path-scoped to /app(+/*), so bare `/` never hits it.
+  // Apex `/` → /app is the zone Single Redirect. This redirect is a fallback
+  // when the Worker still receives `/` (e.g. local or preview without routes).
   async redirects() {
     if (!basePath) return [];
     return [
@@ -36,5 +37,6 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
 
 export default nextConfig;
