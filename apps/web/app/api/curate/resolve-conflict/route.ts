@@ -1,4 +1,6 @@
 import { isResolveStatus } from "../../../../lib/curate-api";
+import { isNeo4jConfigured } from "../../../../lib/neo4j";
+import { persistResolveConflict } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -22,12 +24,25 @@ export async function POST(request: Request) {
     );
   }
 
-  // Staging: validate + acknowledge. Persistence lands with Neo4j wiring.
+  let persisted = false;
+  if (isNeo4jConfigured()) {
+    try {
+      await persistResolveConflict(conflictId, status);
+      persisted = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      if (message.startsWith("conflict_not_found:")) {
+        return Response.json({ error: "conflict_not_found" }, { status: 404 });
+      }
+      return Response.json({ error: message }, { status: 503 });
+    }
+  }
+
   return Response.json({
     conflict_id: conflictId,
     status,
     resolved: true,
-    persisted: false,
+    persisted,
     display_policy: "show_both_until_resolved",
   });
 }

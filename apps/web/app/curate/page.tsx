@@ -6,9 +6,11 @@ import { ConflictPair } from "../../components/conflicts/conflict-pair";
 import { ResolveConflictActions } from "../../components/conflicts/resolve-conflict-actions";
 import { InboxActions } from "../../components/curate/inbox-actions";
 
-export default function CuratePage() {
-  const inbox = getInboxCandidates();
-  const conflicts = getConflictViews();
+export default async function CuratePage() {
+  const [inbox, conflicts] = await Promise.all([
+    getInboxCandidates(),
+    getConflictViews(),
+  ]);
   const extractEnabled = process.env.EXTRACT_ENABLED === "true";
 
   return (

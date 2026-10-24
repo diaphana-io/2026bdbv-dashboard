@@ -16,6 +16,7 @@
     "verify:schema": "bash scripts/verify.sh schema",
     "verify:engine": "bash scripts/verify.sh engine",
     "verify:curation": "bash scripts/verify.sh curation",
-    "lint": "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings"
+    "lint": "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings",
+    "seed:neo4j": "node scripts/seed-neo4j.mjs"
   }
 }

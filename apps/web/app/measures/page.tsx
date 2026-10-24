@@ -11,7 +11,7 @@ export default async function MeasuresPage({
 }) {
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
-  const rows = getMeasures(country === "ALL" ? undefined : country);
+  const rows = await getMeasures(country === "ALL" ? undefined : country);
 
   return (
     <main className="flex flex-col gap-4">

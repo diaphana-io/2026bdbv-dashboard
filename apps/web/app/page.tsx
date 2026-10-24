@@ -13,8 +13,8 @@ export default async function Home({
 }) {
   const sp = await searchParams;
   const country = sp.country ?? "ALL";
-  const k = overviewKpis(country === "ALL" ? undefined : country);
-  const conflicts = getConflictViews();
+  const k = await overviewKpis(country === "ALL" ? undefined : country);
+  const conflicts = await getConflictViews();
 
   return (
     <main className="flex flex-col gap-4">
@@ -26,7 +26,10 @@ export default async function Home({
           <CountryFilter active={country} basePath="/" />
         </div>
       </div>
-      <OverviewKpis country={country === "ALL" ? undefined : country} />
+      <OverviewKpis
+        country={country === "ALL" ? undefined : country}
+        kpis={k}
+      />
       {conflicts.length > 0 && (
         <Card>
           <CardHeader className="flex items-center justify-between gap-2">

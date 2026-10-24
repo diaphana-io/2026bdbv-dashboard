@@ -33,6 +33,10 @@ export default defineConfig({
       CF_ACCESS_AUD: bindings.text(
         "30f260613dd004af14e3735da0b4cefb3b1ed822a7ef5804173a3d46c0b5550d",
       ),
+      // Set via Worker secrets / .dev.vars — never commit values.
+      NEO4J_URI: bindings.secret(),
+      NEO4J_USER: bindings.secret(),
+      NEO4J_PASSWORD: bindings.secret(),
     },
   }),
 });
