@@ -4,8 +4,8 @@
 
 | Env | URL (target) | Extract | Data | Access |
 |-----|----------------|---------|------|--------|
-| staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | curated + test | Cloudflare Access on `/curate` + `/api/curate` |
-| production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | approved claims only | Cloudflare Access on `/curate` + `/api/curate` |
+| staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | Neo4j when `NEO4J_*` set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
+| production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | Aura graph when secrets set, else curated JSON | Cloudflare Access on `/curate` + `/api/curate` |
 
 Production must not ship an automatic Extract backend until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is decided (Jev candidates, etc.).
 
@@ -23,9 +23,17 @@ Use Cloudflare Zero Trust Access (email OTP or IdP). Dashboard routes stay publi
 
 When `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set on the Worker, middleware validates `Cf-Access-Jwt-Assertion` as defense in depth.
 
-## Secrets (Wrangler)
+## Neo4j / Aura
 
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura)
+Create Free instance, seed, and wire secrets: [`docs/neo4j-aura.md`](./neo4j-aura.md).
+
+- Health: `GET /api/health/neo4j`
+- Seed: `npm run seed:neo4j` (against Aura or local compose)
+- Without secrets the Worker keeps serving `apps/web/data` JSON (Workers cannot reach localhost Neo4j)
+
+## Secrets (Worker / Wrangler)
+
+- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura `neo4j+s://…`) — declared as secrets in `cloudflare.config.ts`
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
 - `APP_BASE_PATH=/app` on the Worker (runtime) — production `vite build` defaults to `/app` when unset
