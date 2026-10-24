@@ -13,8 +13,8 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 ## Still open (human / infra)
 
 1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then.
-2. **Aura Free instance cutover** — create with aura-cli (needs API client credentials), set Worker secrets, run `npm run seed:neo4j`, confirm `/api/health/neo4j` and `/app` read/write against the graph (`docs/neo4j-aura.md`).
-3. **Cloudflare Access** — code + docs ready (`docs/cloudflare-access-curate.md`); create/update the Zero Trust app for `2026bdbv.diaphana.io` paths; confirm `CF_ACCESS_*` on the Worker.
+2. **Aura Free instance cutover** — [GitHub #3](https://github.com/diaphana-io/2026bdbv-dashboard/issues/3); create with aura-cli (needs API client credentials), set Worker secrets, run `npm run seed:neo4j`, confirm `/api/health/neo4j` and `/app` read/write against the graph (`docs/neo4j-aura.md`).
+3. **Cloudflare Access** — [GitHub #4](https://github.com/diaphana-io/2026bdbv-dashboard/issues/4); code + docs ready (`docs/cloudflare-access-curate.md`); create/update the Zero Trust app for `2026bdbv.diaphana.io` paths; confirm `CF_ACCESS_*` on the Worker.
 4. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
 5. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
 6. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet.
