@@ -7,7 +7,7 @@
 | staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | curated + test | Cloudflare Access on `/curate` |
 | production | `https://www.diaphana.io/2026bdbv/app` | **blocked until Extract issue resolved** | approved claims only | Cloudflare Access on `/curate` |
 
-Production must not ship an automatic Extract backend until the Extract GitHub Issue is decided (Jev candidates, etc.).
+Production must not ship an automatic Extract backend until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is decided (Jev candidates, etc.).
 
 ## Cloudflare Access
 
