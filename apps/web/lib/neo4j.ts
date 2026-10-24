@@ -29,11 +29,21 @@ export function isNeo4jConfigured(env: Neo4jEnv = readNeo4jEnv()): boolean {
   return Boolean(env.uri && env.user && env.password);
 }
 
+/**
+ * Aura Free is a single instance. Prefer direct bolt(+s) so the driver skips
+ * routing-table discovery, which fails on Cloudflare Workers' TCP stack.
+ */
+export function normalizeNeo4jUri(uri: string): string {
+  if (uri.startsWith("neo4j+s://")) return `bolt+s://${uri.slice("neo4j+s://".length)}`;
+  if (uri.startsWith("neo4j://")) return `bolt://${uri.slice("neo4j://".length)}`;
+  return uri;
+}
+
 let driver: Driver | null = null;
 let driverKey: string | null = null;
 
 function driverCacheKey(env: Neo4jEnv): string {
-  return `${env.uri}\0${env.user}\0${env.password}`;
+  return `${normalizeNeo4jUri(env.uri!)}\0${env.user}\0${env.password}`;
 }
 
 export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
@@ -45,7 +55,10 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
     if (driver) {
       void driver.close().catch(() => undefined);
     }
-    driver = neo4j.driver(env.uri!, neo4j.auth.basic(env.user!, env.password!));
+    driver = neo4j.driver(
+      normalizeNeo4jUri(env.uri!),
+      neo4j.auth.basic(env.user!, env.password!),
+    );
     driverKey = key;
   }
   return driver;
