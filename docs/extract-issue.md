@@ -15,6 +15,10 @@ Staging / production target must keep `EXTRACT_ENABLED=false` until [#2](https:/
 3. Rule-based regex/heuristic extractors for sitrep tables
 4. General LLM JSON generation (last resort; higher hallucination risk)
 
+## Shared Workers constraint (Curate / graph SSR)
+
+**Workers must not hold responses hostage to Bolt** — see [Curate graph serving](./curate-graph-serving.md) ([MATT-314](https://linear.app/diaphana/issue/MATT-314/bdbv-curate-graph-serving-design-workers-neo4j-avoid-1101) / [GitHub #7](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7)). Extract backends that need Neo4j must use async jobs or snapshot I/O; never await an unbounded Bolt connect on the request path.
+
 ## Requirements (Extract backend)
 
 - Output must match `@bdbv/schema` Claim fields including `excerpt` span
@@ -22,6 +26,7 @@ Staging / production target must keep `EXTRACT_ENABLED=false` until [#2](https:/
 - Conflict detection keeps both claims visible until human resolve
 - Workers-compatible or async job with R2 snapshot input
 - Cost/latency budget and fallback when backend unset (`status: not_configured`)
+- Honor the shared Bolt constraint above (no unbounded Neo4j on the Worker response path)
 
 ## Extract / Curate workflow (human path + shell)
 

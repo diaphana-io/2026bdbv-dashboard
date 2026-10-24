@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   isNeo4jConfigured,
+  isNeo4jTimeoutError,
+  neo4jSessionTimeoutMs,
   readNeo4jEnv,
   resolveNeo4jDatabase,
+  withHardTimeout,
+  Neo4jTimeoutError,
 } from "./neo4j";
 
 describe("readNeo4jEnv / isNeo4jConfigured", () => {
@@ -58,5 +62,36 @@ describe("readNeo4jEnv / isNeo4jConfigured", () => {
         database: "neo4j",
       }),
     ).toBe("neo4j");
+  });
+});
+
+describe("withHardTimeout / neo4jSessionTimeoutMs", () => {
+  it("defaults to 2500ms and accepts overrides", () => {
+    expect(neo4jSessionTimeoutMs({} as NodeJS.ProcessEnv)).toBe(2_500);
+    expect(
+      neo4jSessionTimeoutMs({ NEO4J_SESSION_TIMEOUT_MS: "1200" } as NodeJS.ProcessEnv),
+    ).toBe(1_200);
+    expect(
+      neo4jSessionTimeoutMs({ NEO4J_SESSION_TIMEOUT_MS: "nope" } as NodeJS.ProcessEnv),
+    ).toBe(2_500);
+  });
+
+  it("resolves when the work finishes before the deadline", async () => {
+    await expect(withHardTimeout(Promise.resolve("ok"), 500)).resolves.toBe("ok");
+  });
+
+  it("rejects Neo4jTimeoutError when the promise never settles", async () => {
+    vi.useFakeTimers();
+    const hung = new Promise<string>(() => undefined);
+    const pending = withHardTimeout(hung, 100);
+    const assertion = expect(pending).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof Neo4jTimeoutError &&
+        isNeo4jTimeoutError(err) &&
+        err.message === "neo4j_timeout:100ms",
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await assertion;
+    vi.useRealTimers();
   });
 });

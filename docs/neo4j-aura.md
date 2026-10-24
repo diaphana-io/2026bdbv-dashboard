@@ -64,6 +64,8 @@ docker compose -f infra/docker-compose.yml up -d
 
 Cloudflare Worker `bdbv-dashboard` secrets (dashboard or Wrangler): `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`.
 
+Optional text bindings / env: `NEO4J_SESSION_TIMEOUT_MS` (default `2500`), `NEO4J_READ_CACHE_TTL_MS` (default `30000`). See [`docs/curate-graph-serving.md`](./curate-graph-serving.md) — Workers must not hold responses hostage to Bolt.
+
 If these are unset, the web app keeps serving static JSON under `apps/web/data` (Workers cannot reach localhost Neo4j).
 
 ## Seed + health

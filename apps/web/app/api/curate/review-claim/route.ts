@@ -1,3 +1,4 @@
+import { invalidateGraphReadCache } from "../../../../lib/data";
 import { isNeo4jConfigured } from "../../../../lib/neo4j";
 import { persistReviewClaim } from "../../../../lib/neo4j-curate";
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
           rejectionReason: reason,
         });
         claimId = out.claimId;
+        invalidateGraphReadCache();
         persisted = true;
       } catch (err) {
         const message = err instanceof Error ? err.message : "neo4j_write_failed";
@@ -104,6 +106,7 @@ export async function POST(request: Request) {
         conflictsWithClaimId: conflictsWith,
       });
       claimId = out.claimId;
+      invalidateGraphReadCache();
       persisted = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "neo4j_write_failed";

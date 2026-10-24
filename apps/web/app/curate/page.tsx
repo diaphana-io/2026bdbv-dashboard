@@ -13,6 +13,10 @@ import { ConflictPair } from "../../components/conflicts/conflict-pair";
 import { ResolveConflictActions } from "../../components/conflicts/resolve-conflict-actions";
 import { InboxActions } from "../../components/curate/inbox-actions";
 
+/**
+ * Inbox/conflicts come from lib/data (cache → Bolt with hard timeout → JSON).
+ * Do not call Neo4j directly here — hung Aura must not block first HTML (MATT-314).
+ */
 export default async function CuratePage() {
   const [inbox, conflicts] = await Promise.all([
     getInboxCandidates(),
