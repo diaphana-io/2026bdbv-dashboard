@@ -1,5 +1,5 @@
 ---
-description: Commit message format for Generate Commit Message (sparkles) and agents
+description: Commit message format for agents (sparkles uses repo-root .cursorrules)
 alwaysApply: true
 ---
 
@@ -34,3 +34,5 @@ Prefer shadcn/ui primitives so agents do not invent one-off controls.
 ```
 
 Do not use multi-paragraph bodies, bullet lists, or "Made-with: Cursor" footers unless the user asks.
+
+**Sparkles note:** Cursor Generate Commit Message ignores `.cursor/rules` and AGENTS.md. The live prompt for that button is the repo-root `.cursorrules` file — keep it in sync with this rule.

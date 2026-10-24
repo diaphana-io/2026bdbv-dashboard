@@ -24,7 +24,7 @@ Human-curation cutover before automatic Extract:
 
 ## Commit messages
 
-Used by agents and Cursor **Generate Commit Message** (sparkles). Keep **1–2 lines**.
+Keep **1–2 lines** (no bullet changelogs).
 
 ```text
 <type>: <short topic>
@@ -37,6 +37,15 @@ Used by agents and Cursor **Generate Commit Message** (sparkles). Keep **1–2 l
 - Final sentence: **why** the change exists (purpose), not a list of edits
 
 Example: `feat: map loading UI` then `Show basemap as soon as MapLibre loads so travel-layer delays do not block the map.`
+
+**Where the rule lives**
+
+| Consumer | Source |
+| --- | --- |
+| Agents / chat | `.cursor/rules/commit-messages.mdc` (+ this section) |
+| Source Control **Generate Commit Message** (sparkles) | repo-root `.cursorrules` only |
+
+Cursor does not apply Project Rules or AGENTS.md to the sparkles button; keep `.cursorrules` aligned with the format above.
 
 ## UI components (shadcn/ui first)
 
