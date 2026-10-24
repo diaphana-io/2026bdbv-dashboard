@@ -1,0 +1,47 @@
+[
+  {
+    "id": "b1111111-0000-4000-8000-000000000001",
+    "title": "JKIA arrival screening — Bundibugyo response",
+    "measure_type": "entry_screening",
+    "status": "active",
+    "effective_from": "2026-10-06",
+    "effective_to": null,
+    "as_of_date": "2026-10-20",
+    "summary": "Enhanced screening at Jomo Kenyatta International Airport for arrivals linked to affected areas.",
+    "audience": "from_affected",
+    "applies_to_countries": ["KE"],
+    "poe": "JKIA",
+    "confidence": "official",
+    "source_ids": ["bbbbbbbb-0000-4000-8000-000000000002"]
+  },
+  {
+    "id": "b1111111-0000-4000-8000-000000000002",
+    "title": "Nigeria PoE readiness — FCT imported case",
+    "measure_type": "entry_screening",
+    "status": "active",
+    "effective_from": "2026-10-20",
+    "effective_to": null,
+    "as_of_date": "2026-10-20",
+    "summary": "Point-of-entry monitoring and contact listing after FCT imported BDBV confirmation.",
+    "audience": "from_affected",
+    "applies_to_countries": ["NG"],
+    "poe": "ABV",
+    "confidence": "official",
+    "source_ids": ["bbbbbbbb-0000-4000-8000-000000000003"]
+  },
+  {
+    "id": "b1111111-0000-4000-8000-000000000003",
+    "title": "Uganda post-outbreak PoE vigilance",
+    "measure_type": "health_declaration",
+    "status": "active",
+    "effective_from": "2026-08-01",
+    "effective_to": null,
+    "as_of_date": "2026-10-20",
+    "summary": "Continued PoE vigilance after Uganda BDBV outbreak end (August 2026).",
+    "audience": "all_arrivals",
+    "applies_to_countries": ["UG"],
+    "poe": "EBB",
+    "confidence": "official",
+    "source_ids": ["bbbbbbbb-0000-4000-8000-000000000002"]
+  }
+]

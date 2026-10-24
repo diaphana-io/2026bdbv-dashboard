@@ -1,0 +1,15 @@
+{
+  "id": "aaaaaaaa-0000-4000-8000-000000000001",
+  "name": "2026 Bundibugyo virus disease outbreak",
+  "disease_code": "BDBV",
+  "pathogen": "Bundibugyo ebolavirus",
+  "status": "active",
+  "declared_at": "2026-05-15",
+  "ended_at": null,
+  "incubation_min_days": 2,
+  "incubation_max_days": 21,
+  "followup_duration_days": 21,
+  "followup_starts_on_last_contact": true,
+  "case_definition_version": "NCDC-EVD-v2-2026-05-23",
+  "countries": ["CD", "UG", "KE", "NG"]
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.vinext/
+.cloudflare/
+target/
+*.log
+.env
+.env.local
+.DS_Store
+apps/web/.wrangler/
+.wrangler/
+coverage/
+*.wasm
+/tmp/

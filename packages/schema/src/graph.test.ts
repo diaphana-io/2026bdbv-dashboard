@@ -1,0 +1,78 @@
+import { describe, expect, it } from "vitest";
+import { ConflictPairViewSchema } from "./conflict";
+import { ExposureSchema, FollowUpWindowSchema } from "./exposure";
+import { PersonSchema } from "./person";
+
+describe("graph-related schemas", () => {
+  it("parses exposure and follow-up window", () => {
+    const exp = ExposureSchema.parse({
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      from_person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      to_ref_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      to_ref_type: "case",
+      date_of_last_contact: "2026-10-05",
+      exposure_setting: "household",
+      intensity: "high",
+      certainty: "confirmed",
+    });
+    const w = FollowUpWindowSchema.parse({
+      id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      person_id: exp.from_person_id,
+      source_exposure_id: exp.id,
+      window_start: "2026-10-05",
+      window_end: "2026-10-26",
+      incubation_max_days: 21,
+      status: "active",
+    });
+    expect(w.status).toBe("active");
+  });
+
+  it("conflict pair keeps both claims visible", () => {
+    const claim = {
+      id: "11111111-1111-1111-1111-111111111111",
+      claim_type: "case_count",
+      subject_ref: "KE",
+      object_value: { confirmed: 9 },
+      as_of_date: "2026-10-20",
+      claim_fingerprint: "fp-a",
+      confidence: "official" as const,
+      extractor: "human" as const,
+      review_status: "approved" as const,
+    };
+    const claimB = {
+      ...claim,
+      id: "22222222-2222-2222-2222-222222222222",
+      object_value: { confirmed: 11 },
+      claim_fingerprint: "fp-b",
+      confidence: "news_single" as const,
+    };
+    const view = ConflictPairViewSchema.parse({
+      conflict: {
+        id: "33333333-3333-3333-3333-333333333333",
+        claim_a_id: claim.id,
+        claim_b_id: claimB.id,
+        subject_ref: "KE",
+        claim_type: "case_count",
+        status: "open",
+        detected_at: "2026-10-21T00:00:00.000Z",
+      },
+      claim_a: claim,
+      claim_b: claimB,
+    });
+    expect(view.conflict.status).toBe("open");
+    expect(view.claim_a.object_value).not.toEqual(view.claim_b.object_value);
+  });
+
+  it("parses contact person", () => {
+    const p = PersonSchema.parse({
+      id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+      visual_id: "KE-C-001",
+      dataset: "production",
+      role: "contact",
+      admin0_iso: "KE",
+      risk_level: "high",
+      is_synthetic: false,
+    });
+    expect(p.role).toBe("contact");
+  });
+});

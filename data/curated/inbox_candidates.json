@@ -1,0 +1,13 @@
+[
+  {
+    "id": "c1111111-0000-4000-8000-000000000001",
+    "url": "https://www.afro.who.int/sites/default/files/2026-10/Week%2041%20Situation%20Report.pdf",
+    "normalized_url": "https://www.afro.who.int/sites/default/files/2026-10/week%2041%20situation%20report.pdf",
+    "title": "WHO AFRO Week 41 Situation Report",
+    "publisher": "WHO AFRO",
+    "kind": "sitrep",
+    "curation_status": "candidate",
+    "discovered_at": "2026-10-23T18:00:00.000Z",
+    "discovery_query": "Bundibugyo sitrep 2026"
+  }
+]

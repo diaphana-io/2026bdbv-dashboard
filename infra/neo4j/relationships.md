@@ -1,0 +1,27 @@
+# Neo4j relationship types
+
+- `(Outbreak)-[:INCLUDES_ADMIN]->(AdminUnit)`
+- `(Person)-[:HAS_CASE]->(Case)`
+- `(Case)-[:IN_OUTBREAK]->(Outbreak)`
+- `(Case)-[:IN_CLUSTER]->(Cluster)`
+- `(Case)-[:DETECTED_IN|RESIDES_IN|DIED_IN]->(AdminUnit)`
+- `(Case)-[:ADMITTED_TO|ISOLATED_AT|TESTED_AT]->(Facility)`
+- `(Case)-[:HAS_LAB]->(LabResult)`
+- `(Case)-[:HAS_HOSPITALIZATION]->(Hospitalization)`
+- `(Person)-[:TRAVELED]->(TravelLeg)-[:FROM|TO]->(AdminUnit|PointOfEntry)`
+- `(Person)-[:EXPOSED_TO]->(Case|Person|Event)`
+- `(Person)-[:HAS_FOLLOWUP_WINDOW]->(FollowUpWindow)`
+- `(FollowUpWindow)-[:HAS_DAY]->(FollowUpDay)`
+- `(Person)-[:BECAME_CASE]->(Case)`
+- `(Case)-[:GENERATION_OF]->(Case)`
+- `(Event)-[:OCCURRED_IN]->(AdminUnit)`
+- `(Case|Person|Event|Cluster|FollowUpWindow|LabResult|BorderMeasure)-[:SUPPORTED_BY]->(Claim)`
+- `(Claim)-[:FROM]->(SourceDocument)`
+- `(Claim)-[:CONFLICTS_WITH]->(Claim)` — both remain visible until ClaimConflict resolved
+- `(Claim)-[:SUPERSEDES]->(Claim)`
+- `(ClaimConflict)-[:SIDE_A|SIDE_B]->(Claim)`
+- `(IngestBatch)-[:PRODUCED]->(Claim|Case|Person|SourceDocument|BorderMeasure)`
+- `(AdminUnit)-[:PARENT_OF]->(AdminUnit)`
+- `(BorderMeasure)-[:APPLIES_IN]->(AdminUnit)`
+- `(BorderMeasure)-[:AT_POE]->(PointOfEntry)`
+- `(DiscoveryRun)-[:ENQUEUED]->(SourceDocument)`

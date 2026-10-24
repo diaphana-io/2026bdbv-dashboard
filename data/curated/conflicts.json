@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ffffffff-0000-4000-8000-000000000001",
+    "claim_a_id": "eeeeeeee-0000-4000-8000-000000000001",
+    "claim_b_id": "eeeeeeee-0000-4000-8000-000000000003",
+    "subject_ref": "KE",
+    "claim_type": "case_count",
+    "status": "open",
+    "detected_at": "2026-10-23T12:10:00.000Z",
+    "resolution_note": null
+  }
+]
