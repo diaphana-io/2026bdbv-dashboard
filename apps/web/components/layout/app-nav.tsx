@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "./mode-toggle";
 
-const links = [
+const links: { href: string; label: string; newTab?: boolean }[] = [
   { href: "/", label: "Map" },
-  { href: "/curate", label: "Curate" },
+  { href: "/curate", label: "Curate", newTab: true },
 ];
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
@@ -36,6 +36,9 @@ export function AppNav() {
               key={l.href}
               href={l.href}
               className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              {...(l.newTab
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
             >
               {l.label}
             </Link>
