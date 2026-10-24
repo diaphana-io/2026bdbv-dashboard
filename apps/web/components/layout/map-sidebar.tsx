@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLinkIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import {
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  LayoutDashboardIcon,
+  LayersIcon,
+  MapIcon,
+} from "lucide-react";
+import { Collapsible } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -12,28 +20,29 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
   SidebarRail,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
+import { cn } from "@/lib/utils";
 import { ModeToggle } from "./mode-toggle";
 import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
 import type { BasemapId } from "../map/basemap-style";
-import { PANEL_REGISTRY } from "../panels/registry";
-import type { PanelId } from "../panels/types";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 
-const LAYER_LABELS: Record<keyof LayerVisibility, string> = {
-  cases: "Cases",
-  exposures: "Exposures",
-  travels: "Travel",
-};
+const LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
+  { key: "boundaries", label: "Country boundary" },
+  { key: "cases", label: "Cases" },
+  { key: "exposures", label: "Exposures" },
+  { key: "travels", label: "Travel" },
+];
 
 /** Lucide dropped brand icons; keep a minimal GitHub mark inline. */
 function GithubIcon({ className }: { className?: string }) {
@@ -61,8 +70,8 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-2 py-1.5">
-      <Label htmlFor={id} className="text-sm font-normal">
+    <div className="flex w-full items-center justify-between gap-3 px-2 py-1">
+      <Label htmlFor={id} className="cursor-pointer text-sm font-normal">
         {label}
       </Label>
       <Switch
@@ -75,12 +84,50 @@ function ToggleRow({
   );
 }
 
+function NavSection({
+  icon,
+  label,
+  defaultOpen = true,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible.Root open={open} onOpenChange={setOpen} className="group/nav">
+      <SidebarMenuItem>
+        <Collapsible.Trigger asChild>
+          <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent">
+            {icon}
+            <span>{label}</span>
+            <ChevronDownIcon
+              className={cn(
+                "ml-auto size-4 opacity-60 transition-transform",
+                open && "rotate-180",
+              )}
+            />
+          </SidebarMenuButton>
+        </Collapsible.Trigger>
+        <Collapsible.Content>
+          <SidebarMenuSub className="mr-0 pr-0">{children}</SidebarMenuSub>
+        </Collapsible.Content>
+      </SidebarMenuItem>
+    </Collapsible.Root>
+  );
+}
+
 export function MapSidebar() {
   const {
     openPanels,
     setPanelOpen,
     layers,
     setLayerVisible,
+    countryStatsVisible,
+    setCountryStatsVisible,
     basemapId,
     setBasemapId,
     syncBasemapToUiTheme,
@@ -105,73 +152,95 @@ export function MapSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Data panels</SidebarGroupLabel>
+        <SidebarGroup className="py-2">
           <SidebarGroupContent>
-            {PANEL_REGISTRY.map((def) => (
-              <ToggleRow
-                key={def.id}
-                id={`panel-${def.id}`}
-                label={def.title}
-                checked={openPanels[def.id as PanelId]}
-                onCheckedChange={(checked) =>
-                  setPanelOpen(def.id as PanelId, checked)
-                }
-              />
-            ))}
-          </SidebarGroupContent>
-        </SidebarGroup>
+            <SidebarMenu>
+              <NavSection
+                icon={<LayoutDashboardIcon />}
+                label="Data panels"
+                defaultOpen
+              >
+                <SidebarMenuSubItem>
+                  <div className="px-2 pt-1 pb-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Country statistics
+                  </div>
+                </SidebarMenuSubItem>
+                {TRACKED_COUNTRIES.map((country) => (
+                  <SidebarMenuSubItem key={country.iso}>
+                    <ToggleRow
+                      id={`country-stats-${country.iso}`}
+                      label={country.shortName}
+                      checked={countryStatsVisible[country.iso]}
+                      onCheckedChange={(checked) =>
+                        setCountryStatsVisible(country.iso, checked)
+                      }
+                    />
+                  </SidebarMenuSubItem>
+                ))}
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="panel-case-detail"
+                    label="Case detail"
+                    checked={openPanels["case-detail"]}
+                    onCheckedChange={(checked) =>
+                      setPanelOpen("case-detail", checked)
+                    }
+                  />
+                </SidebarMenuSubItem>
+              </NavSection>
 
-        <SidebarSeparator />
+              <NavSection icon={<LayersIcon />} label="Layers" defaultOpen>
+                {LAYER_ITEMS.map(({ key, label }) => (
+                  <SidebarMenuSubItem key={key}>
+                    <ToggleRow
+                      id={`layer-${key}`}
+                      label={label}
+                      checked={layers[key]}
+                      onCheckedChange={(checked) =>
+                        setLayerVisible(key, checked)
+                      }
+                    />
+                  </SidebarMenuSubItem>
+                ))}
+              </NavSection>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Layers</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {(Object.keys(LAYER_LABELS) as (keyof LayerVisibility)[]).map(
-              (key) => (
-                <ToggleRow
-                  key={key}
-                  id={`layer-${key}`}
-                  label={LAYER_LABELS[key]}
-                  checked={layers[key]}
-                  onCheckedChange={(checked) => setLayerVisible(key, checked)}
-                />
-              ),
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Basemap</SidebarGroupLabel>
-          <SidebarGroupContent className="space-y-3 px-2">
-            <RadioGroup
-              value={basemapId}
-              onValueChange={(value) => setBasemapId(value as BasemapId)}
-              className="gap-2"
-            >
-              {(Object.keys(basemapOptions) as BasemapId[]).map((id) => (
-                <div key={id} className="flex items-center gap-2">
-                  <RadioGroupItem value={id} id={`basemap-${id}`} />
-                  <Label
-                    htmlFor={`basemap-${id}`}
-                    className="text-sm font-normal"
-                  >
-                    {basemapOptions[id].label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-            <Separator />
-            <ToggleRow
-              id="sync-basemap"
-              label="Disable automatic map theme change"
-              checked={!syncBasemapToUiTheme}
-              onCheckedChange={(disabled) =>
-                setSyncBasemapToUiTheme(!disabled)
-              }
-            />
+              <NavSection icon={<MapIcon />} label="Basemap" defaultOpen>
+                <SidebarMenuSubItem>
+                  <div className="space-y-3 px-2 py-1.5">
+                    <RadioGroup
+                      value={basemapId}
+                      onValueChange={(value) =>
+                        setBasemapId(value as BasemapId)
+                      }
+                      className="gap-2"
+                    >
+                      {(Object.keys(basemapOptions) as BasemapId[]).map(
+                        (id) => (
+                          <div key={id} className="flex items-center gap-2">
+                            <RadioGroupItem value={id} id={`basemap-${id}`} />
+                            <Label
+                              htmlFor={`basemap-${id}`}
+                              className="text-sm font-normal"
+                            >
+                              {basemapOptions[id].label}
+                            </Label>
+                          </div>
+                        ),
+                      )}
+                    </RadioGroup>
+                    <Separator />
+                    <ToggleRow
+                      id="sync-basemap"
+                      label="Disable automatic map theme change"
+                      checked={!syncBasemapToUiTheme}
+                      onCheckedChange={(disabled) =>
+                        setSyncBasemapToUiTheme(!disabled)
+                      }
+                    />
+                  </div>
+                </SidebarMenuSubItem>
+              </NavSection>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
-export type PanelId = "country-stats" | "case-detail";
+/** Floating / docked data panels (country stats are a separate strip). */
+export type PanelId = "case-detail";
 
 export type PanelPosition = { x: number; y: number };
 

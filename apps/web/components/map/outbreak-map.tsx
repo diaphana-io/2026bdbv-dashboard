@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { MapSnapshot } from "../../lib/data-types";
 import { BASEMAPS, type BasemapId } from "./basemap-style";
 import {
+  ensureBoundaryLayer,
+  setBoundaryLayerVisible,
+} from "./boundary-layer";
+import {
   ensureCaseLayers,
   onCaseClick,
   setCaseLayersVisible,
@@ -54,7 +58,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const appliedBasemapRef = useRef<BasemapId | null>(null);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
-  const layersRef = useRef({ cases: true, exposures: true, travels: true });
+  const layersRef = useRef({
+    boundaries: true,
+    cases: true,
+    exposures: true,
+    travels: true,
+  });
 
   const { basemapId, layers, openCaseDetail, selectedCaseId } = useMapUi();
   const openCaseDetailRef = useRef(openCaseDetail);
@@ -72,6 +81,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
   function applyLayerVisibility(map: import("maplibre-gl").Map) {
     const vis = layersRef.current;
+    setBoundaryLayerVisible(map, vis.boundaries);
     setCaseLayersVisible(map, vis.cases);
     setExposureLayerVisible(map, vis.exposures);
     travelRef.current?.setVisible(vis.travels);
@@ -138,6 +148,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           { padding: 48, duration: 0, pitch: 0, bearing: 0 },
         );
 
+        ensureBoundaryLayer(map);
         ensureCaseLayers(map, entry.mode);
         ensureExposureLayer(map);
         updateCaseLayers(
@@ -221,6 +232,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         await waitForStyle(active);
         if (cancelled) return;
 
+        ensureBoundaryLayer(active);
         ensureCaseLayers(active, entry.mode);
         ensureExposureLayer(active);
         updateCaseLayers(

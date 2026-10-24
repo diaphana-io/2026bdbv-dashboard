@@ -17,25 +17,32 @@ import {
   isBasemapId,
 } from "./basemap-style";
 import type { PanelId, PanelPosition } from "../panels/types";
+import {
+  defaultCountryStatsVisibility,
+  isTrackedCountryIso,
+  type TrackedCountryIso,
+} from "@/lib/tracked-countries";
 
-const STORAGE_KEY = "bdbv-map-ui-v1";
+const STORAGE_KEY = "bdbv-map-ui-v2";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
   PanelId,
   { defaultOpen: boolean; defaultPosition: PanelPosition }
 > = {
-  "country-stats": { defaultOpen: true, defaultPosition: { x: 12, y: 56 } },
   "case-detail": { defaultOpen: false, defaultPosition: { x: 10_000, y: 12 } },
 };
 
 const PANEL_IDS = Object.keys(PANEL_DEFAULTS) as PanelId[];
 
 export type LayerVisibility = {
+  boundaries: boolean;
   cases: boolean;
   exposures: boolean;
   travels: boolean;
 };
+
+export type CountryStatsVisibility = Record<TrackedCountryIso, boolean>;
 
 export type { PanelPosition };
 
@@ -43,6 +50,7 @@ type PersistedMapUi = {
   openPanels?: Partial<Record<PanelId, boolean>>;
   panelPositions?: Partial<Record<PanelId, PanelPosition>>;
   layers?: Partial<LayerVisibility>;
+  countryStatsVisible?: Partial<CountryStatsVisibility>;
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
 };
@@ -51,6 +59,7 @@ type MapUiContextValue = {
   openPanels: Record<PanelId, boolean>;
   panelPositions: Record<PanelId, PanelPosition>;
   layers: LayerVisibility;
+  countryStatsVisible: CountryStatsVisibility;
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
   selectedCaseId: string | null;
@@ -59,6 +68,7 @@ type MapUiContextValue = {
   togglePanel: (id: PanelId) => void;
   setPanelPosition: (id: PanelId, position: PanelPosition) => void;
   setLayerVisible: (layer: keyof LayerVisibility, visible: boolean) => void;
+  setCountryStatsVisible: (iso: TrackedCountryIso, visible: boolean) => void;
   setBasemapId: (id: BasemapId) => void;
   setSyncBasemapToUiTheme: (sync: boolean) => void;
   openCaseDetail: (caseId: string) => void;
@@ -86,6 +96,7 @@ function defaultPanelPositions(): Record<PanelId, PanelPosition> {
 }
 
 const DEFAULT_LAYERS: LayerVisibility = {
+  boundaries: true,
   cases: true,
   exposures: true,
   travels: true,
@@ -100,6 +111,19 @@ function readPersisted(): PersistedMapUi | null {
   } catch {
     return null;
   }
+}
+
+function mergeCountryStats(
+  persisted?: Partial<CountryStatsVisibility>,
+): CountryStatsVisibility {
+  const out = defaultCountryStatsVisibility();
+  if (!persisted) return out;
+  for (const [iso, visible] of Object.entries(persisted)) {
+    if (isTrackedCountryIso(iso) && typeof visible === "boolean") {
+      out[iso] = visible;
+    }
+  }
+  return out;
 }
 
 function mergeInitialState(persisted: PersistedMapUi | null) {
@@ -123,12 +147,20 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...DEFAULT_LAYERS,
     ...persisted?.layers,
   };
+  const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
   const basemapId =
     persisted?.basemapId && isBasemapId(persisted.basemapId)
       ? persisted.basemapId
       : "natural-earth-light";
   const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? true;
-  return { openPanels, panelPositions, layers, basemapId, syncBasemapToUiTheme };
+  return {
+    openPanels,
+    panelPositions,
+    layers,
+    countryStatsVisible,
+    basemapId,
+    syncBasemapToUiTheme,
+  };
 }
 
 export function MapUiProvider({ children }: { children: ReactNode }) {
@@ -137,6 +169,9 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [openPanels, setOpenPanels] = useState(defaultOpenPanels);
   const [panelPositions, setPanelPositions] = useState(defaultPanelPositions);
   const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
+  const [countryStatsVisible, setCountryStatsState] = useState(
+    defaultCountryStatsVisibility,
+  );
   const [basemapId, setBasemapIdState] = useState<BasemapId>("natural-earth-light");
   const [syncBasemapToUiTheme, setSyncState] = useState(true);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -147,6 +182,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels(merged.openPanels);
     setPanelPositions(merged.panelPositions);
     setLayers(merged.layers);
+    setCountryStatsState(merged.countryStatsVisible);
     setBasemapIdState(merged.basemapId);
     setSyncState(merged.syncBasemapToUiTheme);
     setHydrated(true);
@@ -158,6 +194,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
+      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
     };
@@ -171,6 +208,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     openPanels,
     panelPositions,
     layers,
+    countryStatsVisible,
     basemapId,
     syncBasemapToUiTheme,
   ]);
@@ -204,6 +242,13 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const setLayerVisible = useCallback(
     (layer: keyof LayerVisibility, visible: boolean) => {
       setLayers((prev) => ({ ...prev, [layer]: visible }));
+    },
+    [],
+  );
+
+  const setCountryStatsVisible = useCallback(
+    (iso: TrackedCountryIso, visible: boolean) => {
+      setCountryStatsState((prev) => ({ ...prev, [iso]: visible }));
     },
     [],
   );
@@ -242,6 +287,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
+      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
@@ -250,6 +296,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       togglePanel,
       setPanelPosition,
       setLayerVisible,
+      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
@@ -261,6 +308,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
+      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
@@ -269,6 +317,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       togglePanel,
       setPanelPosition,
       setLayerVisible,
+      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
