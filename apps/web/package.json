@@ -6,6 +6,7 @@
   "dependencies": {
     "@vinext/cloudflare": "^1.2.0",
     "jose": "^6.2.13",
+    "neo4j-driver": "^6.2.0",
     "react": "latest",
     "react-dom": "latest",
     "react-server-dom-webpack": "^19.3.1",
