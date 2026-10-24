@@ -76,6 +76,41 @@ pub(crate) fn epi_followup(_s: &mut Session, params: &Value) -> CmdResult {
     Ok(serde_json::to_value(w).map_err(|e| EngineError::Failed(e.to_string()))?)
 }
 
+pub(crate) fn export_geojson(_s: &mut Session, params: &Value) -> CmdResult {
+    use surv_analysis::count_points_in_admins;
+    use surv_data::Feature;
+    let points: Vec<Feature> = serde_json::from_value(
+        params.get("points").cloned().unwrap_or_else(|| json!([])),
+    )
+    .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let admins: Vec<Feature> = serde_json::from_value(
+        params.get("admins").cloned().unwrap_or_else(|| json!([])),
+    )
+    .map_err(|e| EngineError::Failed(e.to_string()))?;
+    let counts = count_points_in_admins(&points, &admins);
+    let mut features = Vec::new();
+    for admin in &admins {
+        let count = counts
+            .iter()
+            .find(|c| c.admin_id == admin.id)
+            .map(|c| c.count)
+            .unwrap_or(0);
+        features.push(json!({
+            "type": "Feature",
+            "id": admin.id,
+            "properties": {
+                "admin_id": admin.id,
+                "case_count": count
+            },
+            "geometry": admin.geometry
+        }));
+    }
+    Ok(json!({
+        "type": "FeatureCollection",
+        "features": features
+    }))
+}
+
 pub(crate) fn epi_curve(_s: &mut Session, params: &Value) -> CmdResult {
     let rows = params
         .get("events")
@@ -107,5 +142,44 @@ mod tests {
         let mut s = Session::new("test");
         let v = s.run("sys.ping", &json!({})).unwrap();
         assert_eq!(v["ok"], true);
+    }
+
+    #[test]
+    fn followup_command() {
+        let mut s = Session::new("test");
+        let v = s
+            .run(
+                "epi.followupWindows",
+                &json!({ "last_contact_at": "2026-10-03", "incubation_max_days": 21 }),
+            )
+            .unwrap();
+        assert_eq!(v["window_end"], "2026-10-24");
+    }
+
+    #[test]
+    fn export_geojson_command() {
+        let mut s = Session::new("test");
+        let v = s
+            .run(
+                "export.geojson",
+                &json!({
+                    "points": [{
+                        "id": "c1",
+                        "properties": {},
+                        "geometry": { "type": "Point", "coordinates": [36.82, -1.29] }
+                    }],
+                    "admins": [{
+                        "id": "ke-nairobi",
+                        "properties": {},
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[36.6,-1.4],[37.0,-1.4],[37.0,-1.1],[36.6,-1.1],[36.6,-1.4]]]
+                        }
+                    }]
+                }),
+            )
+            .unwrap();
+        assert_eq!(v["type"], "FeatureCollection");
+        assert_eq!(v["features"][0]["properties"]["case_count"], 1);
     }
 }

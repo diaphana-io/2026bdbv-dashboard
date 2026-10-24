@@ -57,4 +57,9 @@ pub static REGISTRY: &[CommandSpec] = &[
         mutates: false,
         run: crate::epi_curve,
     },
+    CommandSpec {
+        id: "export.geojson",
+        mutates: false,
+        run: crate::export_geojson,
+    },
 ];
