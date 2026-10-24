@@ -276,14 +276,56 @@ export async function getInboxCandidatesNeo4j(): Promise<InboxRow[]> {
 }
 
 export async function overviewKpisNeo4j(country?: string) {
-  const rows = await getCasesNeo4j({ country, includeTemporalSuspects: true });
-  const contacts = await getContactsNeo4j(country);
-  const confirmed = rows.filter((c) => c.classification === "confirmed").length;
-  const deaths = rows.filter((c) => c.outcome === "deceased").length;
-  const temporal = rows.filter((c) => c.inclusion_reason === "temporal_suspect").length;
-  const followup = contacts.filter((c) => c.followup.status === "active").length;
-  const outbreak = await getOutbreakNeo4j();
-  const asOf =
-    typeof outbreak.declared_at === "string" ? "2026-10-23" : "2026-10-23";
-  return { confirmed, deaths, temporal, followup, asOf };
+  // One session — avoids 3× pool acquisition on Aura Free / Workers.
+  return withSession(async (session) => {
+    const countryParam =
+      country && country !== "ALL" ? country : null;
+    const casesRes = await session.run(
+      `
+      MATCH (c:Case)
+      WHERE c.dataset = 'production'
+        AND ($country IS NULL OR c.admin0_iso = $country)
+      RETURN c.classification AS classification,
+             c.outcome AS outcome,
+             c.inclusion_reason AS inclusion_reason
+      `,
+      { country: countryParam },
+    );
+    let confirmed = 0;
+    let deaths = 0;
+    let temporal = 0;
+    for (const r of casesRes.records) {
+      if (r.get("classification") === "confirmed") confirmed += 1;
+      if (r.get("outcome") === "deceased") deaths += 1;
+      if (r.get("inclusion_reason") === "temporal_suspect") temporal += 1;
+    }
+
+    const contactsRes = await session.run(
+      `
+      MATCH (p:Person)-[:HAS_FOLLOWUP_WINDOW]->(f:FollowUpWindow)
+      WHERE p.role = 'contact'
+        AND p.dataset = 'production'
+        AND ($country IS NULL OR p.admin0_iso = $country)
+        AND f.status = 'active'
+      RETURN count(p) AS n
+      `,
+      { country: countryParam },
+    );
+    const followupRaw = contactsRes.records[0]?.get("n");
+    const followup =
+      typeof followupRaw?.toNumber === "function"
+        ? followupRaw.toNumber()
+        : Number(followupRaw ?? 0);
+
+    const outbreakRes = await session.run(
+      `MATCH (o:Outbreak) RETURN o.declared_at AS declared_at LIMIT 1`,
+    );
+    const declared = outbreakRes.records[0]?.get("declared_at");
+    const asOf =
+      typeof declared === "string" && declared.length >= 10
+        ? declared.slice(0, 10)
+        : "2026-10-23";
+
+    return { confirmed, deaths, temporal, followup, asOf };
+  });
 }

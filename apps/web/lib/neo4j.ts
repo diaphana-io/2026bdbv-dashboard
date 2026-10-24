@@ -94,7 +94,10 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
     // isolates share this driver — keep the pool tiny.
     driver = neo4j.driver(uri, neo4j.auth.basic(env.user!, env.password!), {
       maxConnectionPoolSize: 1,
-      connectionAcquisitionTimeout: 10_000,
+      // Fail fast into JSON fallback instead of hanging the Worker ~10s.
+      connectionAcquisitionTimeout: 3_000,
+      connectionTimeout: 5_000,
+      maxConnectionLifetime: 30_000,
       disableLosslessIntegers: true,
     });
     driverKey = key;
@@ -102,18 +105,56 @@ export function getDriver(env: Neo4jEnv = readNeo4jEnv()): Driver {
   return driver;
 }
 
+/**
+ * Serialize Bolt sessions inside one Worker isolate. Aura Free rejects /
+ * stalls when many sessions race on a tiny pool (and across isolates the
+ * instance still has a low concurrent-connection ceiling).
+ */
+let sessionTail: Promise<unknown> = Promise.resolve();
+
+function isTransientNeo4jError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /acquisition timed out/i.test(msg) ||
+    /database .+ not found/i.test(msg) ||
+    /no routing servers/i.test(msg) ||
+    /ServiceUnavailable/i.test(msg)
+  );
+}
+
 export async function withSession<T>(
   fn: (session: Session) => Promise<T>,
   env: Neo4jEnv = readNeo4jEnv(),
 ): Promise<T> {
-  const session = getDriver(env).session({
-    database: resolveNeo4jDatabase(env),
-  });
-  try {
-    return await fn(session);
-  } finally {
-    await session.close();
-  }
+  const runOnce = async () => {
+    const session = getDriver(env).session({
+      database: resolveNeo4jDatabase(env),
+    });
+    try {
+      return await fn(session);
+    } finally {
+      await session.close();
+    }
+  };
+
+  const run = async () => {
+    try {
+      return await runOnce();
+    } catch (err) {
+      // Aura Free often flaps with "database not found" / pool timeouts while
+      // waking or under concurrent Worker isolates.
+      if (!isTransientNeo4jError(err)) throw err;
+      await new Promise((r) => setTimeout(r, 400));
+      return runOnce();
+    }
+  };
+
+  const next = sessionTail.then(run, run);
+  sessionTail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
 }
 
 export async function verifyConnectivity(
