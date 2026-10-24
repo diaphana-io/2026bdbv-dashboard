@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @bdbv/web",
+    "dev:docs": "npm run dev -w @bdbv/docs",
     "build": "npm run build -w @bdbv/web",
+    "build:docs": "npm run build -w @bdbv/docs",
     "test": "npm run test -w @bdbv/schema && cargo test --workspace --manifest-path Cargo.toml",
     "test:schema": "npm run test -w @bdbv/schema",
     "test:rust": "cargo test --workspace --manifest-path Cargo.toml",
