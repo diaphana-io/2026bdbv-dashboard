@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
+import { thinBasemapStyle } from "./basemap-style";
 import {
   ensureCaseLayers,
   onCaseClick,
@@ -23,11 +24,6 @@ type Props = {
   minDate: string;
   maxDate: string;
 };
-
-const BASEMAP = {
-  light: "https://tiles.openfreemap.org/styles/positron",
-  dark: "https://tiles.openfreemap.org/styles/dark",
-} as const;
 
 function mapMode(resolvedTheme: string | undefined): CaseLayerMode {
   return resolvedTheme === "dark" ? "dark" : "light";
@@ -96,13 +92,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         setLoading("OutbreakMap");
         const map = new maplibre.Map({
           container: containerRef.current,
-          style: BASEMAP[bootMode],
+          style: thinBasemapStyle(bootMode),
           center: [20, 3],
           zoom: 2.5,
-          pitch: 30,
+          pitch: 0,
           bearing: 0,
           minZoom: 0,
-          maxZoom: 14,
+          // Region/city is enough; avoid neighborhood-scale tile cost (#5).
+          maxZoom: 11,
         });
         map.addControl(
           new maplibre.NavigationControl({ visualizePitch: true }),
@@ -129,7 +126,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
             [-18, -35],
             [52, 38],
           ],
-          { padding: 48, duration: 0, pitch: 30, bearing: 0 },
+          { padding: 48, duration: 0, pitch: 0, bearing: 0 },
         );
 
         ensureCaseLayers(map, bootMode);
@@ -222,7 +219,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         removeClickRef.current?.();
         removeClickRef.current = undefined;
 
-        active.setStyle(BASEMAP[mode]);
+        active.setStyle(thinBasemapStyle(mode));
         await waitForStyle(active);
         if (cancelled) return;
 
