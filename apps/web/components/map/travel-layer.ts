@@ -3,6 +3,7 @@ import type { MapTravel } from "../../lib/data-types";
 
 type ArcState = {
   id: string;
+  caseId?: string | null;
   points: { x: number; y: number; z: number }[];
   departed: string;
   arrived: string;
@@ -52,6 +53,7 @@ function progressAt(asOf: string, departed: string, arrived: string): number {
 
 export type TravelLayerHandle = {
   setTravels: (travels: MapTravel[], asOf: string) => void;
+  setHighlightCaseId: (caseId: string | null) => void;
   destroy: () => void;
 };
 
@@ -68,6 +70,7 @@ export async function attachTravelLayer(
   let renderer: import("three").WebGLRenderer | null = null;
   const arcs: ArcState[] = [];
   let asOfDate = "2099-01-01";
+  let highlightCaseId: string | null = null;
 
   const layer: CustomLayerInterface = {
     id: "bdbv-travel-three",
@@ -94,8 +97,10 @@ export async function attachTravelLayer(
 
       for (const arc of arcs) {
         const p = progressAt(asOfDate, arc.departed, arc.arrived);
+        const focused =
+          !highlightCaseId || arc.caseId === highlightCaseId;
         arc.mesh.visible = p >= 0;
-        arc.marker.visible = p > 0 && p < 1;
+        arc.marker.visible = focused && p > 0 && p < 1;
         if (p > 0 && p < 1) {
           const idx = Math.min(
             arc.points.length - 1,
@@ -105,7 +110,13 @@ export async function attachTravelLayer(
           arc.marker.position.set(pt.x, pt.y, pt.z);
         }
         const mat = arc.mesh.material as import("three").LineBasicMaterial;
-        mat.opacity = p >= 1 ? 0.35 : p >= 0 ? 0.9 : 0;
+        if (p < 0) {
+          mat.opacity = 0;
+        } else if (!focused) {
+          mat.opacity = 0.08;
+        } else {
+          mat.opacity = p >= 1 ? 0.35 : 0.9;
+        }
       }
 
       renderer.resetState();
@@ -163,6 +174,7 @@ export async function attachTravelLayer(
         scene.add(marker);
         arcs.push({
           id: leg.id,
+          caseId: leg.case_id,
           points,
           departed,
           arrived,
@@ -170,6 +182,10 @@ export async function attachTravelLayer(
           marker,
         });
       }
+      map.triggerRepaint();
+    },
+    setHighlightCaseId(caseId: string | null) {
+      highlightCaseId = caseId;
       map.triggerRepaint();
     },
     destroy() {

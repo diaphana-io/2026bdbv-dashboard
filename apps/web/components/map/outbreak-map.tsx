@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { CaseDetail, MapSnapshot } from "../../lib/data-types";
 import { ensureCaseLayers, onCaseClick, updateCaseLayers } from "./case-layer";
 import { CaseDrawer } from "./case-drawer";
+import {
+  ensureExposureLayer,
+  updateExposureLayer,
+} from "./exposure-layer";
 import { TimeSlider } from "./time-slider";
 import type { TravelLayerHandle } from "./travel-layer";
 
@@ -65,10 +69,13 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
       map.on("load", async () => {
         ensureCaseLayers(map);
+        ensureExposureLayer(map);
         updateCaseLayers(map, snapshot.cases, snapshot.aggregates);
+        updateExposureLayer(map, snapshot.exposures);
         removeClick = onCaseClick(map, async (caseId) => {
           setDetailLoading(true);
           setDetail(null);
+          travelRef.current?.setHighlightCaseId(caseId);
           try {
             const res = await fetch(
               `${process.env.NEXT_PUBLIC_APP_BASE_PATH ?? ""}/api/map/case?id=${encodeURIComponent(caseId)}`,
@@ -118,6 +125,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       const map = mapRef.current;
       if (map?.isStyleLoaded()) {
         updateCaseLayers(map, next.cases, next.aggregates);
+        updateExposureLayer(map, next.exposures);
       }
       travelRef.current?.setTravels(next.travels, asOf);
     }
@@ -133,7 +141,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       <CaseDrawer
         detail={detail}
         loading={detailLoading}
-        onClose={() => setDetail(null)}
+        onClose={() => {
+          setDetail(null);
+          travelRef.current?.setHighlightCaseId(null);
+        }}
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
         <TimeSlider
