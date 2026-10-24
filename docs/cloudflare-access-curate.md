@@ -4,14 +4,14 @@ Protect human-review UI and Curate APIs. Public Overview / Cases / Map stay open
 
 ## Paths to protect
 
-Production base path is `/2026bdbv/app` (`APP_BASE_PATH`). Access paths must include that prefix.
+Production base path is `/app` (`APP_BASE_PATH`) on host `2026bdbv.diaphana.io`. Access paths must include that prefix.
 
 | Public hostname | Path |
 |-----------------|------|
-| `www.diaphana.io` | `/2026bdbv/app/curate` |
-| `www.diaphana.io` | `/2026bdbv/app/curate/*` |
-| `www.diaphana.io` | `/2026bdbv/app/api/curate` |
-| `www.diaphana.io` | `/2026bdbv/app/api/curate/*` |
+| `2026bdbv.diaphana.io` | `/app/curate` |
+| `2026bdbv.diaphana.io` | `/app/curate/*` |
+| `2026bdbv.diaphana.io` | `/app/api/curate` |
+| `2026bdbv.diaphana.io` | `/app/api/curate/*` |
 
 Parent and child paths must both be listed: `…/curate/*` does **not** cover `…/curate` ([application paths](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/)).
 
@@ -21,7 +21,7 @@ For staging Workers / preview hostnames, add the same path pattern under that ho
 
 1. [Zero Trust](https://one.dash.cloudflare.com/) → **Access controls** → **Applications** → **Add an application** → **Self-hosted**.
 2. Name: `BDBV Curate`.
-3. **Add public hostname** four times (or one app with multiple domains) using the table above (`diaphana.io` zone → subdomain `www`, paths as listed).
+3. **Add public hostname** four times (or one app with multiple domains) using the table above (`diaphana.io` zone → subdomain `2026bdbv`, paths as listed).
 4. Create an **Allow** policy, for example:
    - Include → **Emails** → your curator emails, or
    - Include → **Emails ending in** → `@your-org.tld`, or
@@ -38,7 +38,7 @@ Set on the `bdbv-dashboard` Worker (staging + production):
 CF_ACCESS_TEAM_DOMAIN=https://YOUR_TEAM.cloudflareaccess.com
 CF_ACCESS_AUD=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 APP_ENV=staging   # or production
-APP_BASE_PATH=/2026bdbv/app
+APP_BASE_PATH=/app
 EXTRACT_ENABLED=false
 ```
 
@@ -46,7 +46,7 @@ When both Access vars are set, middleware validates `Cf-Access-Jwt-Assertion` on
 
 ## API / script
 
-With `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (Access:Apps Edit + Access: Policies Edit):
+With `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (Access: Apps Edit + Access: Policies Edit):
 
 ```bash
 bash scripts/provision-access-curate.sh
@@ -56,6 +56,6 @@ The script creates a reusable Allow policy (email OTP-friendly email list from `
 
 ## Verify
 
-1. Unauthenticated: `https://www.diaphana.io/2026bdbv/app/curate` → Access login.
+1. Unauthenticated: `https://2026bdbv.diaphana.io/app/curate` → Access login.
 2. Authenticated curator: Curate UI loads; resolve/dismiss APIs succeed.
-3. Public: `https://www.diaphana.io/2026bdbv/app/` and `/cases` stay reachable without login.
+3. Public: `https://2026bdbv.diaphana.io/app/` and `/app/cases` stay reachable without login.

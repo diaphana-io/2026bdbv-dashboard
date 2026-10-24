@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 /**
- * Production target: https://www.diaphana.io/2026bdbv/app
- * Set APP_BASE_PATH=/2026bdbv/app in staging/production Workers.
+ * Production target: https://2026bdbv.diaphana.io/app
+ * Set APP_BASE_PATH=/app in staging/production Workers (and Builds).
  * Leave unset for local `npm run dev` at http://127.0.0.1:43127.
  */
 const basePath = process.env.APP_BASE_PATH || "";

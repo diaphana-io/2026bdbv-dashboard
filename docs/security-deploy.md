@@ -5,7 +5,7 @@
 | Env | URL (target) | Extract | Data | Access |
 |-----|----------------|---------|------|--------|
 | staging | preview Worker | stub (`EXTRACT_ENABLED=false`) | curated + test | Cloudflare Access on `/curate` + `/api/curate` |
-| production | `https://www.diaphana.io/2026bdbv/app` | **blocked until Extract issue resolved** | approved claims only | Cloudflare Access on `/curate` + `/api/curate` |
+| production | `https://2026bdbv.diaphana.io/app` | **blocked until Extract issue resolved** | approved claims only | Cloudflare Access on `/curate` + `/api/curate` |
 
 Production must not ship an automatic Extract backend until [MATT-309](https://linear.app/diaphana/issue/MATT-309/bdbv-extract-backend-specification-blocks-production-extract) is decided (Jev candidates, etc.).
 
@@ -28,7 +28,7 @@ When `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set on the Worker, middlewa
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura)
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
-- `APP_BASE_PATH=/2026bdbv/app` for production (and staging when previewed under that path)
+- `APP_BASE_PATH=/app` for production on `2026bdbv.diaphana.io` (also set as a Builds build variable)
 - `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` after Access app is created
 - Optional: Workers AI / Vectorize bindings for measures RAG
 

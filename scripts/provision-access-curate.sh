@@ -5,8 +5,8 @@
 #   CLOUDFLARE_ACCOUNT_ID
 #   CLOUDFLARE_API_TOKEN   (Access: Apps Edit, Access: Policies Edit)
 # Optional:
-#   ACCESS_HOSTNAME        (default: www.diaphana.io)
-#   ACCESS_BASE_PATH       (default: /2026bdbv/app)
+#   ACCESS_HOSTNAME        (default: 2026bdbv.diaphana.io)
+#   ACCESS_BASE_PATH       (default: /app)
 #   ACCESS_ALLOWED_EMAILS  (comma-separated curator emails)
 #   ACCESS_APP_NAME        (default: BDBV Curate)
 #
@@ -15,8 +15,8 @@ set -euo pipefail
 
 ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
 TOKEN="${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
-HOSTNAME="${ACCESS_HOSTNAME:-www.diaphana.io}"
-BASE_PATH="${ACCESS_BASE_PATH:-/2026bdbv/app}"
+HOSTNAME="${ACCESS_HOSTNAME:-2026bdbv.diaphana.io}"
+BASE_PATH="${ACCESS_BASE_PATH:-/app}"
 APP_NAME="${ACCESS_APP_NAME:-BDBV Curate}"
 API="https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}"
 

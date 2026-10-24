@@ -1,11 +1,12 @@
 import { bindings, defineConfig, defineWorker } from "cf/config";
 
 /**
- * Production Worker config must match the remote Worker under Cloudflare Builds
- * (cf deploy uses strict mode in CI and aborts on dashboard/local drift).
+ * Production: https://2026bdbv.diaphana.io/app
  *
- * CF_ACCESS_* are JWT audience/team identifiers (not secrets). Neo4j and similar
- * credentials stay as Worker secrets, not text bindings.
+ * `domains` attaches the subdomain (Cloudflare creates DNS + cert).
+ * APP_BASE_PATH=/app mounts the vinext app under /app.
+ * Also set APP_BASE_PATH=/app as a Workers Builds *build* variable
+ * so next.config.ts picks it up at compile time.
  */
 export default defineConfig({
   worker: defineWorker({
@@ -13,9 +14,9 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-24",
     compatibilityFlags: ["nodejs_compat"],
-    // Match remote: custom domain only (www.diaphana.io), no workers.dev / preview URLs.
     workersDev: false,
     previewUrls: false,
+    domains: ["2026bdbv.diaphana.io"],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
@@ -23,7 +24,7 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
-      APP_BASE_PATH: bindings.text("/2026bdbv/app"),
+      APP_BASE_PATH: bindings.text("/app"),
       APP_ENV: bindings.text("production"),
       EXTRACT_ENABLED: bindings.text("false"),
       CF_ACCESS_TEAM_DOMAIN: bindings.text(

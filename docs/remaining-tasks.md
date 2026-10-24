@@ -5,7 +5,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 ## Done in this branch slice
 
 - Curate UI calls `/api/curate/*` for resolve / dismiss / approve|reject (validated; not Neo4j-persisted yet)
-- `APP_BASE_PATH` for production path `/2026bdbv/app`
+- `APP_BASE_PATH` for production path `/app` on `2026bdbv.diaphana.io`
 - `scripts/verify.sh all` runs rustfmt + clippy + schema + rust tests + web build
 
 ## Still open (human / infra)
@@ -16,7 +16,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 4. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
 5. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
 6. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet.
-7. **Production cutover** — `https://www.diaphana.io/2026bdbv/app` blocked until Extract issue is decided.
+7. **Production cutover** — `https://2026bdbv.diaphana.io/app` blocked until Extract issue is decided.
 
 ## Out of scope until Extract decision
 
