@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import {
+  BookOpenIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
   LayoutDashboardIcon,
@@ -36,6 +37,7 @@ import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
 import type { BasemapId } from "../map/basemap-style";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
+const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
 
 const LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "boundaries", label: "Country boundary" },
@@ -250,17 +252,28 @@ export function MapSidebar() {
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between gap-1 px-1">
               <ModeToggle />
-              <SidebarMenuButton asChild tooltip="GitHub repository">
-                <a
-                  href={GITHUB_REPO}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="GitHub repository"
-                >
-                  <GithubIcon className="size-4" />
-                  <span>GitHub</span>
-                </a>
-              </SidebarMenuButton>
+              <div className="flex items-center gap-1">
+                <SidebarMenuButton asChild tooltip="GitHub repository">
+                  <a
+                    href={GITHUB_REPO}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="GitHub repository"
+                  >
+                    <GithubIcon className="size-4" />
+                  </a>
+                </SidebarMenuButton>
+                <SidebarMenuButton asChild tooltip="Documentation">
+                  <a
+                    href={DOCS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Documentation"
+                  >
+                    <BookOpenIcon className="size-4" />
+                  </a>
+                </SidebarMenuButton>
+              </div>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>

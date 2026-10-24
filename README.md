@@ -17,7 +17,8 @@ The web application (`apps/web`) exposes English-language views for outbreak ove
 ```text
 .
 ├── apps/
-│   └── web/              Interactive dashboard (vinext / Next.js → Cloudflare Workers)
+│   ├── web/              Interactive dashboard (vinext / Next.js → Cloudflare Workers)
+│   └── docs/             Public outbreak info site (Astro Starlight → Cloudflare Pages, /docs)
 ├── packages/
 │   └── schema/           Shared TypeScript schemas for curated entities
 ├── crates/               Rust surveillance compute (surv_*)
