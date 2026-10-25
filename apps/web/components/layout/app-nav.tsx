@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BrandLink } from "./brand-link";
 import { ModeToggle } from "./mode-toggle";
 
 const links: { href: string; label: string; newTab?: boolean }[] = [
@@ -27,9 +28,7 @@ export function AppNav() {
   return (
     <header className="border-b border-border bg-background">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          2026 BDBV
-        </Link>
+        <BrandLink />
         <nav className="flex flex-wrap gap-2">
           {links.map((l) => (
             <Link

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { BrandLink } from "./brand-link";
 
 type AppShellProps = {
   sidebar: ReactNode;
@@ -58,6 +59,7 @@ export function AppShell({
             <>
               <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
                 <SidebarTrigger />
+                <BrandLink className="min-w-0 md:hidden" />
               </header>
               <div className="min-h-0 flex-1 overflow-auto">{children}</div>
             </>

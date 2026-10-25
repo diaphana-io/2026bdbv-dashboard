@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { BookOpenIcon, ChevronDownIcon } from "lucide-react";
 import { Collapsible } from "radix-ui";
@@ -18,6 +17,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { BrandLink } from "./brand-link";
 import { ModeToggle } from "./mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
@@ -88,10 +88,8 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="offcanvas" variant="sidebar">
       <SidebarHeader className="gap-2 border-b border-sidebar-border px-3 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
-            2026 BDBV
-          </Link>
+        <div className="flex items-start justify-between gap-2">
+          <BrandLink className="flex-1" />
           {headerAction}
         </div>
       </SidebarHeader>
