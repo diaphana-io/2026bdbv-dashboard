@@ -230,7 +230,7 @@ Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Without `
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
 - Case Curate UI
-- Accept→Open / Source workspace IA (separate plans OK)
+- Adopt→Catalog / Source workspace IA — see [curate-ui.md](./curate-ui.md)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
 - Phase 4–5: Map / incidence D1, Aura Claim label deletion, job tables, Case graph changes

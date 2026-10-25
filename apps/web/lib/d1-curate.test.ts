@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   loadClaimTabularRow,
+  persistAdoptSource,
   persistDismissSource,
   persistResolveConflict,
   persistReviewClaim,
@@ -62,6 +63,19 @@ function mockDb(seed?: Partial<Tables>): D1Database {
         curation_status: "candidate",
         discovered_at: binds[7],
       });
+      return { changes: 1, rows: [] };
+    }
+    if (
+      normalized.startsWith("update sources") &&
+      normalized.includes("set curation_status = 'fetched'") &&
+      normalized.includes("curation_status = 'candidate'")
+    ) {
+      const row = tables.sources.find(
+        (s) =>
+          s.normalized_url === binds[0] && s.curation_status === "candidate",
+      );
+      if (!row) return { changes: 0, rows: [] };
+      row.curation_status = "fetched";
       return { changes: 1, rows: [] };
     }
     if (
@@ -396,6 +410,18 @@ describe("d1-curate", () => {
     await persistDismissSource(db, "https://example.test/a");
     expect(db._tables.dismissed_sources).toHaveLength(1);
     expect(db._tables.sources[0].curation_status).toBe("dismissed");
+  });
+
+  it("persistAdoptSource moves candidate into Catalog as fetched", async () => {
+    const db = mockDb({ sources: [baseSource()] }) as D1Database & {
+      _tables: Tables;
+    };
+    await persistAdoptSource(db, "https://example.test/a");
+    expect(db._tables.sources[0].curation_status).toBe("fetched");
+
+    await expect(
+      persistAdoptSource(db, "https://example.test/a"),
+    ).rejects.toThrow(/source_not_found/);
   });
 
   it("persistReviewClaim approve updates claim, writes audit, opens conflict", async () => {

@@ -7,6 +7,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -126,6 +127,22 @@ const columns: Array<ColumnDef<typeof curateTableFeatures, CatalogSourceRow>> = 
     cell: ({ getValue }) => (
       <Badge variant="secondary">{getValue<string>()}</Badge>
     ),
+  },
+  {
+    id: "open",
+    header: "Open",
+    cell: ({ row }) => {
+      const s = row.original;
+      return (
+        <Button variant="outline" size="xs" asChild>
+          <Link
+            href={`/curate/source?url=${encodeURIComponent(s.url)}`}
+          >
+            Claim workspace
+          </Link>
+        </Button>
+      );
+    },
   },
 ];
 

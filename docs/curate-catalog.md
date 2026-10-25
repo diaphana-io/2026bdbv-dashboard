@@ -6,10 +6,12 @@ Related: versioning contracts in [extract-issue.md](./extract-issue.md); graph s
 
 ## IA
 
-Pipeline (English UI): Overview → Inbox → Extract → Review → Conflicts → **Catalog** → Status.
+Claim track (English UI): Overview → Inbox → **Catalog** → Extract → Review → Conflicts → Status. See [curate-ui.md](./curate-ui.md).
+
+Inbox **Adopt** sets `curation_status` to `fetched` and lands the source here. Claim Approve is separate (claim rows only).
 
 - **List** (`/curate/catalog`): sources with `curation_status` ∈ `fetched|extracted|in_review|done` (dismissed filter default off).
-- **Detail** (`?source=` id / normalized URL / URL): source timing, claims (type, subject, `as_of_date`, object, extractor, version, review_status), short audit trail.
+- **Detail** (`?source=` id / normalized URL / URL): source timing, claims (type, zone/`subject_ref`, `as_of_date`, object, extractor, version, review_status), short audit trail. **Open** → `/curate/source?url=` Claim workspace.
 - Review **History** links into Catalog when `?url=` is set.
 
 ## Rollback semantics (差し戻し)

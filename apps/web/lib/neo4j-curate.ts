@@ -100,6 +100,24 @@ export async function persistDismissSource(normalizedUrl: string): Promise<void>
   });
 }
 
+/** Move Inbox candidate into Catalog (`fetched`). */
+export async function persistAdoptSource(normalizedUrl: string): Promise<void> {
+  await withSession(async (session) => {
+    const result = await session.run(
+      `
+      MATCH (s:SourceDocument {normalized_url: $normalized_url})
+      WHERE s.curation_status = 'candidate'
+      SET s.curation_status = 'fetched'
+      RETURN s.id AS id
+      `,
+      { normalized_url: normalizedUrl },
+    );
+    if (result.records.length === 0) {
+      throw new Error(`source_not_found:${normalizedUrl}`);
+    }
+  });
+}
+
 export type SubmitSourceInput = {
   id: string;
   url: string;

@@ -207,6 +207,26 @@ export async function persistDismissSource(
   ]);
 }
 
+/** Move Inbox candidate into Catalog (`fetched`). */
+export async function persistAdoptSource(
+  db: D1Database,
+  normalizedUrl: string,
+): Promise<void> {
+  const result = await db
+    .prepare(
+      `
+      UPDATE sources
+      SET curation_status = 'fetched'
+      WHERE normalized_url = ? AND curation_status = 'candidate'
+      `,
+    )
+    .bind(normalizedUrl)
+    .run();
+  if (Number(result.meta?.changes ?? 0) === 0) {
+    throw new Error(`source_not_found:${normalizedUrl}`);
+  }
+}
+
 export type SubmitSourceInput = {
   id: string;
   url: string;
