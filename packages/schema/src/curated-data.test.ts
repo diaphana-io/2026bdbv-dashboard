@@ -3,8 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AdminUnitSchema } from "./admin-unit";
 import { CaseSchema } from "./case";
-import { ClaimSchema } from "./claim";
+import { ClaimSchema, IncidenceObjectSchema } from "./claim";
 import { ClaimConflictSchema } from "./conflict";
+import { claimCategoryForType } from "./enums";
 import { HospitalizationSchema } from "./hospitalization";
 import { TravelLegSchema } from "./travel-leg";
 
@@ -59,6 +60,38 @@ describe("curated production data", () => {
         c.subject_ref === "CD" && c.claim_type === "case_count",
     );
     expect(cdSeries.length).toBeGreaterThanOrEqual(2);
+
+    const incidenceClaims = claims.filter(
+      (c: { claim_type: string }) => c.claim_type === "incidence",
+    );
+    for (const row of incidenceClaims) {
+      expect(claimCategoryForType(row.claim_type)).toBe("aggregate_count");
+      const obj = IncidenceObjectSchema.parse(row.object_value);
+      if (obj.grain === "day") {
+        expect(obj.period_start).toBe(obj.period_end);
+        expect(obj.period_start).toBe(row.as_of_date);
+      }
+    }
+    const cdDailyReporting = incidenceClaims
+      .filter(
+        (c: {
+          subject_ref: string;
+          object_value: { grain?: string; metric_basis?: string };
+        }) =>
+          c.subject_ref === "CD" &&
+          c.object_value?.grain === "day" &&
+          c.object_value?.metric_basis === "reporting_date",
+      )
+      .sort((a: { as_of_date: string }, b: { as_of_date: string }) =>
+        a.as_of_date.localeCompare(b.as_of_date),
+      );
+    expect(cdDailyReporting.length).toBeGreaterThanOrEqual(5);
+    for (let i = 1; i < cdDailyReporting.length; i++) {
+      const prev = new Date(cdDailyReporting[i - 1].as_of_date + "T00:00:00Z");
+      const curr = new Date(cdDailyReporting[i].as_of_date + "T00:00:00Z");
+      expect((curr.getTime() - prev.getTime()) / 86_400_000).toBe(1);
+    }
+
     const conflicts = JSON.parse(readFileSync(join(curated, "conflicts.json"), "utf8"));
     for (const row of conflicts) {
       expect(() => ClaimConflictSchema.parse(row)).not.toThrow();

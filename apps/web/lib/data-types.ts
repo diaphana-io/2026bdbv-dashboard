@@ -34,6 +34,29 @@ export type ClaimRow = {
   excerpt?: string;
 };
 
+/** Options for approved incidence claim series reads. */
+export type IncidenceSeriesOpts = {
+  country?: string;
+  asOf?: string;
+  /** Defaults to reporting_date. */
+  metricBasis?: "reporting_date" | "onset_date";
+};
+
+/** Flattened incidence bucket from claim_type "incidence". */
+export type IncidenceRow = {
+  id: string;
+  subject_ref: string;
+  as_of_date: string;
+  period_start: string;
+  period_end: string;
+  grain: string;
+  new_confirmed: number;
+  new_deaths?: number;
+  metric_basis: string;
+  confidence: string;
+  source_id: string;
+};
+
 export type SourceRow = {
   id: string;
   url: string;
