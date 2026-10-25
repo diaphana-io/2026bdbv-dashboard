@@ -12,9 +12,10 @@ import {
 import { useTheme } from "next-themes";
 import {
   BASEMAPS,
+  DEFAULT_BASEMAP_ID,
   type BasemapId,
   basemapIdForUiTheme,
-  isBasemapId,
+  resolveBasemapId,
 } from "./basemap-style";
 import type { PanelId, PanelPosition } from "../panels/types";
 import {
@@ -23,7 +24,12 @@ import {
   type TrackedCountryIso,
 } from "@/lib/tracked-countries";
 
-const STORAGE_KEY = "bdbv-map-ui-v2";
+/**
+ * v5: force boundaries + countryNames ON so satellite boots with borders/names
+ * (v3/v4 could still hold those toggles off from earlier experiments).
+ */
+const STORAGE_KEY = "bdbv-map-ui-v5";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v4";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -37,6 +43,8 @@ const PANEL_IDS = Object.keys(PANEL_DEFAULTS) as PanelId[];
 
 export type LayerVisibility = {
   boundaries: boolean;
+  countryNames: boolean;
+  cities: boolean;
   cases: boolean;
   exposures: boolean;
   travels: boolean;
@@ -97,6 +105,8 @@ function defaultPanelPositions(): Record<PanelId, PanelPosition> {
 
 const DEFAULT_LAYERS: LayerVisibility = {
   boundaries: true,
+  countryNames: true,
+  cities: true,
   cases: true,
   exposures: true,
   travels: true,
@@ -105,9 +115,22 @@ const DEFAULT_LAYERS: LayerVisibility = {
 function readPersisted(): PersistedMapUi | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ??
+      window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
-    return JSON.parse(raw) as PersistedMapUi;
+    const parsed = JSON.parse(raw) as PersistedMapUi;
+    // Always show country borders + names (needed on satellite; outline
+    // basemaps also draw their own strokes). Other prefs may migrate.
+    return {
+      ...parsed,
+      layers: {
+        ...parsed.layers,
+        boundaries: true,
+        countryNames: true,
+      },
+    };
   } catch {
     return null;
   }
@@ -148,11 +171,9 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...persisted?.layers,
   };
   const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
-  const basemapId =
-    persisted?.basemapId && isBasemapId(persisted.basemapId)
-      ? persisted.basemapId
-      : "natural-earth-light";
-  const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? true;
+  const basemapId = resolveBasemapId(persisted?.basemapId);
+  // Default off so satellite stays selected; theme sync is opt-in via sidebar.
+  const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? false;
   return {
     openPanels,
     panelPositions,
@@ -172,8 +193,8 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [countryStatsVisible, setCountryStatsState] = useState(
     defaultCountryStatsVisibility,
   );
-  const [basemapId, setBasemapIdState] = useState<BasemapId>("natural-earth-light");
-  const [syncBasemapToUiTheme, setSyncState] = useState(true);
+  const [basemapId, setBasemapIdState] = useState<BasemapId>(DEFAULT_BASEMAP_ID);
+  const [syncBasemapToUiTheme, setSyncState] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [focusedPanelId, setFocusedPanelId] = useState<PanelId | null>(null);
 
@@ -254,6 +275,8 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   );
 
   const setBasemapId = useCallback((id: BasemapId) => {
+    // Manual pick opts out of theme sync so the radio selection sticks.
+    setSyncState(false);
     setBasemapIdState(id);
   }, []);
 

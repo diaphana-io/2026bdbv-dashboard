@@ -37,13 +37,13 @@ export function AppShell({
   return (
     <TooltipProvider>
       <SidebarProvider
-        className={cn(isMap && "h-svh !min-h-0 overflow-hidden")}
+        className={cn(isMap && "h-svh max-h-svh !min-h-0 overflow-hidden")}
       >
         {sidebar}
         <SidebarInset
           className={cn(
             isMap
-              ? "relative h-svh min-h-0 flex-1 overflow-hidden md:h-svh"
+              ? "relative h-svh max-h-svh min-h-0 flex-1 overflow-hidden md:h-svh"
               : "flex min-h-svh flex-1 flex-col",
           )}
         >
@@ -52,7 +52,9 @@ export function AppShell({
               <div className="pointer-events-none absolute top-2 left-2 z-30">
                 <SidebarTrigger className="pointer-events-auto bg-background/90 shadow-sm" />
               </div>
-              <div className="absolute inset-0 min-h-0 w-full">{children}</div>
+              <div className="absolute inset-0 min-h-0 w-full overflow-hidden">
+                {children}
+              </div>
               {insetOverlay}
             </>
           ) : (

@@ -1,45 +1,32 @@
-import type { CustomLayerInterface, Map as MapLibreMap } from "maplibre-gl";
+import {
+  Color,
+  EllipsoidGeodesic,
+  geodeticToVector3,
+  type MeshHandle,
+} from "@navaramap/three";
+import type ThreeView from "@navaramap/three";
+import type {
+  SphereMeshDesc,
+  TubeMeshDesc,
+} from "@navaramap/three-default-descs";
+import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import type { MapTravel } from "../../lib/data-types";
+
+type View = ThreeView<DefaultDescriptions>;
 
 type ArcState = {
   id: string;
   caseId?: string | null;
-  points: { x: number; y: number; z: number }[];
   departed: string;
   arrived: string;
-  mesh: import("three").Line;
-  marker: import("three").Mesh;
+  tube: MeshHandle;
+  marker: MeshHandle;
+  midPoints: Array<{ lat: number; lng: number; height: number }>;
 };
 
-function mercatorToWorld(
-  maplibre: typeof import("maplibre-gl"),
-  lon: number,
-  lat: number,
-  altitude = 0,
-) {
-  const mc = maplibre.MercatorCoordinate.fromLngLat(
-    { lng: lon, lat },
-    altitude,
-  );
-  return { x: mc.x, y: mc.y, z: mc.z ?? 0 };
-}
-
-function greatCircle(
-  maplibre: typeof import("maplibre-gl"),
-  from: { lon: number; lat: number },
-  to: { lon: number; lat: number },
-  segments = 48,
-) {
-  const points: { x: number; y: number; z: number }[] = [];
-  for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    const lon = from.lon + (to.lon - from.lon) * t;
-    const lat = from.lat + (to.lat - from.lat) * t;
-    const lift = Math.sin(Math.PI * t) * 0.00008;
-    points.push(mercatorToWorld(maplibre, lon, lat, lift));
-  }
-  return points;
-}
+const TUBE_RADIUS_M = 12_000;
+const MARKER_RADIUS_M = 40_000;
+const ARC_LIFT_M = 80_000;
 
 function progressAt(asOf: string, departed: string, arrived: string): number {
   if (asOf < departed) return -1;
@@ -58,151 +45,142 @@ export type TravelLayerHandle = {
   destroy: () => void;
 };
 
-export async function attachTravelLayer(
-  map: MapLibreMap,
-): Promise<TravelLayerHandle> {
-  const [maplibre, THREE] = await Promise.all([
-    import("maplibre-gl"),
-    import("three"),
-  ]);
-
-  const camera = new THREE.Camera();
-  const scene = new THREE.Scene();
-  let renderer: import("three").WebGLRenderer | null = null;
+/**
+ * Imperative travel arcs via EllipsoidGeodesic + TubeMeshDesc (skill tier 2).
+ * Must run after view.init() (WASM geodetic helpers).
+ */
+export function attachTravelLayer(view: View): TravelLayerHandle {
   const arcs: ArcState[] = [];
   let asOfDate = "2099-01-01";
   let highlightCaseId: string | null = null;
   let layerVisible = true;
 
-  const layer: CustomLayerInterface = {
-    id: "bdbv-travel-three",
-    type: "custom",
-    renderingMode: "3d",
-    onAdd(_map, gl) {
-      renderer = new THREE.WebGLRenderer({
-        canvas: map.getCanvas(),
-        context: gl as WebGLRenderingContext,
-        antialias: true,
-      });
-      renderer.autoClear = false;
-    },
-    render(_gl, args) {
-      if (!renderer) return;
-      if (!layerVisible) {
-        renderer.resetState();
-        return;
-      }
-      const matrix =
-        "defaultProjectionData" in args &&
-        args.defaultProjectionData &&
-        "mainMatrix" in args.defaultProjectionData
-          ? (args.defaultProjectionData.mainMatrix as number[])
-          : (args as unknown as number[]);
-      const m = new THREE.Matrix4().fromArray(matrix);
-      camera.projectionMatrix = m;
-
-      for (const arc of arcs) {
-        const p = progressAt(asOfDate, arc.departed, arc.arrived);
-        const focused =
-          !highlightCaseId || arc.caseId === highlightCaseId;
-        arc.mesh.visible = p >= 0;
-        arc.marker.visible = focused && p > 0 && p < 1;
-        if (p > 0 && p < 1) {
-          const idx = Math.min(
-            arc.points.length - 1,
-            Math.floor(p * (arc.points.length - 1)),
-          );
-          const pt = arc.points[idx];
-          arc.marker.position.set(pt.x, pt.y, pt.z);
-        }
-        const mat = arc.mesh.material as import("three").LineBasicMaterial;
-        if (p < 0) {
-          mat.opacity = 0;
-        } else if (!focused) {
-          mat.opacity = 0.08;
-        } else {
-          mat.opacity = p >= 1 ? 0.35 : 0.9;
-        }
-      }
-
-      renderer.resetState();
-      renderer.render(scene, camera);
-      map.triggerRepaint();
-    },
-  };
-
-  map.addLayer(layer);
-
   function clearArcs() {
     for (const arc of arcs) {
-      scene.remove(arc.mesh);
-      scene.remove(arc.marker);
-      arc.mesh.geometry.dispose();
-      (arc.mesh.material as import("three").Material).dispose();
-      arc.marker.geometry.dispose();
-      (arc.marker.material as import("three").Material).dispose();
+      arc.tube.delete();
+      arc.marker.delete();
     }
     arcs.length = 0;
   }
 
+  function applyStyle() {
+    for (const arc of arcs) {
+      const p = progressAt(asOfDate, arc.departed, arc.arrived);
+      const focused = !highlightCaseId || arc.caseId === highlightCaseId;
+      const showArc = layerVisible && p >= 0;
+      const showMarker = layerVisible && focused && p > 0 && p < 1;
+
+      arc.tube.visible = showArc;
+      arc.marker.visible = showMarker;
+
+      let opacity = 0.85;
+      if (p < 0) opacity = 0;
+      else if (!focused) opacity = 0.08;
+      else if (p >= 1) opacity = 0.35;
+
+      // MeshHandle.update typings omit descriptor keys; cast per Navara mesh descs.
+      arc.tube.update({
+        tube: {
+          color: new Color().setStyle("#0f766e"),
+          opacity,
+          transparent: true,
+        },
+      } as never);
+
+      if (showMarker) {
+        const idx = Math.min(
+          arc.midPoints.length - 1,
+          Math.floor(p * (arc.midPoints.length - 1)),
+        );
+        const pt = arc.midPoints[idx];
+        arc.marker.update({
+          geodetic: { lng: pt.lng, lat: pt.lat, height: pt.height },
+        });
+      }
+    }
+  }
+
   return {
-    setTravels(travels: MapTravel[], asOf: string) {
+    setTravels(travels, asOf) {
       asOfDate = asOf;
       clearArcs();
       for (const leg of travels) {
         const departed = leg.departed_at ?? leg.arrived_at ?? asOf;
         const arrived = leg.arrived_at ?? leg.departed_at ?? asOf;
-        const points = greatCircle(
-          maplibre,
-          { lon: leg.from.lon, lat: leg.from.lat },
-          { lon: leg.to.lon, lat: leg.to.lat },
+        const start = {
+          lat: leg.from.lat,
+          lng: leg.from.lon,
+          height: 0,
+        };
+        const end = { lat: leg.to.lat, lng: leg.to.lon, height: 0 };
+        const geodesic = new EllipsoidGeodesic(start, end);
+        const samples = Math.max(
+          32,
+          Math.min(128, Math.ceil(geodesic.distance / 50_000)),
         );
-        const positions = new Float32Array(points.length * 3);
-        points.forEach((pt, i) => {
-          positions[i * 3] = pt.x;
-          positions[i * 3 + 1] = pt.y;
-          positions[i * 3 + 2] = pt.z;
+        const surface = geodesic.interpolatePoints(samples);
+        geodesic.dispose();
+
+        const midPoints = surface.map((pt, i) => {
+          const t = i / Math.max(1, surface.length - 1);
+          const lift = Math.sin(Math.PI * t) * ARC_LIFT_M;
+          return { lat: pt.lat, lng: pt.lng, height: lift };
         });
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        const lineMat = new THREE.LineBasicMaterial({
-          color: 0x0f766e,
-          transparent: true,
-          opacity: 0.85,
-          depthTest: false,
+
+        const tube = view.addMesh<TubeMeshDesc>({
+          tube: {
+            points: midPoints.map((pt) =>
+              geodeticToVector3({
+                lat: pt.lat,
+                lng: pt.lng,
+                height: pt.height + TUBE_RADIUS_M,
+              }),
+            ),
+            radius: TUBE_RADIUS_M,
+            tubularSegments: Math.max(32, midPoints.length),
+            radialSegments: 8,
+            color: new Color().setStyle("#0f766e"),
+            opacity: 0.85,
+          },
         });
-        const mesh = new THREE.Line(geom, lineMat);
-        const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(0.00002, 8, 8),
-          new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
-        );
-        scene.add(mesh);
-        scene.add(marker);
+
+        const marker = view.addMesh<SphereMeshDesc>({
+          sphere: {
+            radius: MARKER_RADIUS_M,
+            color: new Color().setStyle("#f59e0b"),
+            emissiveColor: new Color().setStyle("#f59e0b"),
+            emissiveIntensity: 0.25,
+          },
+          geodetic: {
+            lng: midPoints[0]?.lng ?? start.lng,
+            lat: midPoints[0]?.lat ?? start.lat,
+            height: midPoints[0]?.height ?? 0,
+          },
+        });
+        marker.visible = false;
+
         arcs.push({
           id: leg.id,
           caseId: leg.case_id,
-          points,
           departed,
           arrived,
-          mesh,
+          tube,
           marker,
+          midPoints,
         });
       }
-      map.triggerRepaint();
+      applyStyle();
     },
-    setHighlightCaseId(caseId: string | null) {
+    setHighlightCaseId(caseId) {
       highlightCaseId = caseId;
-      map.triggerRepaint();
+      applyStyle();
     },
-    setVisible(visible: boolean) {
+    setVisible(visible) {
       layerVisible = visible;
-      map.triggerRepaint();
+      applyStyle();
     },
     destroy() {
       clearArcs();
-      if (map.getLayer(layer.id)) map.removeLayer(layer.id);
-      renderer?.dispose();
-      renderer = null;
     },
   };
 }

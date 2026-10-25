@@ -1,10 +1,21 @@
-import type { ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
+import {
+  Color,
+  type Layer,
+  type Source,
+} from "@navaramap/three";
+import type ThreeView from "@navaramap/three";
+import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
+import type { CaseLayerMode } from "./basemap-style";
 import boundariesData from "../../data/country_boundaries.json";
+import worldBoundariesData from "../../data/world_boundaries.json";
 
-const SOURCE = "bdbv-boundaries";
-const FILL = "bdbv-boundaries-fill";
-const LINE = "bdbv-boundaries-line";
+type View = ThreeView<DefaultDescriptions>;
+
+export type BoundaryLayerHandle = {
+  setVisible: (visible: boolean) => void;
+  destroy: () => void;
+};
 
 const boundaries = boundariesData as {
   type: "FeatureCollection";
@@ -15,57 +26,130 @@ const boundaries = boundariesData as {
   }>;
 };
 
-function countryColorMatch(): ExpressionSpecification {
-  const match: ExpressionSpecification = ["match", ["get", "admin0_iso"]];
-  for (const c of TRACKED_COUNTRIES) {
-    match.push(c.iso, c.color);
-  }
-  match.push("#64748b");
-  return match;
+const worldBoundaries = worldBoundariesData as {
+  type: "FeatureCollection";
+  features: unknown[];
+};
+
+const COLOR_BY_ISO: Record<string, string> = Object.fromEntries(
+  TRACKED_COUNTRIES.map((c) => [c.iso, c.color]),
+);
+
+function colorForIso(iso: unknown): Color {
+  const hex =
+    typeof iso === "string" ? COLOR_BY_ISO[iso] : undefined;
+  return new Color().setStyle(hex ?? "#64748b");
 }
 
-export function ensureBoundaryLayer(map: MapLibreMap): void {
-  if (!map.getSource(SOURCE)) {
-    map.addSource(SOURCE, {
-      type: "geojson",
-      data: boundaries,
-    });
-  }
-  const color = countryColorMatch();
-  if (!map.getLayer(FILL)) {
-    map.addLayer({
-      id: FILL,
-      type: "fill",
-      source: SOURCE,
-      paint: {
-        "fill-color": color,
-        "fill-opacity": 0.1,
-      },
-    });
-  }
-  if (!map.getLayer(LINE)) {
-    map.addLayer({
-      id: LINE,
-      type: "line",
-      source: SOURCE,
-      paint: {
-        "line-color": color,
-        "line-width": 1.5,
-        "line-opacity": 0.9,
-      },
-    });
-  }
+/** World outline stroke — dark on light basemap, white on dark/satellite imagery. */
+function worldStrokeColor(mode: CaseLayerMode): string {
+  // Pure white reads on Esri imagery; slate-200 was too soft after mode-aware cutover.
+  return mode === "light" ? "#3f3f46" : "#ffffff";
 }
 
-export function setBoundaryLayerVisible(
-  map: MapLibreMap,
-  visible: boolean,
-): void {
-  const value = visible ? "visible" : "none";
-  if (map.getLayer(FILL)) {
-    map.setLayoutProperty(FILL, "visibility", value);
-  }
-  if (map.getLayer(LINE)) {
-    map.setLayoutProperty(LINE, "visibility", value);
-  }
+/** Shared stroke style for globe-scale views (non-draped, lit). */
+function worldStroke(mode: CaseLayerMode) {
+  return {
+    geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
+    color: new Color().setStyle(worldStrokeColor(mode)),
+    width: 3.5,
+    // World meters — without this, default 1000 m makes strokes sub-pixel
+    // from the Africa / globe camera (1 px ≈ 10+ km).
+    maxWidth: 400_000,
+    opacity: 1,
+    transparent: false,
+    clampToGround: false,
+    // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
+    height: 5_000,
+    show: true,
+  };
+}
+
+/**
+ * Static boundary GeoJSON — create once (not time-varying).
+ * World outlines + tracked-country fills/strokes.
+ *
+ * Polylines use clampToGround:false — draped lines vanish at Africa /
+ * globe-scale camera heights in Navara. Non-draped strokes are lit; OutbreakMap
+ * adds ambient light so they are not black on satellite.
+ */
+export function attachBoundaryLayer(
+  view: View,
+  mode: CaseLayerMode = "dark",
+): BoundaryLayerHandle {
+  const stroke = worldStroke(mode);
+  const worldSource = view.addSource({
+    type: "geojson",
+    data: worldBoundaries as GeoJSON.FeatureCollection,
+  });
+  const worldLine = view.addLayer({
+    type: "vector",
+    source: worldSource,
+    polyline: { ...stroke },
+  });
+
+  const trackedSource = view.addSource({
+    type: "geojson",
+    data: boundaries as GeoJSON.FeatureCollection,
+  });
+  const fill = view.addLayer({
+    type: "vector",
+    source: trackedSource,
+    polygon: {
+      color: new Color().setStyle("#64748b"),
+      opacity: 0.14,
+      transparent: true,
+      clampToGround: true,
+      show: true,
+    },
+  });
+  fill.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        color: colorForIso(properties?.["admin0_iso"]),
+        show: true,
+      }),
+      { filters: ["admin0_iso"] },
+    );
+  });
+
+  const outline = view.addLayer({
+    type: "vector",
+    source: trackedSource,
+    polyline: {
+      ...stroke,
+      width: 4.5,
+      height: 8_000,
+      color: new Color().setStyle(worldStrokeColor(mode)),
+    },
+  });
+  outline.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        color: colorForIso(properties?.["admin0_iso"]),
+        show: true,
+      }),
+      { filters: ["admin0_iso"] },
+    );
+  });
+
+  const layers: Layer[] = [worldLine, fill, outline];
+  const sources: Source[] = [worldSource, trackedSource];
+
+  return {
+    setVisible(next) {
+      // Always re-assert show — early-return skipped updates when Navara
+      // feature evaluators left material visibility out of sync on satellite.
+      for (const layer of layers) {
+        layer.update({
+          polygon: { show: next },
+          polyline: { show: next },
+        });
+      }
+    },
+    destroy() {
+      for (const layer of layers) layer.delete();
+      for (const source of sources) source.delete();
+    },
+  };
 }

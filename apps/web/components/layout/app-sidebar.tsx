@@ -22,6 +22,8 @@ import { ModeToggle } from "./mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
+const NEO4J_URL = "https://neo4j.com/";
+const NAVARA_URL = "https://navara.world/";
 
 /** Lucide dropped brand icons; keep a minimal GitHub mark inline. */
 export function GithubIcon({ className }: { className?: string }) {
@@ -105,7 +107,7 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="gap-2 border-t border-sidebar-border">
         <SidebarMenu>
           {footerTop ? <SidebarMenuItem>{footerTop}</SidebarMenuItem> : null}
           <SidebarMenuItem>
@@ -136,6 +138,51 @@ export function AppSidebar({
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="px-2 pb-1">
+          <p className="mb-2 text-[10px] leading-tight text-muted-foreground">
+            This dashboard is powered by:
+          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href={NEO4J_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Neo4j"
+            >
+              <img
+                src="/logos/neo4j.svg"
+                alt="Neo4j"
+                className="h-4 w-auto dark:hidden"
+              />
+              <img
+                src="/logos/neo4j-white.svg"
+                alt=""
+                aria-hidden
+                className="hidden h-4 w-auto dark:block"
+              />
+            </a>
+            <a
+              href={NAVARA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Navara"
+            >
+              <img
+                src="/logos/navara.svg"
+                alt="Navara"
+                className="h-4 w-auto dark:hidden"
+              />
+              <img
+                src="/logos/navara-white.svg"
+                alt=""
+                aria-hidden
+                className="hidden h-4 w-auto dark:block"
+              />
+            </a>
+          </div>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

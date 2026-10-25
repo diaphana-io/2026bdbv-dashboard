@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ExternalLinkIcon,
+  GlobeIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
@@ -18,8 +19,13 @@ import { AppSidebar, NavSection } from "./app-sidebar";
 import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
 import type { BasemapId } from "../map/basemap-style";
 
-const LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
+const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "boundaries", label: "Country boundary" },
+  { key: "countryNames", label: "Country name" },
+  { key: "cities", label: "Cities" },
+];
+
+const DATA_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "cases", label: "Cases" },
   { key: "exposures", label: "Exposures" },
   { key: "travels", label: "Travel" },
@@ -107,8 +113,21 @@ export function MapSidebar() {
         </SidebarMenuSubItem>
       </NavSection>
 
-      <NavSection icon={<LayersIcon />} label="Layers" defaultOpen>
-        {LAYER_ITEMS.map(({ key, label }) => (
+      <NavSection icon={<GlobeIcon />} label="Map layers" defaultOpen>
+        {MAP_LAYER_ITEMS.map(({ key, label }) => (
+          <SidebarMenuSubItem key={key}>
+            <ToggleRow
+              id={`layer-${key}`}
+              label={label}
+              checked={layers[key]}
+              onCheckedChange={(checked) => setLayerVisible(key, checked)}
+            />
+          </SidebarMenuSubItem>
+        ))}
+      </NavSection>
+
+      <NavSection icon={<LayersIcon />} label="Data layers" defaultOpen>
+        {DATA_LAYER_ITEMS.map(({ key, label }) => (
           <SidebarMenuSubItem key={key}>
             <ToggleRow
               id={`layer-${key}`}
