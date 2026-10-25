@@ -17,6 +17,16 @@ import {
 } from "./data-json";
 import type { CaseQueryOpts, IncidenceSeriesOpts } from "./data-types";
 import { preferFixtureData } from "./curate-data-source.server";
+import { getDb } from "./d1";
+import {
+  getCatalogSourcesD1,
+  getClaimsD1,
+  getConflictViewsD1,
+  getInboxCandidatesD1,
+  getSourceCatalogDetailD1,
+  getSourcesD1,
+  sourcesRowCount,
+} from "./d1-queries";
 import { isNeo4jConfigured } from "./neo4j";
 import {
   getCaseDetailNeo4j,
@@ -69,9 +79,20 @@ export function neo4jReadCacheTtlMs(
   return Number.isFinite(n) && n >= 0 ? n : 30_000;
 }
 
-/** Drop cached graph reads after a successful Curate mutation. */
+/** Drop cached graph/D1 reads after a successful Curate mutation. */
 export function invalidateGraphReadCache(): void {
   readCache.clear();
+}
+
+function cacheGet<T>(cacheKey: string): CacheEntry<T> | undefined {
+  return readCache.get(cacheKey) as CacheEntry<T> | undefined;
+}
+
+function cacheSet<T>(cacheKey: string, value: T): void {
+  const ttl = neo4jReadCacheTtlMs();
+  if (ttl > 0) {
+    readCache.set(cacheKey, { value, expiresAt: Date.now() + ttl });
+  }
 }
 
 async function fromNeo4jOrJson<T>(
@@ -84,21 +105,68 @@ async function fromNeo4jOrJson<T>(
   }
 
   const now = Date.now();
-  const cached = readCache.get(cacheKey) as CacheEntry<T> | undefined;
+  const cached = cacheGet<T>(cacheKey);
   if (cached && cached.expiresAt > now) {
     return cached.value;
   }
 
   try {
     const value = await neo4jFn();
-    const ttl = neo4jReadCacheTtlMs();
-    if (ttl > 0) {
-      readCache.set(cacheKey, { value, expiresAt: now + ttl });
-    }
+    cacheSet(cacheKey, value);
     return value;
   } catch (err) {
     console.error("[data] neo4j query failed; falling back", err);
     // Stale-while-revalidate: prefer last good Neo4j payload over seed JSON.
+    if (cached) return cached.value;
+    return jsonFn();
+  }
+}
+
+/**
+ * Curate Claim reads: D1 (non-empty sources) → Neo4j → bundled JSON.
+ * `preferFixtureData` forces JSON only (skips D1 and Neo4j).
+ */
+async function fromD1OrNeo4jOrJson<T>(
+  cacheKey: string,
+  d1Fn: (db: D1Database) => Promise<T>,
+  neo4jFn: () => Promise<T>,
+  jsonFn: () => T | Promise<T>,
+): Promise<T> {
+  if (await preferFixtureData()) {
+    return jsonFn();
+  }
+
+  const now = Date.now();
+  const cached = cacheGet<T>(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const db = getDb();
+  if (db) {
+    try {
+      const n = await sourcesRowCount(db);
+      if (n >= 1) {
+        const value = await d1Fn(db);
+        cacheSet(cacheKey, value);
+        return value;
+      }
+    } catch (err) {
+      console.error("[data] d1 query failed; falling back", err);
+      if (cached) return cached.value;
+    }
+  }
+
+  if (!isNeo4jConfigured()) {
+    return jsonFn();
+  }
+
+  try {
+    const value = await neo4jFn();
+    cacheSet(cacheKey, value);
+    return value;
+  } catch (err) {
+    console.error("[data] neo4j query failed; falling back", err);
     if (cached) return cached.value;
     return jsonFn();
   }
@@ -118,11 +186,21 @@ export async function getCases(opts?: CaseQueryOpts) {
 }
 
 export async function getSources() {
-  return fromNeo4jOrJson("sources", getSourcesNeo4j, getSourcesJson);
+  return fromD1OrNeo4jOrJson(
+    "sources",
+    getSourcesD1,
+    getSourcesNeo4j,
+    getSourcesJson,
+  );
 }
 
 export async function getClaims() {
-  return fromNeo4jOrJson("claims", getClaimsNeo4j, getClaimsJson);
+  return fromD1OrNeo4jOrJson(
+    "claims",
+    getClaimsD1,
+    getClaimsNeo4j,
+    getClaimsJson,
+  );
 }
 
 export async function getIncidenceSeries(opts?: IncidenceSeriesOpts) {
@@ -136,8 +214,9 @@ export async function getIncidenceSeries(opts?: IncidenceSeriesOpts) {
 }
 
 export async function getConflictViews() {
-  return fromNeo4jOrJson(
+  return fromD1OrNeo4jOrJson(
     "conflicts",
+    getConflictViewsD1,
     getConflictViewsNeo4j,
     getConflictViewsJson,
   );
@@ -160,8 +239,9 @@ export async function getMeasures(country?: string) {
 }
 
 export async function getInboxCandidates() {
-  return fromNeo4jOrJson(
+  return fromD1OrNeo4jOrJson(
     "inbox",
+    getInboxCandidatesD1,
     getInboxCandidatesNeo4j,
     getInboxCandidatesJson,
   );
@@ -202,16 +282,18 @@ export async function getCountryStats(asOf?: string) {
 
 export async function getCatalogSources(opts?: { includeDismissed?: boolean }) {
   const key = `catalogSources:${opts?.includeDismissed ? "all" : "active"}`;
-  return fromNeo4jOrJson(
+  return fromD1OrNeo4jOrJson(
     key,
+    (db) => getCatalogSourcesD1(db, opts),
     () => getCatalogSourcesNeo4j(opts),
     () => getCatalogSourcesJson(opts),
   );
 }
 
 export async function getSourceCatalogDetail(key: string) {
-  return fromNeo4jOrJson(
+  return fromD1OrNeo4jOrJson(
     `catalogDetail:${key}`,
+    (db) => getSourceCatalogDetailD1(db, key),
     () => getSourceCatalogDetailNeo4j(key),
     () => getSourceCatalogDetailJson(key),
   );

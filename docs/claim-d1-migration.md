@@ -1,6 +1,6 @@
 # Claim curation SoT: Neo4j → Cloudflare D1
 
-**Status:** Phase 1 schema + two-DB binding landed. App Claim reads/writes still Neo4j until Phase 2–3.
+**Status:** Phase 2 Curate Claim reads prefer D1 (preview seed). Writes still Neo4j until Phase 3. Map / incidence still Neo4j until Phase 4.
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) → Linear **MATT** (one-way sync per [AGENTS.md](../AGENTS.md); triage priority/project in Linear after sync).
 
@@ -41,7 +41,7 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 |-------|------|-----------|
 | **0 Policy** | This doc + GitHub issue | Issue published; pointers in remaining-tasks / extract-issue |
 | **1 Schema** | D1 migrations: `sources`, `claims`, `claim_conflicts`, `curate_audit_events`, `dismissed_sources` + indexes (`normalized_url`, fingerprint, `lineage_id`, `as_of`) | Local / preview migrate works |
-| **2 Reads** | `lib/data` Claim / Inbox / Conflict (and catalog claim lists) prefer D1 → else JSON. Map / incidence may still use Neo4j | Curate SSR reads D1 |
+| **2 Reads** | `lib/data` Claim / Inbox / Conflict / Catalog prefer D1 → Neo4j → JSON. Map / incidence still Neo4j | Curate SSR reads D1 (preview seed) |
 | **3 Writes** | `/api/curate/*` persist targets D1; stop Neo4j Claim writes | Approve / Reject / Inbox / Conflicts persist D1-only |
 | **4 Map** | `country-stats` / snapshot / incidence from D1 or R2 snapshot | Map independent of Neo4j Claim |
 | **5 Cleanup** | Remove Claim nodes from seed; drop Claim constraints / Cypher; final updates to extract-issue / graph-model | Aura has no `Claim` label |
@@ -129,10 +129,52 @@ Verify five tables: `SELECT name FROM sqlite_master WHERE type='table' ORDER BY 
 - [x] Docs state preview = test, data not shared with prod; linked from [#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19)
 - [x] App Claim reads/writes still Neo4j (no Phase 2–4 switches in this slice)
 
+## Phase 2 — Curate Claim reads (D1 → Neo4j → JSON)
+
+**Done when:** Curate SSR Claim getters can read D1; empty / unbound D1 falls back to Neo4j then bundled JSON; Map / incidence / Case graph stay Neo4j; writes stay Neo4j.
+
+### Read priority (Claim Curate only)
+
+```text
+preferFixtureData → bundled JSON only
+else D1 (env.DB bound AND sources COUNT ≥ 1)
+  → else Neo4j (configured)
+  → else bundled JSON
+```
+
+Empty `sources` is treated as a D1 miss so production Curate does not silently show fixture data before Phase 3 seed/writes. Isolate TTL cache (`invalidateGraphReadCache`) is shared across D1 and Neo4j hits for the same keys.
+
+| Getter | Phase 2 path |
+|--------|----------------|
+| `getClaims` / `getSources` / `getConflictViews` / `getInboxCandidates` | D1 → Neo4j → JSON |
+| `getCatalogSources` / `getSourceCatalogDetail` | D1 → Neo4j → JSON |
+| Map / incidence / cases / contacts / measures / KPIs / country-stats | **unchanged** (Neo4j → JSON) |
+
+Implementation: [`apps/web/lib/d1.ts`](../apps/web/lib/d1.ts) (`getDb` via `cloudflare:workers` → `env.DB`), [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts), [`apps/web/lib/data.ts`](../apps/web/lib/data.ts) `fromD1OrNeo4jOrJson`.
+
+### Preview seed (not production)
+
+```text
+# From repo root — seeds bdbv-curate-preview local + remote only
+npm run seed:d1-curate
+npm run seed:d1-curate -- --local-only
+npm run seed:d1-curate -- --remote-only
+```
+
+Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `data/curated/{sources,inbox_candidates,claims,conflicts}.json` (+ optional `curate_audit_events.json`). FK order: sources → inbox candidate sources → claims → conflicts → audits. **Does not seed production `bdbv-curate`.**
+
+### Acceptance (Phase 2)
+
+- [x] Claim Curate getters use D1 → Neo4j → JSON; fixture mode skips D1
+- [x] Empty D1 falls through to Neo4j (not fixture) when Neo4j is configured
+- [x] Seed script targets preview + local only
+- [x] Map / incidence / Case graph getters untouched
+- [x] Local preview seed verified (`npm run seed:d1-curate -- --local-only` → 6 sources on `bdbv-curate-preview`); remote seed when Cloudflare auth is available
+
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
 - Case Curate UI
 - Accept→Open / Source workspace IA (separate plans OK)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
-- Phase 2–4: `lib/data` / `neo4j-curate` switches, seed scripts, job tables, Case graph changes
+- Phase 3–4: Curate write cutover, Map / incidence D1, job tables, Case graph changes

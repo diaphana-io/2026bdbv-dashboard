@@ -40,7 +40,8 @@
     "tailwindcss": "latest",
     "typescript": "latest",
     "vite": "^8.3.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "wrangler": "^4.152.0"
   },
   "type": "module",
   "scripts": {
