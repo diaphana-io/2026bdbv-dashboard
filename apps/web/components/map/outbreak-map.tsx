@@ -161,7 +161,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     setMapReady(false);
 
     const [
-      { default: ThreeView, Color },
+      { default: ThreeView, Color, Plugin },
       { DefaultPlugin },
       { MapLibreStylePlugin },
     ] = await Promise.all([
@@ -188,6 +188,17 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     view.addPlugin(defaultPlugin);
 
     if (entry.kind === "maplibre-style") {
+      // Layer paint order = add order. MapLibreStylePlugin adds draped
+      // layers during init (after an async style fetch); this sync plugin
+      // runs earlier in the same Promise.all so the ellipsoid sits under
+      // the style instead of covering it.
+      view.addPlugin(
+        new (class EllipsoidTerrainPlugin extends Plugin {
+          async init(v: import("@navaramap/three").default) {
+            v.addLayer({ type: "terrain", ellipsoid: {} });
+          }
+        })(),
+      );
       view.addPlugin(new MapLibreStylePlugin(entry.styleUrl));
     }
 
@@ -198,12 +209,11 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     }
 
     viewRef.current = view;
-    view.globe.color = new Color().setStyle(OCEAN_COLOR);
-
-    // Always ellipsoid so both native and MapLibre styles drape on a full globe.
-    view.addLayer({ type: "terrain", ellipsoid: {} });
 
     if (entry.kind === "native-raster") {
+      // Ocean tint for gaps between satellite / NE tiles.
+      view.globe.color = new Color().setStyle(OCEAN_COLOR);
+      view.addLayer({ type: "terrain", ellipsoid: {} });
       const raster = view.addSource({
         type: "raster-tile",
         url: entry.url,
@@ -216,6 +226,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         },
       ]);
     }
+    // maplibre-style: BackgroundHandler already set globe.color from the
+    // style's background layer — do not overwrite or re-add terrain.
 
     // Non-draped boundary lines + travel tubes need ambient light.
     view.addLight({ ambient: { intensity: 1 } });
