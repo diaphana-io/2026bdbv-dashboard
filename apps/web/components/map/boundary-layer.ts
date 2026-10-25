@@ -40,13 +40,36 @@ function colorForIso(iso: unknown): Color {
   return new Color().setStyle(hex ?? "#64748b");
 }
 
+/** Shared stroke style for globe-scale satellite (non-draped, lit). */
+const WORLD_STROKE = {
+  geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
+  color: new Color().setStyle("#f8fafc"),
+  width: 2.25,
+  // World meters — without this, default 1000 m makes strokes sub-pixel
+  // from the Africa / globe camera (1 px ≈ 10+ km).
+  maxWidth: 250_000,
+  opacity: 1,
+  transparent: false,
+  clampToGround: false,
+  // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
+  height: 2_500,
+  show: true,
+};
+
+const TRACKED_STROKE = {
+  ...WORLD_STROKE,
+  width: 3,
+  maxWidth: 250_000,
+  height: 4_000,
+};
+
 /**
  * Static boundary GeoJSON — create once (not time-varying).
  * World outlines + tracked-country fills/strokes.
  *
  * Polylines use clampToGround:false — draped lines vanish at Africa /
- * globe-scale camera heights in Navara; non-draped lines need ambient light
- * (added in OutbreakMap).
+ * globe-scale camera heights in Navara. Non-draped strokes are lit; OutbreakMap
+ * adds ambient light so they are not black on satellite.
  */
 export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
   const worldSource = view.addSource({
@@ -56,14 +79,7 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
   const worldLine = view.addLayer({
     type: "vector",
     source: worldSource,
-    polyline: {
-      geometryTypes: ["line", "polygon"],
-      color: new Color().setStyle("#e2e8f0"),
-      width: 0.9,
-      maxWidth: 100_000,
-      opacity: 0.85,
-      clampToGround: false,
-    },
+    polyline: { ...WORLD_STROKE },
   });
 
   const trackedSource = view.addSource({
@@ -75,8 +91,10 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     source: trackedSource,
     polygon: {
       color: new Color().setStyle("#64748b"),
-      opacity: 0.12,
+      opacity: 0.14,
+      transparent: true,
       clampToGround: true,
+      show: true,
     },
   });
   fill.on("featureUpdated", ({ evaluator }) => {
@@ -93,12 +111,8 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     type: "vector",
     source: trackedSource,
     polyline: {
-      geometryTypes: ["line", "polygon"],
-      color: new Color().setStyle("#f8fafc"),
-      width: 1.75,
-      maxWidth: 100_000,
-      opacity: 0.95,
-      clampToGround: false,
+      ...TRACKED_STROKE,
+      color: new Color().setStyle("#ffffff"),
     },
   });
   outline.on("featureUpdated", ({ evaluator }) => {

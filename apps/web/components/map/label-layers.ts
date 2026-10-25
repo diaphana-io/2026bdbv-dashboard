@@ -65,6 +65,7 @@ function wireText(layer: Layer) {
     evaluator.evaluate(
       ({ properties }) => {
         const text = (properties?.["name"] as string) ?? "";
+        // Evaluator must return show:true or every label stays hidden.
         return { text, show: Boolean(text) };
       },
       { filters: ["name"] },
@@ -92,13 +93,22 @@ export async function attachLabelLayers(
     source: countrySource,
     text: {
       font: LABEL_FONT,
-      color: new Color().setStyle("#e2e8f0"),
-      outlineColor: new Color().setStyle("#071525"),
-      outlineWidth: 2,
-      size: 12,
+      // Bright fill + dark halo reads on Esri satellite.
+      color: new Color().setStyle("#f8fafc"),
+      outlineColor: new Color().setStyle("#0b1220"),
+      outlineWidth: 2.5,
+      size: 14,
       sizeInMeters: false,
-      clampToGround: true,
+      // Non-draped upright billboards stay readable at Africa / globe height;
+      // draped text can disappear into tile bake at this camera.
+      clampToGround: false,
+      textFacing: "upright",
+      rotateWithCamera: true,
+      offsetDepth: true,
+      // Keep major names even when dense at continent scale.
       declutter: true,
+      declutterPriority: 10,
+      show: true,
     },
   });
   wireText(countryLayer);
@@ -112,13 +122,18 @@ export async function attachLabelLayers(
     source: citySource,
     text: {
       font: LABEL_FONT,
-      color: new Color().setStyle("#f1f5f9"),
-      outlineColor: new Color().setStyle("#071525"),
+      color: new Color().setStyle("#e2e8f0"),
+      outlineColor: new Color().setStyle("#0b1220"),
       outlineWidth: 2,
-      size: 10,
+      size: 11,
       sizeInMeters: false,
-      clampToGround: true,
+      clampToGround: false,
+      textFacing: "upright",
+      rotateWithCamera: true,
+      offsetDepth: true,
       declutter: true,
+      declutterPriority: 1,
+      show: true,
     },
   });
   wireText(cityLayer);

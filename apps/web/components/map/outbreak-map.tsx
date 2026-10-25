@@ -229,8 +229,15 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     // maplibre-style: BackgroundHandler already set globe.color from the
     // style's background layer — do not overwrite or re-add terrain.
 
-    // Non-draped boundary lines + travel tubes need ambient light.
-    view.addLight({ ambient: { intensity: 1 } });
+    // Non-draped boundary polylines are lit (Lambert); without lights they
+    // draw black and vanish on satellite. Ambient alone is enough.
+    view.addLight({
+      ambient: {
+        intensity: 1.25,
+        color: new Color().setStyle("#ffffff"),
+      },
+    });
+
 
     const cam = cameraRef.current;
     view.setCamera(cam);

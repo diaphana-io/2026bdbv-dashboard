@@ -24,8 +24,12 @@ import {
   type TrackedCountryIso,
 } from "@/lib/tracked-countries";
 
-/** v3: satellite default + boundaries reset after Navara migration. */
-const STORAGE_KEY = "bdbv-map-ui-v3";
+/**
+ * v4: force boundaries + countryNames ON after Navara globe cutover
+ * (v3 could still hold toggles off from earlier experiments).
+ */
+const STORAGE_KEY = "bdbv-map-ui-v4";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v3";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -111,9 +115,21 @@ const DEFAULT_LAYERS: LayerVisibility = {
 function readPersisted(): PersistedMapUi | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ??
+      window.localStorage.getItem(PREV_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as PersistedMapUi;
+    const parsed = JSON.parse(raw) as PersistedMapUi;
+    // Always show country borders + names after the Navara migration;
+    // other layer prefs (cities/cases/…) may still migrate from v3.
+    return {
+      ...parsed,
+      layers: {
+        ...parsed.layers,
+        boundaries: true,
+        countryNames: true,
+      },
+    };
   } catch {
     return null;
   }
