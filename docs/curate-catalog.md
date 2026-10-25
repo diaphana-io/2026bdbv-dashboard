@@ -29,4 +29,4 @@ Public Map shows **approved head only** (`review_status: approved`). After rollb
 
 ## Approve path
 
-`persistReviewClaim` writes `lineage_id` / `version` / `is_head` and a `CurateAuditEvent` (`approve` | `reject`) so Catalog is not seed-only.
+`persistReviewClaim` (D1, Phase 3) writes `lineage_id` / `version` / `is_head` and a `curate_audit_events` row (`approve` | `reject`) so Catalog is not seed-only.

@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { getDb } from "./d1";
 import { isNeo4jConfigured } from "./neo4j";
 import {
   CURATE_DATA_SOURCE_COOKIE,
@@ -49,4 +50,13 @@ export async function getCurateDataSourcePreference(): Promise<CurateDataSource>
 export async function shouldUseNeo4j(): Promise<boolean> {
   if (!isNeo4jConfigured()) return false;
   return !(await preferFixtureData());
+}
+
+/**
+ * True when Curate Claim/Source/Conflict APIs should persist to D1.
+ * Fixture mode skips persist; unbound DB is handled by routes as 503.
+ */
+export async function shouldPersistCurateTabular(): Promise<boolean> {
+  if (await preferFixtureData()) return false;
+  return getDb() != null;
 }

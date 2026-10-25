@@ -1,6 +1,6 @@
 # Claim curation SoT: Neo4j → Cloudflare D1
 
-**Status:** Phase 2 Curate Claim reads prefer D1 (preview seed). Writes still Neo4j until Phase 3. Map / incidence still Neo4j until Phase 4.
+**Status:** Phase 3 Curate Claim **writes** target D1 (`shouldPersistCurateTabular`). Reads still D1 → Neo4j → JSON. Map / incidence still Neo4j until Phase 4.
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) → Linear **MATT** (one-way sync per [AGENTS.md](../AGENTS.md); triage priority/project in Linear after sync).
 
@@ -52,7 +52,8 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 
 | Area | Role today |
 |------|------------|
-| [`apps/web/lib/neo4j-curate.ts`](../apps/web/lib/neo4j-curate.ts) | Curate **writes**: resolve conflict, dismiss source, submit/update source, review claim, rollback claim |
+| [`apps/web/lib/d1-curate.ts`](../apps/web/lib/d1-curate.ts) | Curate **writes** (Phase 3): resolve conflict, dismiss source, submit/update source, review claim, rollback claim |
+| [`apps/web/lib/neo4j-curate.ts`](../apps/web/lib/neo4j-curate.ts) | Former Neo4j Curate writes (dead on Worker routes until Phase 5 cleanup) |
 | [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) | Curate / Map **reads**: `getClaimsNeo4j`, conflicts, inbox, catalog source+claims, incidence (`claim_type = 'incidence'`), country case_count aggregates |
 | `/api/curate/*` | Thin routes → persist helpers (review-claim, resolve-conflict, dismiss-source, submit-source, update-source, rollback-claim, pipeline-status, …) |
 | Map / incidence | Snapshot and country-stats paths that match Neo4j `Claim` for approved counts / incidence series |
@@ -116,7 +117,7 @@ npx cf d1 migrations apply 8c803639-56c6-405c-8dba-157e054a483a --local --dir mi
 
 # Phase 1 remote: preview / test only
 npx wrangler d1 migrations apply bdbv-curate-preview --remote --config wrangler.d1.jsonc
-# production --remote: defer until near Phase 3
+# production --remote: see Phase 3 (requires Cloudflare auth)
 ```
 
 Verify five tables: `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name` → `sources`, `claims`, `claim_conflicts`, `curate_audit_events`, `dismissed_sources` (plus `d1_migrations`).
@@ -161,7 +162,7 @@ npm run seed:d1-curate -- --local-only
 npm run seed:d1-curate -- --remote-only
 ```
 
-Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `data/curated/{sources,inbox_candidates,claims,conflicts}.json` (+ optional `curate_audit_events.json`). FK order: sources → inbox candidate sources → claims → conflicts → audits. **Does not seed production `bdbv-curate`.**
+Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `data/curated/{sources,inbox_candidates,claims,conflicts}.json` (+ optional `curate_audit_events.json`). FK order: sources → inbox candidate sources → claims → conflicts → audits. **Does not seed production `bdbv-curate` unless `--production` is passed (Phase 3).**
 
 ### Acceptance (Phase 2)
 
@@ -171,10 +172,65 @@ Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `d
 - [x] Map / incidence / Case graph getters untouched
 - [x] Local preview seed verified (`npm run seed:d1-curate -- --local-only` → 6 sources on `bdbv-curate-preview`); remote seed when Cloudflare auth is available
 
+## Phase 3 — Curate Claim writes (D1-only)
+
+**Done when:** `/api/curate/*` Claim/Source/Conflict persist is **D1 only** (fixture mode skips persist). Neo4j Claim writes are removed from Worker Curate routes. Map / incidence still read Neo4j Claims until Phase 4.
+
+### Write policy
+
+```text
+preferFixtureData → persist false (no D1 / Neo4j write)
+else getDb() bound → D1 persist + invalidateGraphReadCache
+else → 503 d1_unavailable
+```
+
+- Helper: `shouldPersistCurateTabular()` in [`apps/web/lib/curate-data-source.server.ts`](../apps/web/lib/curate-data-source.server.ts) (`!fixture && getDb()`).
+- Persist implementation: [`apps/web/lib/d1-curate.ts`](../apps/web/lib/d1-curate.ts) (mirrors former [`neo4j-curate.ts`](../apps/web/lib/neo4j-curate.ts) shapes; uses D1 `batch()`). Neo4j persist helpers may remain as dead code until Phase 5 cleanup.
+- No long-lived dual-write. Preview D1 verify first; then routes call D1 only.
+
+| Route | Persist |
+|-------|---------|
+| `submit-source` | INSERT `sources` (candidate); duplicate `normalized_url` → 409 |
+| `update-source` | UPDATE candidate `sources` |
+| `dismiss-source` | UPSERT `dismissed_sources` + status |
+| `review-claim` | INSERT/UPDATE `claims` + `curate_audit_events`; optional `claim_conflicts` |
+| `resolve-conflict` | UPDATE `claim_conflicts` |
+| `rollback-claim` | Engine shapes payload; D1 supersedes head + pending claim + audit |
+
+### Prod remote migrate + one-time seed (opt-in)
+
+Apply schema to production D1 **before** relying on Worker writes against empty prod:
+
+```text
+# From apps/web — requires Cloudflare auth (CLOUDFLARE_API_TOKEN or `wrangler login`)
+npx wrangler d1 migrations apply bdbv-curate --remote --config wrangler.d1.jsonc
+```
+
+Seed production **only with explicit `--production`** (default remains preview-only; never silent prod seed):
+
+```text
+# From repo root
+npm run seed:d1-curate -- --production --remote-only
+# or local prod binding for dry-run
+npm run seed:d1-curate -- --production --local-only
+```
+
+Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Without `--production`, target is still `bdbv-curate-preview` only.
+
+**Auth note (2026-10-25):** remote `bdbv-curate` migrate was attempted from CI/agent; Wrangler returned *non-interactive environment requires `CLOUDFLARE_API_TOKEN`*. Re-run the migrate + `--production --remote-only` seed from a logged-in shell or with a token before production cutover. Empty prod D1 must not receive Curate writes until seed (or Neo4j export) lands — otherwise reads miss existing Aura Claims until Phase 4 Map also moves.
+
+### Acceptance (Phase 3)
+
+- [x] Curate Claim API persists to D1 when `shouldPersistCurateTabular`; fixture → no persist; missing DB → 503
+- [x] Neo4j Claim write calls removed from `/api/curate/*` Worker routes
+- [x] `seed:d1-curate --production` opt-in; prod migrate/seed commands documented (remote apply pending Cloudflare auth)
+- [ ] Preview smoke: Open/Approve then Curate SSR reads from D1
+- [x] Map / incidence still Neo4j Claim reads (Phase 4)
+
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
 - Case Curate UI
 - Accept→Open / Source workspace IA (separate plans OK)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
-- Phase 3–4: Curate write cutover, Map / incidence D1, job tables, Case graph changes
+- Phase 4–5: Map / incidence D1, Aura Claim label deletion, job tables, Case graph changes

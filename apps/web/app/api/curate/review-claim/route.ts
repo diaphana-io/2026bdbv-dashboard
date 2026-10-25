@@ -2,9 +2,13 @@ import {
   claimCategoryForType,
   isClaimCategory,
 } from "../../../../lib/claim-category";
-import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
+import {
+  preferFixtureData,
+  shouldPersistCurateTabular,
+} from "../../../../lib/curate-data-source.server";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { persistReviewClaim } from "../../../../lib/neo4j-curate";
+import { getDb } from "../../../../lib/d1";
+import { persistReviewClaim } from "../../../../lib/d1-curate";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -37,9 +41,13 @@ export async function POST(request: Request) {
     let persisted = false;
     let claimId: string | undefined =
       typeof record.claim_id === "string" ? record.claim_id : undefined;
-    if (await shouldUseNeo4j()) {
+    if (await shouldPersistCurateTabular()) {
+      const db = getDb();
+      if (!db) {
+        return Response.json({ error: "d1_unavailable" }, { status: 503 });
+      }
       try {
-        const out = await persistReviewClaim({
+        const out = await persistReviewClaim(db, {
           action: "reject",
           claimId,
           rejectionReason: reason,
@@ -48,9 +56,11 @@ export async function POST(request: Request) {
         invalidateGraphReadCache();
         persisted = true;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "neo4j_write_failed";
+        const message = err instanceof Error ? err.message : "d1_write_failed";
         return Response.json({ error: message }, { status: 503 });
       }
+    } else if (!(await preferFixtureData())) {
+      return Response.json({ error: "d1_unavailable" }, { status: 503 });
     }
     return Response.json({
       review_status: "rejected",
@@ -102,9 +112,13 @@ export async function POST(request: Request) {
 
   let persisted = false;
   let claimId = claimIdIn;
-  if (await shouldUseNeo4j()) {
+  if (await shouldPersistCurateTabular()) {
+    const db = getDb();
+    if (!db) {
+      return Response.json({ error: "d1_unavailable" }, { status: 503 });
+    }
     try {
-      const out = await persistReviewClaim({
+      const out = await persistReviewClaim(db, {
         action: "approve",
         claimId: claimIdIn,
         claimType,
@@ -119,9 +133,11 @@ export async function POST(request: Request) {
       invalidateGraphReadCache();
       persisted = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      const message = err instanceof Error ? err.message : "d1_write_failed";
       return Response.json({ error: message }, { status: 503 });
     }
+  } else if (!(await preferFixtureData())) {
+    return Response.json({ error: "d1_unavailable" }, { status: 503 });
   }
 
   return Response.json({

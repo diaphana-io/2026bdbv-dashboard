@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Seed data/curated Claim Curate rows into D1 preview + local only.
- * Never targets production bdbv-curate (Phase 3 keeps prod on Neo4j until writes move).
+ * Seed data/curated Claim Curate rows into D1.
+ *
+ * Default: preview DB only (bdbv-curate-preview), local + remote.
+ * Production (bdbv-curate) requires explicit --production opt-in.
  *
  * Usage (from repo root):
  *   npm run seed:d1-curate
  *   npm run seed:d1-curate -- --local-only
  *   npm run seed:d1-curate -- --remote-only
+ *   npm run seed:d1-curate -- --production --local-only
+ *   npm run seed:d1-curate -- --production --remote-only
  *
  * Requires wrangler auth for --remote. Runs from apps/web with wrangler.d1.jsonc.
  */
@@ -19,15 +23,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const curatedDir = join(root, "data", "curated");
 const webDir = join(root, "apps", "web");
 const config = "wrangler.d1.jsonc";
-const DB_NAME = "bdbv-curate-preview";
+const PREVIEW_DB = "bdbv-curate-preview";
+const PROD_DB = "bdbv-curate";
 
 const args = new Set(process.argv.slice(2));
 const localOnly = args.has("--local-only");
 const remoteOnly = args.has("--remote-only");
+const production = args.has("--production");
 if (localOnly && remoteOnly) {
   console.error("Use only one of --local-only / --remote-only");
   process.exit(1);
 }
+
+const DB_NAME = production ? PROD_DB : PREVIEW_DB;
 
 function readJson(name) {
   const path = join(curatedDir, name);
@@ -151,7 +159,6 @@ function buildSeedSql() {
   const audits = existsSync(auditsPath) ? readJson("curate_audit_events.json") : [];
 
   // D1 UNIQUE(normalized_url): skip inbox rows that collide with curated sources
-  // (exact_url duplicates stay Neo4j/fixture demos until Phase 3 write path).
   const seenNorm = new Set(
     sources.map((s) => String(s.normalized_url ?? s.url).toLowerCase()),
   );
@@ -290,12 +297,26 @@ function countSources(remote) {
 }
 
 function main() {
-  console.log(`Seeding D1 ${DB_NAME} from ${curatedDir}`);
-  console.log("(production bdbv-curate is NOT seeded)");
+  if (production) {
+    console.log(
+      `Seeding PRODUCTION D1 ${DB_NAME} from ${curatedDir} (--production opt-in)`,
+    );
+    console.warn(
+      "WARNING: this replaces curated rows on production bdbv-curate. One-time cutover only.",
+    );
+  } else {
+    console.log(`Seeding D1 ${DB_NAME} from ${curatedDir}`);
+    console.log(
+      "(production bdbv-curate is NOT seeded unless you pass --production)",
+    );
+  }
 
   const outDir = join(root, "tmp");
   mkdirSync(outDir, { recursive: true });
-  const sqlPath = join(outDir, "seed-d1-curate.sql");
+  const sqlPath = join(
+    outDir,
+    production ? "seed-d1-curate-production.sql" : "seed-d1-curate.sql",
+  );
   const sql = buildSeedSql();
   writeFileSync(sqlPath, sql, "utf8");
   console.log(`Wrote ${sqlPath} (${sql.split("\n").length} lines)`);

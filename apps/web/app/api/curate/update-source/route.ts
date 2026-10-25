@@ -1,6 +1,10 @@
-import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
+import {
+  preferFixtureData,
+  shouldPersistCurateTabular,
+} from "../../../../lib/curate-data-source.server";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { persistUpdateSource } from "../../../../lib/neo4j-curate";
+import { getDb } from "../../../../lib/d1";
+import { persistUpdateSource } from "../../../../lib/d1-curate";
 import {
   isEvidenceClass,
   isSourceKind,
@@ -47,9 +51,13 @@ export async function POST(request: Request) {
       : null;
 
   let persisted = false;
-  if (await shouldUseNeo4j()) {
+  if (await shouldPersistCurateTabular()) {
+    const db = getDb();
+    if (!db) {
+      return Response.json({ error: "d1_unavailable" }, { status: 503 });
+    }
     try {
-      await persistUpdateSource({
+      await persistUpdateSource(db, {
         id,
         title,
         publisher,
@@ -59,12 +67,14 @@ export async function POST(request: Request) {
       invalidateGraphReadCache();
       persisted = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      const message = err instanceof Error ? err.message : "d1_write_failed";
       if (message.startsWith("source_not_found:")) {
         return Response.json({ error: "source_not_found" }, { status: 404 });
       }
       return Response.json({ error: message }, { status: 503 });
     }
+  } else if (!(await preferFixtureData())) {
+    return Response.json({ error: "d1_unavailable" }, { status: 503 });
   }
 
   return Response.json({

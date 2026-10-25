@@ -1,7 +1,11 @@
 import { normalizeUrl } from "../../../../lib/curate-api";
+import {
+  preferFixtureData,
+  shouldPersistCurateTabular,
+} from "../../../../lib/curate-data-source.server";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
-import { persistDismissSource } from "../../../../lib/neo4j-curate";
+import { getDb } from "../../../../lib/d1";
+import { persistDismissSource } from "../../../../lib/d1-curate";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -19,15 +23,21 @@ export async function POST(request: Request) {
 
   const normalized = normalizeUrl(url);
   let persisted = false;
-  if (await shouldUseNeo4j()) {
+  if (await shouldPersistCurateTabular()) {
+    const db = getDb();
+    if (!db) {
+      return Response.json({ error: "d1_unavailable" }, { status: 503 });
+    }
     try {
-      await persistDismissSource(normalized);
+      await persistDismissSource(db, normalized);
       invalidateGraphReadCache();
       persisted = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "neo4j_write_failed";
+      const message = err instanceof Error ? err.message : "d1_write_failed";
       return Response.json({ error: message }, { status: 503 });
     }
+  } else if (!(await preferFixtureData())) {
+    return Response.json({ error: "d1_unavailable" }, { status: 503 });
   }
 
   return Response.json({
