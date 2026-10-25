@@ -1,6 +1,6 @@
 # Claim curation SoT: Neo4j → Cloudflare D1
 
-**Status:** Phase 0 (policy + tracker). Implementation starts at Phase 1.
+**Status:** Phase 1 schema + two-DB binding landed. App Claim reads/writes still Neo4j until Phase 2–3.
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) → Linear **MATT** (one-way sync per [AGENTS.md](../AGENTS.md); triage priority/project in Linear after sync).
 
@@ -71,10 +71,68 @@ Extract issue Storage currently lists Neo4j as SoT for `SourceDocument` / `Claim
 - [x] `docs/remaining-tasks.md` lists the open item
 - [x] `docs/extract-issue.md` Storage section notes Claim SoT → D1 (supersede, not full rewrite)
 
+## Phase 1 — Schema + two-DB binding
+
+**Done when:** local migrate applies; production and preview each have a **separate** D1; Worker `env.DB` switches on `isPreview`. Curate / Map Claim I/O remains Neo4j.
+
+### Two-DB policy
+
+| Environment | D1 name | `database_id` | Role |
+|-------------|---------|---------------|------|
+| **production** | `bdbv-curate` | `13554abd-a4de-4194-84cb-3cca82a5d7bf` | Production Curate Claim SoT (Phase 3+). Bound only when `isPreview` is false |
+| **preview** | `bdbv-curate-preview` | `8c803639-56c6-405c-8dba-157e054a483a` | **Test / Workers Preview.** Safe to wipe or seed. Bound when `isPreview` is true |
+
+- Same schema (`apps/web/migrations/`). **Data is not shared** (no preview → prod copy by default).
+- Do **not** use a single DB with `preview_database_id` conflation — two instances, one binding name `DB`.
+- Wired in [`apps/web/cloudflare.config.ts`](../apps/web/cloudflare.config.ts) via `bindings.d1({ name, id })` (cf/config maps `id` → wrangler `database_id`). Migrations directory is `migrations/` (default; CLI helper [`apps/web/wrangler.d1.jsonc`](../apps/web/wrangler.d1.jsonc) sets `migrations_dir` for named apply).
+- Env type: `DB: D1Database` on `Cloudflare.Env` / `Env` in [`apps/web/env.d.ts`](../apps/web/env.d.ts).
+
+### DDL summary
+
+Migration: [`apps/web/migrations/0001_claim_curate.sql`](../apps/web/migrations/0001_claim_curate.sql)
+
+| Table | Notes |
+|-------|--------|
+| `sources` | SourceDocument fields; UNIQUE `normalized_url` |
+| `claims` | Claim + curated `source_id` FK → `sources` ON DELETE RESTRICT; JSON `object_value` / `review_policy` as TEXT |
+| `claim_conflicts` | FKs to `claims` ON DELETE RESTRICT; index on `status` |
+| `curate_audit_events` | Append-only audit |
+| `dismissed_sources` | PK `normalized_url` (+ `dismissed_at`) |
+
+Indexes: `claims(claim_fingerprint)`, `claims(lineage_id)`, `claims(as_of_date)`, `claims(source_id)`, `claims(review_status, claim_type, subject_ref)`.
+
+### Apply commands
+
+From `apps/web` (Wrangler uses the CLI helper config; `cf` takes database UUID):
+
+```text
+# Local — both names
+npx wrangler d1 migrations apply bdbv-curate --local --config wrangler.d1.jsonc
+npx wrangler d1 migrations apply bdbv-curate-preview --local --config wrangler.d1.jsonc
+
+# Equivalent (cf CLI; ID required)
+npx cf d1 migrations apply 13554abd-a4de-4194-84cb-3cca82a5d7bf --local --dir migrations
+npx cf d1 migrations apply 8c803639-56c6-405c-8dba-157e054a483a --local --dir migrations
+
+# Phase 1 remote: preview / test only
+npx wrangler d1 migrations apply bdbv-curate-preview --remote --config wrangler.d1.jsonc
+# production --remote: defer until near Phase 3
+```
+
+Verify five tables: `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name` → `sources`, `claims`, `claim_conflicts`, `curate_audit_events`, `dismissed_sources` (plus `d1_migrations`).
+
+### Acceptance (Phase 1)
+
+- [x] `0001_claim_curate.sql` in repo
+- [x] Two D1 databases created; config selects by `isPreview` (no `preview_database_id`)
+- [x] `--local` migrate succeeded; five tables present
+- [x] Docs state preview = test, data not shared with prod; linked from [#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19)
+- [x] App Claim reads/writes still Neo4j (no Phase 2–4 switches in this slice)
+
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
-- D1 binding implementation or production migrate (Phase 1+)
 - Case Curate UI
 - Accept→Open / Source workspace IA (separate plans OK)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
+- Phase 2–4: `lib/data` / `neo4j-curate` switches, seed scripts, job tables, Case graph changes

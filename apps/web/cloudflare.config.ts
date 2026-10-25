@@ -66,6 +66,19 @@ export default defineConfig(({ isPreview }) => ({
       NEO4J_URI: bindings.secret(),
       NEO4J_USER: bindings.secret(),
       NEO4J_PASSWORD: bindings.secret(),
+      // Claim Curate D1: separate prod vs preview instances (no preview_database_id).
+      // Migrations live in ./migrations (cf/wrangler default; same schema both DBs).
+      DB: bindings.d1(
+        isPreview
+          ? {
+              name: "bdbv-curate-preview",
+              id: "8c803639-56c6-405c-8dba-157e054a483a",
+            }
+          : {
+              name: "bdbv-curate",
+              id: "13554abd-a4de-4194-84cb-3cca82a5d7bf",
+            },
+      ),
     },
   }),
 }));
