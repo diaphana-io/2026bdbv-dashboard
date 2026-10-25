@@ -1,4 +1,5 @@
 import {
+  getAggregateAdminUnitsJson,
   getCaseDetailJson,
   getCasesJson,
   getCatalogSourcesJson,
@@ -8,6 +9,7 @@ import {
   getCountryStatsJson,
   getInboxCandidatesJson,
   getIncidenceSeriesJson,
+  getMapSnapshotGraphJson,
   getMapSnapshotJson,
   getMeasuresJson,
   getOutbreakJson,
@@ -15,20 +17,27 @@ import {
   getSourcesJson,
   overviewKpisJson,
 } from "./data-json";
-import type { CaseQueryOpts, IncidenceSeriesOpts } from "./data-types";
+import type { CaseQueryOpts, IncidenceSeriesOpts, MapSnapshot } from "./data-types";
 import { preferFixtureData } from "./curate-data-source.server";
 import { getDb } from "./d1";
 import {
+  getApprovedCaseCountClaimsD1,
   getCatalogSourcesD1,
   getClaimsD1,
   getConflictViewsD1,
   getInboxCandidatesD1,
+  getIncidenceSeriesD1,
   getSourceCatalogDetailD1,
   getSourcesD1,
   sourcesRowCount,
 } from "./d1-queries";
+import {
+  composeMapSnapshot,
+  joinCaseCountClaimsToAdminUnits,
+} from "./map-snapshot";
 import { isNeo4jConfigured } from "./neo4j";
 import {
+  getAggregateAdminUnitsNeo4j,
   getCaseDetailNeo4j,
   getCasesNeo4j,
   getCatalogSourcesNeo4j,
@@ -38,6 +47,7 @@ import {
   getCountryStatsNeo4j,
   getInboxCandidatesNeo4j,
   getIncidenceSeriesNeo4j,
+  getMapSnapshotGraphNeo4j,
   getMapSnapshotNeo4j,
   getMeasuresNeo4j,
   getOutbreakNeo4j,
@@ -206,8 +216,9 @@ export async function getClaims() {
 export async function getIncidenceSeries(opts?: IncidenceSeriesOpts) {
   const metric = opts?.metricBasis ?? "reporting_date";
   const key = `incidence:${opts?.country ?? ""}:${opts?.asOf ?? ""}:${metric}`;
-  return fromNeo4jOrJson(
+  return fromD1OrNeo4jOrJson(
     key,
+    (db) => getIncidenceSeriesD1(db, opts),
     () => getIncidenceSeriesNeo4j(opts),
     () => getIncidenceSeriesJson(opts),
   );
@@ -255,9 +266,61 @@ export async function overviewKpis(country?: string) {
   );
 }
 
-export async function getMapSnapshot(asOf: string) {
+/**
+ * Map snapshot: D1 case_count aggregates + Neo4j graph (no Claim MATCH).
+ * Empty D1 / unbound → Neo4j Claim fallback → JSON (same miss pattern as Curate).
+ */
+export async function getMapSnapshot(asOf: string): Promise<MapSnapshot> {
+  if (await preferFixtureData()) {
+    return getMapSnapshotJson(asOf);
+  }
+
+  const cacheKey = `map:${asOf}`;
+  const now = Date.now();
+  const cached = cacheGet<MapSnapshot>(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const db = getDb();
+  if (db) {
+    try {
+      const n = await sourcesRowCount(db);
+      if (n >= 1) {
+        const claims = await getApprovedCaseCountClaimsD1(db, asOf);
+        let units;
+        let graph;
+        if (isNeo4jConfigured()) {
+          try {
+            [units, graph] = await Promise.all([
+              getAggregateAdminUnitsNeo4j(),
+              getMapSnapshotGraphNeo4j(asOf),
+            ]);
+          } catch (err) {
+            console.error(
+              "[data] neo4j map graph failed; using JSON geo/graph with D1 claims",
+              err,
+            );
+            units = getAggregateAdminUnitsJson();
+            graph = getMapSnapshotGraphJson(asOf);
+          }
+        } else {
+          units = getAggregateAdminUnitsJson();
+          graph = getMapSnapshotGraphJson(asOf);
+        }
+        const aggregates = joinCaseCountClaimsToAdminUnits(claims, units);
+        const value = composeMapSnapshot(asOf, aggregates, graph);
+        cacheSet(cacheKey, value);
+        return value;
+      }
+    } catch (err) {
+      console.error("[data] d1 map aggregates failed; falling back", err);
+      if (cached) return cached.value;
+    }
+  }
+
   return fromNeo4jOrJson(
-    `map:${asOf}`,
+    cacheKey,
     () => getMapSnapshotNeo4j(asOf),
     () => getMapSnapshotJson(asOf),
   );

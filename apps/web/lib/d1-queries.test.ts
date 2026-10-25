@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  getApprovedCaseCountClaimsD1,
   getClaimsD1,
   getInboxCandidatesD1,
+  getIncidenceSeriesD1,
   getSourcesD1,
   sourcesRowCount,
 } from "./d1-queries";
@@ -39,6 +41,45 @@ function mockDb(tables: {
     if (normalized.includes("from claims where id = ?")) {
       const id = binds[0];
       return claims.filter((c) => c.id === id);
+    }
+    if (
+      normalized.includes("from claims") &&
+      normalized.includes("claim_type = 'incidence'")
+    ) {
+      const country = binds[0] as string | null;
+      const asOf = binds[1] as string | null;
+      return claims.filter((c) => {
+        if (c.claim_type !== "incidence") return false;
+        if (c.review_status !== "approved") return false;
+        if (country != null && c.subject_ref !== country) return false;
+        if (asOf != null && String(c.as_of_date) > asOf) return false;
+        return true;
+      });
+    }
+    if (
+      normalized.includes("from claims") &&
+      normalized.includes("claim_type = 'case_count'")
+    ) {
+      const asOf = binds[0] as string;
+      return claims
+        .filter(
+          (c) =>
+            c.claim_type === "case_count" &&
+            c.review_status === "approved" &&
+            String(c.as_of_date) <= asOf,
+        )
+        .sort((a, b) => {
+          const sub = String(a.subject_ref).localeCompare(String(b.subject_ref));
+          if (sub !== 0) return sub;
+          const dateCmp = String(b.as_of_date).localeCompare(
+            String(a.as_of_date),
+          );
+          if (dateCmp !== 0) return dateCmp;
+          const headA = Number(a.is_head ?? 0) !== 0 ? 0 : 1;
+          const headB = Number(b.is_head ?? 0) !== 0 ? 0 : 1;
+          if (headA !== headB) return headA - headB;
+          return Number(b.version ?? 0) - Number(a.version ?? 0);
+        });
     }
     return [];
   }
@@ -218,5 +259,206 @@ describe("d1-queries", () => {
     const rows = await getClaimsD1(db);
     expect(rows[0].object_value).toEqual({});
     expect(rows[0].is_head).toBe(false);
+  });
+
+  it("getIncidenceSeriesD1 filters country, asOf, and metric_basis", async () => {
+    const db = mockDb({
+      claims: [
+        {
+          id: "inc-cd-1",
+          source_id: "s1",
+          claim_type: "incidence",
+          claim_category: null,
+          subject_ref: "CD",
+          object_value: JSON.stringify({
+            period_start: "2026-10-16",
+            period_end: "2026-10-16",
+            grain: "day",
+            new_confirmed: 2,
+            metric_basis: "reporting_date",
+          }),
+          as_of_date: "2026-10-16",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: null,
+          version: 1,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "inc-cd-2",
+          source_id: "s1",
+          claim_type: "incidence",
+          claim_category: null,
+          subject_ref: "CD",
+          object_value: JSON.stringify({
+            period_start: "2026-10-20",
+            period_end: "2026-10-20",
+            grain: "day",
+            new_confirmed: 1,
+            metric_basis: "reporting_date",
+          }),
+          as_of_date: "2026-10-20",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: null,
+          version: 1,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "inc-ke",
+          source_id: "s1",
+          claim_type: "incidence",
+          claim_category: null,
+          subject_ref: "KE",
+          object_value: JSON.stringify({
+            period_start: "2026-10-16",
+            period_end: "2026-10-16",
+            grain: "day",
+            new_confirmed: 9,
+            metric_basis: "reporting_date",
+          }),
+          as_of_date: "2026-10-16",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: null,
+          version: 1,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "inc-onset",
+          source_id: "s1",
+          claim_type: "incidence",
+          claim_category: null,
+          subject_ref: "CD",
+          object_value: JSON.stringify({
+            period_start: "2026-10-16",
+            period_end: "2026-10-16",
+            grain: "day",
+            new_confirmed: 3,
+            metric_basis: "onset_date",
+          }),
+          as_of_date: "2026-10-16",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: null,
+          version: 1,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+      ],
+    });
+    const series = await getIncidenceSeriesD1(db, {
+      country: "CD",
+      asOf: "2026-10-18",
+    });
+    expect(series).toHaveLength(1);
+    expect(series[0]).toMatchObject({
+      id: "inc-cd-1",
+      subject_ref: "CD",
+      new_confirmed: 2,
+      metric_basis: "reporting_date",
+    });
+  });
+
+  it("getApprovedCaseCountClaimsD1 picks latest as_of per subject_ref", async () => {
+    const db = mockDb({
+      claims: [
+        {
+          id: "ke-old",
+          source_id: "s1",
+          claim_type: "case_count",
+          claim_category: "aggregate_count",
+          subject_ref: "KE",
+          object_value: JSON.stringify({ confirmed: 5, deaths: 0 }),
+          as_of_date: "2026-10-01",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: "lin-ke",
+          version: 1,
+          is_head: 0,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "ke-new",
+          source_id: "s1",
+          claim_type: "case_count",
+          claim_category: "aggregate_count",
+          subject_ref: "KE",
+          object_value: JSON.stringify({ confirmed: 9, deaths: 1 }),
+          as_of_date: "2026-10-20",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: "lin-ke",
+          version: 2,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "ke-future",
+          source_id: "s1",
+          claim_type: "case_count",
+          claim_category: "aggregate_count",
+          subject_ref: "KE",
+          object_value: JSON.stringify({ confirmed: 12, deaths: 2 }),
+          as_of_date: "2026-10-25",
+          confidence: "official",
+          review_status: "approved",
+          excerpt: null,
+          lineage_id: "lin-ke",
+          version: 3,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+        {
+          id: "pending",
+          source_id: "s1",
+          claim_type: "case_count",
+          claim_category: "aggregate_count",
+          subject_ref: "NG",
+          object_value: JSON.stringify({ confirmed: 1, deaths: 0 }),
+          as_of_date: "2026-10-10",
+          confidence: "news_single",
+          review_status: "pending_review",
+          excerpt: null,
+          lineage_id: null,
+          version: 1,
+          is_head: 1,
+          extractor: "human",
+          reviewed_at: null,
+          review_policy: null,
+        },
+      ],
+    });
+    const rows = await getApprovedCaseCountClaimsD1(db, "2026-10-23");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: "ke-new",
+      subject_ref: "KE",
+      object_value: { confirmed: 9, deaths: 1 },
+      as_of_date: "2026-10-20",
+    });
   });
 });

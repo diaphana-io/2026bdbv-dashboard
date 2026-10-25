@@ -1,6 +1,6 @@
 # Claim curation SoT: Neo4j → Cloudflare D1
 
-**Status:** Phase 3 Curate Claim **writes** target D1 (`shouldPersistCurateTabular`). Reads still D1 → Neo4j → JSON. Map / incidence still Neo4j until Phase 4.
+**Status:** Phase 4 Map Claim reads (incidence + case_count aggregates) prefer **D1**; Case / Travel / Exposure graph stays Neo4j. Curate reads/writes already on D1 (Phases 2–3). Aura Claim deletion is Phase 5.
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) → Linear **MATT** (one-way sync per [AGENTS.md](../AGENTS.md); triage priority/project in Linear after sync).
 
@@ -31,7 +31,7 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
   R2: source bodies + map/curate claim snapshots (derived)
 ```
 
-**Map / incidence:** after migration, approved Claims are read from **D1** (or a D1-derived R2 snapshot). Neo4j Claim matching for country-stats / snapshot / incidence is retired in Phase 4.
+**Map / incidence:** approved Claims are read from **D1** (Phase 4). Neo4j Claim matching for snapshot aggregates / incidence is fallback-only when D1 is empty. `getCountryStats` remains a stub (`[]`). Derived R2 map dumps are a follow-up (not Phase 4).
 
 **UI note:** Claim curation and Case curation may separate in the product IA; this issue owns the **persistence** cutover. Source workspace IA is a separate slice.
 
@@ -54,12 +54,13 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 |------|------------|
 | [`apps/web/lib/d1-curate.ts`](../apps/web/lib/d1-curate.ts) | Curate **writes** (Phase 3): resolve conflict, dismiss source, submit/update source, review claim, rollback claim |
 | [`apps/web/lib/neo4j-curate.ts`](../apps/web/lib/neo4j-curate.ts) | Former Neo4j Curate writes (dead on Worker routes until Phase 5 cleanup) |
-| [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) | Curate / Map **reads**: `getClaimsNeo4j`, conflicts, inbox, catalog source+claims, incidence (`claim_type = 'incidence'`), country case_count aggregates |
-| `/api/curate/*` | Thin routes → persist helpers (review-claim, resolve-conflict, dismiss-source, submit-source, update-source, rollback-claim, pipeline-status, …) |
-| Map / incidence | Snapshot and country-stats paths that match Neo4j `Claim` for approved counts / incidence series |
-| Bundled JSON | `apps/web/data/*.json` fallback when Neo4j unavailable (stays as last-resort until D1 + R2 snapshots) |
+| [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) | Case graph + Map graph layers; Claim Cypher only on D1-miss fallback (`getIncidenceSeriesNeo4j`, `getMapAggregatesFromClaimsNeo4j`) |
+| [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts) | Curate + Map Claim **reads** (incidence, approved case_count heads) |
+| `/api/curate/*` | Thin routes → D1 persist helpers (Phase 3) |
+| Map / incidence | Happy path: D1 claims + AdminUnit join + Neo4j Case/Travel/Exposure |
+| Bundled JSON | Last-resort fallback when D1 empty and Neo4j unavailable |
 
-Phase 2–4 replace these Claim/Source/Conflict paths with D1 (and optional R2 snapshots). Case graph queries in `neo4j-queries.ts` remain Neo4j.
+Phase 5 removes Claim nodes / Cypher leftovers from Aura. Case graph queries in `neo4j-queries.ts` remain Neo4j.
 
 ## Relationship to Extract ([`docs/extract-issue.md`](./extract-issue.md))
 
@@ -225,7 +226,44 @@ Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Without `
 - [x] Neo4j Claim write calls removed from `/api/curate/*` Worker routes
 - [x] `seed:d1-curate --production` opt-in; prod migrate/seed commands documented (remote apply pending Cloudflare auth)
 - [ ] Preview smoke: Open/Approve then Curate SSR reads from D1
-- [x] Map / incidence still Neo4j Claim reads (Phase 4)
+- [x] Map / incidence still Neo4j Claim reads (Phase 4) — superseded by Phase 4 below
+
+## Phase 4 — Map Claim reads (D1 aggregates + Neo4j graph)
+
+**Done when:** Map **approved Claim aggregates** and **incidence** do not depend on Neo4j `Claim` on the happy path. Case / Travel / Exposure / Outbreak stay Neo4j. `getCountryStats` stays a stub.
+
+### Read priority (Map Claim slices)
+
+```text
+preferFixtureData → bundled JSON only
+else D1 (env.DB bound AND sources COUNT ≥ 1)
+  → incidence: getIncidenceSeriesD1
+  → snapshot aggregates: getApprovedCaseCountClaimsD1(asOf) joined to AdminUnit lat/lon
+     (Neo4j AdminUnit, else JSON admin_units)
+  → snapshot graph: getMapSnapshotGraphNeo4j (no Claim MATCH); JSON graph if Neo4j fails
+  → else Neo4j Claim fallback (getIncidenceSeriesNeo4j / getMapAggregatesFromClaimsNeo4j)
+  → else bundled JSON
+```
+
+Empty `sources` is a D1 miss (same Curate pattern) so production Map does not silently show empty aggregates before Phase 3 prod seed.
+
+| Getter | Phase 4 path |
+|--------|----------------|
+| `getIncidenceSeries` | D1 → Neo4j → JSON |
+| `getMapSnapshot` | D1 case_count + AdminUnit join + Neo4j graph; Neo4j Claim aggregates only on D1 miss |
+| `getCountryStats` | **unchanged stub** `[]` (Neo4j → JSON) |
+
+Implementation: [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts) (`getIncidenceSeriesD1`, `getApprovedCaseCountClaimsD1`), [`apps/web/lib/map-snapshot.ts`](../apps/web/lib/map-snapshot.ts) (join/compose), [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) (`getMapSnapshotGraphNeo4j`, `getAggregateAdminUnitsNeo4j`; Claim MATCH isolated in `getMapAggregatesFromClaimsNeo4j`), [`apps/web/lib/data.ts`](../apps/web/lib/data.ts).
+
+**Not in Phase 4:** R2 derived map dumps; Aura `Claim` label deletion (Phase 5); country-stats implementation; Curate UI.
+
+### Acceptance (Phase 4)
+
+- [x] `getIncidenceSeries` prefers D1 → Neo4j → JSON
+- [x] Map aggregates from D1 claims + AdminUnit join; Case pins / travel / exposure from Neo4j graph
+- [x] Happy-path Neo4j map graph has no `MATCH (cl:Claim)`; Claim Cypher isolated to fallback
+- [x] Fixture / empty D1 falls back to JSON or Neo4j
+- [x] Docs + [#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) updated
 
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
@@ -233,4 +271,4 @@ Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Without `
 - Adopt→Catalog / Source workspace IA — see [curate-ui.md](./curate-ui.md)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
-- Phase 4–5: Map / incidence D1, Aura Claim label deletion, job tables, Case graph changes
+- Phase 5: Aura Claim label deletion, job tables, Case graph changes; R2 map dumps; country-stats implementation

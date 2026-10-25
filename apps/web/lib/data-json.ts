@@ -31,6 +31,7 @@ import type {
   MeasureRow,
   SourceRow,
 } from "./data-types";
+import type { AggregateAdminUnit, MapSnapshotGraph } from "./map-snapshot";
 
 const CATALOG_STATUSES = new Set([
   "fetched",
@@ -216,33 +217,23 @@ function caseVisibleBy(asOf: string, c: CaseRow): boolean {
   return onOrBefore(d, asOf);
 }
 
-export function getMapSnapshotJson(asOf: string): MapSnapshot {
-  const aggregates: MapAggregate[] = [];
-  for (const unit of adminUnits.filter((a) => a.tracking_mode === "aggregate")) {
-    if (unit.lat == null || unit.lon == null) continue;
-    const series = claims
-      .filter(
-        (c) =>
-          c.claim_type === "case_count" &&
-          c.subject_ref === unit.iso &&
-          c.review_status === "approved" &&
-          onOrBefore(c.as_of_date, asOf),
-      )
-      .sort((a, b) => a.as_of_date.localeCompare(b.as_of_date));
-    const latest = series[series.length - 1];
-    if (!latest) continue;
-    const ov = latest.object_value;
-    aggregates.push({
-      admin_iso: unit.iso,
-      name: unit.name,
-      lat: unit.lat,
-      lon: unit.lon,
-      confirmed: Number(ov.confirmed ?? 0),
-      deaths: Number(ov.deaths ?? 0),
-      as_of_date: latest.as_of_date,
-    });
-  }
+/** Aggregate-mode AdminUnits with coordinates (JSON geo master for D1 join). */
+export function getAggregateAdminUnitsJson(): AggregateAdminUnit[] {
+  return adminUnits
+    .filter(
+      (a) =>
+        a.tracking_mode === "aggregate" && a.lat != null && a.lon != null,
+    )
+    .map((a) => ({
+      iso: a.iso,
+      name: a.name,
+      lat: a.lat!,
+      lon: a.lon!,
+    }));
+}
 
+/** Case / Travel / Exposure layers from bundled JSON (no Claim dependency). */
+export function getMapSnapshotGraphJson(asOf: string): MapSnapshotGraph {
   const mapCases = getCasesJson({ includeTemporalSuspects: true })
     .filter((c) => caseVisibleBy(asOf, c) && c.lat != null && c.lon != null)
     .map((c) => ({
@@ -314,7 +305,43 @@ export function getMapSnapshotJson(asOf: string): MapSnapshot {
     })
     .filter((e) => e.to_case_id);
 
-  return { asOf, aggregates, cases: mapCases, travels, exposures };
+  return { cases: mapCases, travels, exposures };
+}
+
+export function getMapSnapshotJson(asOf: string): MapSnapshot {
+  const aggregates: MapAggregate[] = [];
+  for (const unit of getAggregateAdminUnitsJson()) {
+    const series = claims
+      .filter(
+        (c) =>
+          c.claim_type === "case_count" &&
+          c.subject_ref === unit.iso &&
+          c.review_status === "approved" &&
+          onOrBefore(c.as_of_date, asOf),
+      )
+      .sort((a, b) => a.as_of_date.localeCompare(b.as_of_date));
+    const latest = series[series.length - 1];
+    if (!latest) continue;
+    const ov = latest.object_value;
+    aggregates.push({
+      admin_iso: unit.iso,
+      name: unit.name,
+      lat: unit.lat,
+      lon: unit.lon,
+      confirmed: Number(ov.confirmed ?? 0),
+      deaths: Number(ov.deaths ?? 0),
+      as_of_date: latest.as_of_date,
+    });
+  }
+
+  const graph = getMapSnapshotGraphJson(asOf);
+  return {
+    asOf,
+    aggregates,
+    cases: graph.cases,
+    travels: graph.travels,
+    exposures: graph.exposures,
+  };
 }
 
 export function getCaseDetailJson(caseId: string): CaseDetail | null {

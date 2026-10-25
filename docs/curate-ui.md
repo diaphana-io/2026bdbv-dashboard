@@ -81,7 +81,7 @@ Do not put Case rows into Claim Catalog.
 
 ## Out of scope
 
-- Case ERA implementation, Jev wiring, Map D1 Phase 4, shared Extract screen for both tracks
+- Case ERA implementation, Jev wiring, shared Extract screen for both tracks
 
 ## Acceptance
 

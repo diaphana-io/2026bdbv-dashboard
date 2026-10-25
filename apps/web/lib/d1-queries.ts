@@ -1,5 +1,5 @@
 /**
- * D1 readers for Claim Curate tabular SoT (Phase 2).
+ * D1 readers for Claim Curate tabular SoT (Phase 2) and Map Claim reads (Phase 4).
  * Row shapes match data-types / Neo4j + JSON facades.
  */
 import type {
@@ -11,6 +11,8 @@ import type {
   ConflictView,
   DuplicateLevel,
   InboxRow,
+  IncidenceRow,
+  IncidenceSeriesOpts,
   SourceRow,
 } from "./data-types";
 
@@ -469,4 +471,110 @@ export async function getSourceCatalogDetailD1(
     source: catalogSourceFromParts(sourceFromDb(sourceRow), claimRowsForAgg),
     claims,
   };
+}
+
+function incidenceFromClaim(claim: ClaimRow): IncidenceRow | null {
+  const ov = claim.object_value;
+  const period_start = ov.period_start;
+  const period_end = ov.period_end;
+  const grain = ov.grain;
+  const metric_basis = ov.metric_basis;
+  const new_confirmed = ov.new_confirmed;
+  if (
+    typeof period_start !== "string" ||
+    typeof period_end !== "string" ||
+    typeof grain !== "string" ||
+    typeof metric_basis !== "string" ||
+    typeof new_confirmed !== "number"
+  ) {
+    return null;
+  }
+  const row: IncidenceRow = {
+    id: claim.id,
+    subject_ref: claim.subject_ref,
+    as_of_date: claim.as_of_date,
+    period_start,
+    period_end,
+    grain,
+    new_confirmed,
+    metric_basis,
+    confidence: claim.confidence,
+    source_id: claim.source_id,
+  };
+  if (typeof ov.new_deaths === "number") {
+    row.new_deaths = ov.new_deaths;
+  }
+  return row;
+}
+
+const CLAIM_SELECT = `
+  id, source_id, claim_type, claim_category, subject_ref, object_value,
+  as_of_date, confidence, review_status, excerpt, lineage_id, version,
+  is_head, extractor, reviewed_at, review_policy
+`;
+
+/** Approved incidence claims from D1 (Phase 4 Map). */
+export async function getIncidenceSeriesD1(
+  db: D1Database,
+  opts?: IncidenceSeriesOpts,
+): Promise<IncidenceRow[]> {
+  const metricBasis = opts?.metricBasis ?? "reporting_date";
+  const country =
+    opts?.country && opts.country !== "ALL" ? opts.country : null;
+  const asOf = opts?.asOf ?? null;
+
+  const { results } = await db
+    .prepare(
+      `
+      SELECT ${CLAIM_SELECT}
+      FROM claims
+      WHERE claim_type = 'incidence'
+        AND review_status = 'approved'
+        AND (?1 IS NULL OR subject_ref = ?1)
+        AND (?2 IS NULL OR as_of_date <= ?2)
+      `,
+    )
+    .bind(country, asOf)
+    .all<ClaimDbRow>();
+
+  return (results ?? [])
+    .map((row) => incidenceFromClaim(claimFromDb(row)))
+    .filter((row): row is IncidenceRow => row != null)
+    .filter((row) => row.metric_basis === metricBasis)
+    .sort((a, b) => a.period_start.localeCompare(b.period_start));
+}
+
+/**
+ * Latest approved case_count head per subject_ref with as_of_date ≤ asOf.
+ * Prefers newest as_of; is_head / version break ties (Phase 4 Map aggregates).
+ */
+export async function getApprovedCaseCountClaimsD1(
+  db: D1Database,
+  asOf: string,
+): Promise<ClaimRow[]> {
+  const { results } = await db
+    .prepare(
+      `
+      SELECT ${CLAIM_SELECT}
+      FROM claims
+      WHERE claim_type = 'case_count'
+        AND review_status = 'approved'
+        AND as_of_date <= ?
+      ORDER BY subject_ref ASC,
+               as_of_date DESC,
+               CASE WHEN coalesce(is_head, 0) != 0 THEN 0 ELSE 1 END ASC,
+               coalesce(version, 0) DESC
+      `,
+    )
+    .bind(asOf)
+    .all<ClaimDbRow>();
+
+  const seen = new Set<string>();
+  const out: ClaimRow[] = [];
+  for (const row of results ?? []) {
+    if (seen.has(row.subject_ref)) continue;
+    seen.add(row.subject_ref);
+    out.push(claimFromDb(row));
+  }
+  return out;
 }

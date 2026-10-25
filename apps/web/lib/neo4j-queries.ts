@@ -24,6 +24,11 @@ import type {
   MeasureRow,
   SourceRow,
 } from "./data-types";
+import {
+  composeMapSnapshot,
+  type AggregateAdminUnit,
+  type MapSnapshotGraph,
+} from "./map-snapshot";
 import { withSession } from "./neo4j";
 
 const CATALOG_STATUSES = ["fetched", "extracted", "in_review", "done"] as const;
@@ -442,38 +447,37 @@ export async function overviewKpisNeo4j(country?: string) {
   });
 }
 
-export async function getMapSnapshotNeo4j(asOf: string): Promise<MapSnapshot> {
+/** Aggregate-mode AdminUnits with coordinates (geo master for D1 claim join). */
+export async function getAggregateAdminUnitsNeo4j(): Promise<
+  AggregateAdminUnit[]
+> {
   return withSession(async (session) => {
-    const aggRes = await session.run(
+    const res = await session.run(
       `
       MATCH (a:AdminUnit {tracking_mode: 'aggregate'})
-      OPTIONAL MATCH (cl:Claim)
-      WHERE cl.claim_type = 'case_count'
-        AND cl.subject_ref = a.iso
-        AND cl.review_status = 'approved'
-        AND cl.as_of_date <= $asOf
-      WITH a, cl
-      ORDER BY cl.as_of_date DESC
-      WITH a, collect(cl)[0] AS latest
-      WHERE latest IS NOT NULL AND a.lat IS NOT NULL AND a.lon IS NOT NULL
-      RETURN a, latest
+      WHERE a.lat IS NOT NULL AND a.lon IS NOT NULL
+      RETURN a
       `,
-      { asOf },
     );
-    const aggregates: MapAggregate[] = aggRes.records.map((r) => {
+    return res.records.map((r) => {
       const a = props(r.get("a") as Node);
-      const claim = claimFromNode(r.get("latest") as Node);
       return {
-        admin_iso: String(a.iso),
+        iso: String(a.iso),
         name: String(a.name),
         lat: num(a.lat)!,
         lon: num(a.lon)!,
-        confirmed: Number(claim.object_value.confirmed ?? 0),
-        deaths: Number(claim.object_value.deaths ?? 0),
-        as_of_date: claim.as_of_date,
       };
     });
+  });
+}
 
+/**
+ * Case / Travel / Exposure map layers — no Claim MATCH (Phase 4 happy path).
+ */
+export async function getMapSnapshotGraphNeo4j(
+  asOf: string,
+): Promise<MapSnapshotGraph> {
+  return withSession(async (session) => {
     const caseRes = await session.run(
       `
       MATCH (c:Case)
@@ -564,8 +568,57 @@ export async function getMapSnapshotNeo4j(asOf: string): Promise<MapSnapshot> {
       };
     });
 
-    return { asOf, aggregates, cases: mapCases, travels, exposures };
+    return { cases: mapCases, travels, exposures };
   });
+}
+
+/**
+ * Fallback-only: Neo4j Claim case_count aggregates joined to AdminUnit.
+ * Happy path uses D1 claims + getAggregateAdminUnitsNeo4j instead.
+ */
+export async function getMapAggregatesFromClaimsNeo4j(
+  asOf: string,
+): Promise<MapAggregate[]> {
+  return withSession(async (session) => {
+    const aggRes = await session.run(
+      `
+      MATCH (a:AdminUnit {tracking_mode: 'aggregate'})
+      OPTIONAL MATCH (cl:Claim)
+      WHERE cl.claim_type = 'case_count'
+        AND cl.subject_ref = a.iso
+        AND cl.review_status = 'approved'
+        AND cl.as_of_date <= $asOf
+      WITH a, cl
+      ORDER BY cl.as_of_date DESC
+      WITH a, collect(cl)[0] AS latest
+      WHERE latest IS NOT NULL AND a.lat IS NOT NULL AND a.lon IS NOT NULL
+      RETURN a, latest
+      `,
+      { asOf },
+    );
+    return aggRes.records.map((r) => {
+      const a = props(r.get("a") as Node);
+      const claim = claimFromNode(r.get("latest") as Node);
+      return {
+        admin_iso: String(a.iso),
+        name: String(a.name),
+        lat: num(a.lat)!,
+        lon: num(a.lon)!,
+        confirmed: Number(claim.object_value.confirmed ?? 0),
+        deaths: Number(claim.object_value.deaths ?? 0),
+        as_of_date: claim.as_of_date,
+      };
+    });
+  });
+}
+
+/** Neo4j fallback snapshot (Claim MATCH isolated in getMapAggregatesFromClaimsNeo4j). */
+export async function getMapSnapshotNeo4j(asOf: string): Promise<MapSnapshot> {
+  const [aggregates, graph] = await Promise.all([
+    getMapAggregatesFromClaimsNeo4j(asOf),
+    getMapSnapshotGraphNeo4j(asOf),
+  ]);
+  return composeMapSnapshot(asOf, aggregates, graph);
 }
 
 export async function getCaseDetailNeo4j(
