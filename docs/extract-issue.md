@@ -38,11 +38,13 @@ Commands (contract + stubs in this issue):
 
 Extends [Curate graph serving](./curate-graph-serving.md) (MATT-314): snapshot-first reads, mutation-only Bolt writes. **Workers must not hold responses hostage to Bolt.**
 
+> **Supersede (Claim SoT):** Curate tabular SoT for `SourceDocument` / `Claim` / `ClaimConflict` / `CurateAuditEvent` moves from Neo4j to **Cloudflare D1**. Extract persist for claims becomes **D1 INSERT** (not Neo4j MERGE) once that migration lands. Policy and phases: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19). The table below is the **pre-migration** Extract-era split; treat Claim/Source/Conflict/Audit rows as targeting D1 going forward. Neo4j remains SoT for the Case graph.
+
 | Store | Source of truth | Not for |
 |-------|-----------------|---------|
-| **Neo4j** | Graph: `SourceDocument`, `Claim`, `ClaimConflict`, `CurateAuditEvent`, relationships. Sole persist for Curate mutations | Raw HTML/PDF, job queues, first SSR read |
-| **R2** | Blobs + read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** | Approval SoT (always Neo4j; snapshots are derived) |
-| **D1** | Ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs`, optional audit copies | Claim/conflict graph, source bodies |
+| **Neo4j** | Graph: `SourceDocument`, `Claim`, `ClaimConflict`, `CurateAuditEvent`, relationships. Sole persist for Curate mutations _(pre-migration; Claims → D1 per #19)_ | Raw HTML/PDF, job queues, first SSR read |
+| **R2** | Blobs + read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** | Approval SoT (always Neo4j pre-migration / D1 post-#19; snapshots are derived) |
+| **D1** | Ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs`, optional audit copies; **post-#19 also Claim/Source/Conflict/Audit SoT** | Source bodies _(Claim/conflict graph superseded by #19)_ |
 
 Rules:
 

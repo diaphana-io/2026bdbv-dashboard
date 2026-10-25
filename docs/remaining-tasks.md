@@ -22,6 +22,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 5. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet (R2 curated snapshots also complete the Curate read path in MATT-314).
 6. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place. After deploy, confirm Curate no longer intermittent-1101s (MATT-314 verify checkbox).
 7. **Cori/Rt + incidence API/UI** — estimate Rt from `getIncidenceSeries` (reporting-date caveats); thin API and UI. Tracker: [GitHub #15](https://github.com/diaphana-io/2026bdbv-dashboard/issues/15). Out of scope there: DRC linelist / SI from sitreps alone.
+8. **Claim curation SoT → D1** — move SourceDocument / Claim / ClaimConflict / CurateAuditEvent off Neo4j onto Cloudflare D1; Neo4j keeps the Case graph. Policy + phases: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19). Phase 0 is docs+issue only; Extract persist target becomes D1 (supersedes Neo4j Claim MERGE in extract-issue Storage).
 
 ## Out of scope until Extract decision
 
