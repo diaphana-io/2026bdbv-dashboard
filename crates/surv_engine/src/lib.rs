@@ -6,6 +6,7 @@ use thiserror::Error;
 
 pub mod commands;
 pub mod curate;
+pub mod pipeline;
 
 #[derive(Debug, Error)]
 pub enum EngineError {

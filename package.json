@@ -13,6 +13,7 @@
     "test": "npm run test -w @bdbv/schema && cargo test --workspace --manifest-path Cargo.toml",
     "test:schema": "npm run test -w @bdbv/schema",
     "test:rust": "cargo test --workspace --manifest-path Cargo.toml",
+    "build:wasm": "node scripts/build-surv-wasm.mjs",
     "verify": "bash scripts/verify.sh",
     "verify:scaffold": "bash scripts/verify.sh scaffold",
     "verify:schema": "bash scripts/verify.sh schema",

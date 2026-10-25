@@ -13,6 +13,25 @@ npm run dev          # http://127.0.0.1:43127
 
 Without `NEO4J_*`, the app serves static JSON under `apps/web/data`. For Aura Free or local Neo4j and seeding, see [`docs/neo4j-aura.md`](docs/neo4j-aura.md).
 
+### Rust toolchain (surv_engine / surv_wasm)
+
+Install [rustup](https://rustup.rs/) so `cargo` is on `PATH` (`%USERPROFILE%\.cargo\bin` on Windows).
+
+**Windows MSVC:** host `cargo test` / `cargo build` / `npm run build:wasm` need `link.exe`. If you see `linker link.exe not found`:
+
+1. Install [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+2. Select workload **Desktop development with C++** (include the MSVC toolset and Windows SDK for your CPU — ARM64 tools on Snapdragon).
+3. Open a new terminal (or the **ARM64/x64 Native Tools** prompt) and confirm `where link`.
+4. Then: `cargo test -p surv_engine` and `npm run build:wasm`.
+
+Until Build Tools are installed, run the same checks in Docker (Linux image has a linker):
+
+```bash
+docker run --rm -v "${PWD}:/app" -w /app rust:1-bookworm cargo test -p surv_engine -p surv_wasm
+```
+
+Prebuilt wasm under `apps/web/lib/surv_wasm/` may already be present; regenerate with `npm run build:wasm` after the linker works.
+
 ## Issue tracking
 
 Internal planning lives in the Linear project [2026 BDBV outbreak dashboard](https://linear.app/diaphana/project/2026-bdbv-outbreak-dashboard-12839a73f192/overview) (team **MATT**). Linear is the source of truth for open work.

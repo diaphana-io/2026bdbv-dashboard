@@ -130,7 +130,9 @@ Forward-compat: `review_policy.min_approvers` default `1`; multi-approver enforc
 
 ## Curate IA (this issue)
 
-Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts**. Overview is the table command center; stage pages own detail work. Review shows a **History (stub)** panel for lineage/audit. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
+Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts** → **Status**. Overview is the table command center; stage pages own detail work. Review shows a **History (stub)** panel for lineage/audit. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
+
+Ops **Status** (`/curate/status`) sits below Conflicts. Pipeline stage list and health for that page are owned by `surv_engine` `PIPELINE_SPEC` / `sys.pipelineStatus` — Next only gathers open param bags and renders `stages[]` / `llm[]` / `infra[]`.
 
 ## Navara / Map boundary (out of scope)
 

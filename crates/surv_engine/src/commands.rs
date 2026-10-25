@@ -1,11 +1,16 @@
 use super::{cmd_ping, CommandSpec};
-use crate::curate;
+use crate::{curate, pipeline};
 
 pub static REGISTRY: &[CommandSpec] = &[
     CommandSpec {
         id: "sys.ping",
         mutates: false,
         run: cmd_ping,
+    },
+    CommandSpec {
+        id: "sys.pipelineStatus",
+        mutates: false,
+        run: pipeline::pipeline_status,
     },
     CommandSpec {
         id: "curate.checkDuplicate",

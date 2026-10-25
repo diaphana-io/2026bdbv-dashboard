@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ActivityIcon,
   AlertTriangleIcon,
   ExternalLinkIcon,
   FilePenLineIcon,
@@ -42,6 +43,12 @@ const PIPELINE: {
     label: "Conflicts",
     step: 5,
     icon: AlertTriangleIcon,
+  },
+  {
+    href: "/curate/status",
+    label: "Status",
+    step: 6,
+    icon: ActivityIcon,
   },
 ];
 
