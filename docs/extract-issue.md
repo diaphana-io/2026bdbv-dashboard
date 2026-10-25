@@ -118,7 +118,7 @@ Claims are **not overwritten**. Use `review_status: superseded` and `(Claim)-[:S
 |-----------|----------|
 | Approve | pending → approved; audit `approve` |
 | `reviseClaim` | New pending version; approve supersedes old head |
-| `rollbackClaim` | Copy prior payload as new pending version (never delete history); reason required |
+| `rollbackClaim` | Copy prior payload as new pending version (never delete history); reason required. **Catalog persist** also withdraws the Map head immediately (`superseded` / `is_head=false`) — see [curate-catalog.md](./curate-catalog.md) |
 | Reject revision | pending → rejected; head unchanged |
 | Extract hits existing lineage | No overwrite; enqueue revision / `needs_revision` (follow-up wiring) |
 
@@ -130,7 +130,7 @@ Forward-compat: `review_policy.min_approvers` default `1`; multi-approver enforc
 
 ## Curate IA (this issue)
 
-Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts** → **Status**. Overview is the table command center; stage pages own detail work. Review shows a **History (stub)** panel for lineage/audit. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
+Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts** → **Catalog** → **Status**. Overview is the table command center; stage pages own detail work. **Catalog** browses ingested sources and claim lineages (rollback withdraws Map heads). Review **History** links into Catalog. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
 
 Ops **Status** (`/curate/status`) sits below Conflicts. Pipeline stage list and health for that page are owned by `surv_engine` `PIPELINE_SPEC` / `sys.pipelineStatus` — Next only gathers open param bags and renders `stages[]` / `llm[]` / `infra[]`.
 

@@ -100,7 +100,7 @@ Same-day exposure → set both equal. Follow-up (`FollowUpWindow`) starts from *
 | **DismissedSource** | Rejected inbox URL | dismissal via audit later | neo4j empty |
 | **DiscoveryRun** | Discover job | run time | neo4j empty |
 | **IngestBatch** | Import batch | batch time | neo4j empty |
-| **CurateAuditEvent** | Approve / revise / rollback | event time + versions | Zod only (no Neo4j constraint) |
+| **CurateAuditEvent** | Approve / revise / rollback | event time + versions | constraint on `id`; written on Curate approve/reject/rollback |
 
 `(Case)-[:SOURCED_FROM]->(SourceDocument)` cites sources by **internal id**. Claims use `(Claim)-[:FROM]->(SourceDocument)`. `SUPPORTED_BY` (Case|Person|… → Claim) is designed but unused.
 
