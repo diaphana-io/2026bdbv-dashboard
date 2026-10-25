@@ -91,11 +91,7 @@ pub fn check_duplicate(_s: &mut Session, params: &Value) -> CmdResult {
         if exact_id.is_none() && src_url.as_deref() == Some(normalized.as_str()) {
             exact_id = Some(src_id.clone());
         }
-        if hash_id.is_none()
-            && hash.is_some()
-            && src_hash.is_some()
-            && hash == src_hash
-        {
+        if hash_id.is_none() && hash.is_some() && src_hash.is_some() && hash == src_hash {
             hash_id = Some(src_id.clone());
         }
         if possible_id.is_none() && soft {
@@ -264,10 +260,7 @@ pub fn resolve_conflict(_s: &mut Session, params: &Value) -> CmdResult {
 }
 
 fn claim_version(claim: &Value) -> u64 {
-    claim
-        .get("version")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(1)
+    claim.get("version").and_then(|v| v.as_u64()).unwrap_or(1)
 }
 
 fn lineage_id_of(claim: &Value) -> Value {
@@ -300,10 +293,7 @@ pub fn revise_claim(_s: &mut Session, params: &Value) -> CmdResult {
     let to_version = from_version.saturating_add(1);
     let lineage_id = lineage_id_of(&head);
     let patch = params.get("revision").cloned().unwrap_or(json!({}));
-    let new_id = params
-        .get("new_claim_id")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let new_id = params.get("new_claim_id").cloned().unwrap_or(Value::Null);
 
     let mut claim = merge_claim_fields(&head, &patch);
     if let Some(obj) = claim.as_object_mut() {
@@ -319,10 +309,7 @@ pub fn revise_claim(_s: &mut Session, params: &Value) -> CmdResult {
         obj.insert("rejection_reason".into(), Value::Null);
     }
 
-    let actor = params
-        .get("actor")
-        .cloned()
-        .unwrap_or(json!("unknown"));
+    let actor = params.get("actor").cloned().unwrap_or(json!("unknown"));
     let reason = params.get("reason").cloned().unwrap_or(Value::Null);
     let audit = json!({
         "action": "revise",
@@ -375,10 +362,7 @@ pub fn rollback_claim(_s: &mut Session, params: &Value) -> CmdResult {
         ));
     }
 
-    let new_id = params
-        .get("new_claim_id")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let new_id = params.get("new_claim_id").cloned().unwrap_or(Value::Null);
 
     let mut claim = target.clone();
     if let Some(obj) = claim.as_object_mut() {
@@ -393,10 +377,7 @@ pub fn rollback_claim(_s: &mut Session, params: &Value) -> CmdResult {
         obj.insert("rejection_reason".into(), Value::Null);
     }
 
-    let actor = params
-        .get("actor")
-        .cloned()
-        .unwrap_or(json!("unknown"));
+    let actor = params.get("actor").cloned().unwrap_or(json!("unknown"));
     let audit = json!({
         "action": "rollback",
         "actor": actor,
@@ -419,24 +400,15 @@ pub fn rollback_claim(_s: &mut Session, params: &Value) -> CmdResult {
 
 /// Pure JSON audit-append stub (persist is Web/Neo4j adapter responsibility).
 pub fn append_audit(_s: &mut Session, params: &Value) -> CmdResult {
-    let action = params
-        .get("action")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let action = params.get("action").and_then(|v| v.as_str()).unwrap_or("");
     if action.is_empty() {
         return Err(EngineError::Failed("action required".into()));
     }
-    let actor = params
-        .get("actor")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let actor = params.get("actor").and_then(|v| v.as_str()).unwrap_or("");
     if actor.is_empty() {
         return Err(EngineError::Failed("actor required".into()));
     }
-    let at = params
-        .get("at")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let at = params.get("at").cloned().unwrap_or(Value::Null);
     let event = json!({
         "id": params.get("id").cloned().unwrap_or(Value::Null),
         "at": at,

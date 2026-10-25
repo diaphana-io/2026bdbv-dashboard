@@ -149,8 +149,7 @@ mod tests {
     fn curate_commands_registered() {
         let mut s = Session::new("test");
         assert_eq!(
-            s.run("curate.classifySource", &json!({}))
-                .unwrap()["evidence_class"],
+            s.run("curate.classifySource", &json!({})).unwrap()["evidence_class"],
             "other"
         );
         assert_eq!(

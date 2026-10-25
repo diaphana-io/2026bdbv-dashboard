@@ -140,9 +140,7 @@ fn lookup_count(counts: Option<&Map<String, Value>>, key: &str) -> Value {
 }
 
 fn lookup_adapter_state(adapters: Option<&Map<String, Value>>, key: &str) -> &'static str {
-    let raw = adapters
-        .and_then(|m| m.get(key))
-        .and_then(|v| v.as_str());
+    let raw = adapters.and_then(|m| m.get(key)).and_then(|v| v.as_str());
     normalize_state(raw)
 }
 
@@ -259,12 +257,11 @@ fn llm_rows(params: &Value) -> Vec<Value> {
             continue;
         };
         let state = lookup_adapter_state(adapters, adapter_key);
-        let (calls, input_tokens, output_tokens, provider) =
-            if state == "not_configured" {
-                (0, 0, 0, Value::Null)
-            } else {
-                llm_usage_for(llm_usage, adapter_key)
-            };
+        let (calls, input_tokens, output_tokens, provider) = if state == "not_configured" {
+            (0, 0, 0, Value::Null)
+        } else {
+            llm_usage_for(llm_usage, adapter_key)
+        };
         rows.push(json!({
             "id": def.id,
             "adapter_key": adapter_key,
@@ -509,12 +506,10 @@ mod tests {
             .find(|s| s["id"] == "extract")
             .expect("extract");
         assert_eq!(extract_open["state"], "not_configured");
-        assert!(
-            extract_open["note"]
-                .as_str()
-                .unwrap_or("")
-                .contains("Gate open")
-        );
+        assert!(extract_open["note"]
+            .as_str()
+            .unwrap_or("")
+            .contains("Gate open"));
     }
 
     #[test]

@@ -9,8 +9,7 @@ use wasm_bindgen::prelude::*;
 /// Native / rlib callers use this directly. On `wasm32`, also exported via
 /// wasm-bindgen for the Vite / Workers import path.
 pub fn run_command_json(dataset: &str, id: &str, params_json: &str) -> Result<String, String> {
-    let params: serde_json::Value =
-        serde_json::from_str(params_json).map_err(|e| e.to_string())?;
+    let params: serde_json::Value = serde_json::from_str(params_json).map_err(|e| e.to_string())?;
     let mut session = Session::new(dataset);
     let value = session.run(id, &params).map_err(|e| e.to_string())?;
     serde_json::to_string(&value).map_err(|e| e.to_string())
