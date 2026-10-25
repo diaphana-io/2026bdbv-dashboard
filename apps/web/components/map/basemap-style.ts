@@ -62,9 +62,11 @@ export const BASEMAPS = {
     label: "Light",
     mode: "light",
     colors: {
+      // Near-white globe; land a clear step darker so continents read at a glance.
       globeColor: "#f4f4f5",
-      landColor: "#e4e4e7",
-      strokeColor: "#71717a",
+      landColor: "#d4d4d8",
+      // Zinc-700 — contrasts on #f4f4f5 / #d4d4d8 (opaque non-draped strokes).
+      strokeColor: "#3f3f46",
       graticuleColor: "#a1a1aa",
     },
     attribution: PAPERS_ATTRIBUTION,
@@ -76,8 +78,9 @@ export const BASEMAPS = {
     colors: {
       globeColor: "#0f172a",
       landColor: "#1e293b",
-      strokeColor: "#94a3b8",
-      graticuleColor: "#475569",
+      // Slate-300 — readable on #0f172a / #1e293b under ambient light.
+      strokeColor: "#cbd5e1",
+      graticuleColor: "#64748b",
     },
     attribution: PAPERS_ATTRIBUTION,
   },

@@ -168,6 +168,9 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     view.globe.color = new Color().setStyle(colors.globeColor);
     view.addLayer({ type: "terrain", ellipsoid: {} });
 
+    // Non-draped land: draped (texturized) vectors vanish at Africa / globe
+    // camera heights (~6.8 Mm), same bake-resolution trap as draped polylines.
+    // Lit Lambert — ambient is added before this helper runs.
     const physical = view.addSource({
       type: "vector-tile",
       url: PAPERS_NE_PHYSICAL_URL,
@@ -181,20 +184,22 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         color: new Color().setStyle(colors.landColor),
         opacity: 1,
         transparent: false,
-        clampToGround: true,
+        clampToGround: false,
+        height: 1_000,
         show: true,
       },
     });
-    // Globe-scale strokes: draped lines vanish at Africa framing; match
-    // boundary-layer (clampToGround:false + maxWidth in world meters).
+    // Match boundary-layer WORLD_STROKE: opaque, non-draped, world-meter maxWidth.
+    // transparent:true routes through TransparentPass and can miss ambient → black.
     const stroke = {
+      geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
       color: new Color().setStyle(colors.strokeColor),
-      width: 1.25,
-      maxWidth: 280_000,
-      opacity: 0.85,
-      transparent: true,
+      width: 2.5,
+      maxWidth: 400_000,
+      opacity: 1,
+      transparent: false,
       clampToGround: false,
-      height: 4_000,
+      height: 5_000,
       show: true,
     };
     view.addLayer({
@@ -215,9 +220,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       sourceLayers: ["boundary_lines"],
       polyline: {
         ...stroke,
-        width: 1,
-        opacity: 0.55,
-        height: 3_500,
+        width: 1.75,
+        height: 4_000,
       },
     });
 
@@ -230,10 +234,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       source: graticule,
       polyline: {
         color: new Color().setStyle(colors.graticuleColor),
-        width: 0.75,
-        maxWidth: 200_000,
-        opacity: 0.45,
-        transparent: true,
+        width: 1,
+        maxWidth: 280_000,
+        opacity: 1,
+        transparent: false,
         clampToGround: false,
         height: 3_000,
         show: true,
@@ -282,6 +286,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     viewRef.current = view;
 
+    // Non-draped polylines/polygons are lit (Lambert); without lights they
+    // draw black. Add ambient before outline strokes so the main (and any
+    // transparent) pass already has a light when meshes mount.
+    view.addLight({
+      ambient: {
+        intensity: 1.25,
+        color: new Color().setStyle("#ffffff"),
+      },
+    });
+
     if (entry.kind === "native-raster") {
       // Ocean tint for gaps between satellite tiles.
       view.globe.color = new Color().setStyle(OCEAN_COLOR);
@@ -300,15 +314,6 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     } else {
       attachOutlineBasemap(view, Color, entry.colors, entry.attribution);
     }
-
-    // Non-draped boundary polylines are lit (Lambert); without lights they
-    // draw black and vanish on satellite. Ambient alone is enough.
-    view.addLight({
-      ambient: {
-        intensity: 1.25,
-        color: new Color().setStyle("#ffffff"),
-      },
-    });
 
 
     const cam = cameraRef.current;
