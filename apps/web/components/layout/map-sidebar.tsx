@@ -15,7 +15,6 @@ import { Collapsible } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -36,7 +35,7 @@ import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "./mode-toggle";
 import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
-import type { BasemapId } from "../map/basemap-style";
+import { isBasemapSelectable, type BasemapId } from "../map/basemap-style";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
@@ -44,7 +43,7 @@ const NEO4J_URL = "https://neo4j.com/";
 const NAVARA_URL = "https://navara.world/";
 
 const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "boundaries", label: "Country boundary" },
+  { key: "boundaries", label: "DRC boundaries" },
   { key: "countryNames", label: "Country name" },
   { key: "cities", label: "Cities" },
 ];
@@ -141,8 +140,6 @@ export function MapSidebar() {
     setLayerVisible,
     basemapId,
     setBasemapId,
-    syncBasemapToUiTheme,
-    setSyncBasemapToUiTheme,
     basemapOptions,
   } = useMapUi();
 
@@ -254,28 +251,31 @@ export function MapSidebar() {
                       className="gap-2"
                     >
                       {(Object.keys(basemapOptions) as BasemapId[]).map(
-                        (id) => (
-                          <div key={id} className="flex items-center gap-2">
-                            <RadioGroupItem value={id} id={`basemap-${id}`} />
-                            <Label
-                              htmlFor={`basemap-${id}`}
-                              className="text-sm font-normal"
-                            >
-                              {basemapOptions[id].label}
-                            </Label>
-                          </div>
-                        ),
+                        (id) => {
+                          const selectable = isBasemapSelectable(id);
+                          return (
+                            <div key={id} className="flex items-center gap-2">
+                              <RadioGroupItem
+                                value={id}
+                                id={`basemap-${id}`}
+                                disabled={!selectable}
+                              />
+                              <Label
+                                htmlFor={`basemap-${id}`}
+                                className={
+                                  selectable
+                                    ? "text-sm font-normal"
+                                    : "text-sm font-normal text-muted-foreground"
+                                }
+                              >
+                                {basemapOptions[id].label}
+                                {!selectable ? " (unavailable)" : null}
+                              </Label>
+                            </div>
+                          );
+                        },
                       )}
                     </RadioGroup>
-                    <Separator />
-                    <ToggleRow
-                      id="sync-basemap"
-                      label="Disable automatic map theme change"
-                      checked={!syncBasemapToUiTheme}
-                      onCheckedChange={(disabled) =>
-                        setSyncBasemapToUiTheme(!disabled)
-                      }
-                    />
                   </div>
                 </SidebarMenuSubItem>
               </NavSection>

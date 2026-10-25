@@ -21,11 +21,11 @@ import type { PanelId, PanelPosition } from "../panels/types";
 import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
- * v5: force boundaries + countryNames ON (tracked-country emphasis + labels;
- * v3/v4 could still hold those toggles off from earlier experiments).
+ * v6: Dark basemap only; boundaries = DRC COD-AB LOD outlines (not tracked fills).
+ * v5 could still hold light basemap / theme-sync prefs.
  */
-const STORAGE_KEY = "bdbv-map-ui-v5";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v4";
+const STORAGE_KEY = "bdbv-map-ui-v6";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v5";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -113,13 +113,16 @@ function readPersisted(): PersistedMapUi | null {
     const raw =
       window.localStorage.getItem(STORAGE_KEY) ??
       window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v4") ??
       window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show country borders + names (tracked fill/outline + labels;
-    // Papers NE already draws world boundary_lines). Other prefs may migrate.
+    // Always show DRC admin boundaries + country names. Dark-only: drop theme
+    // sync and normalize any persisted light basemap.
     return {
       ...parsed,
+      basemapId: resolveBasemapId(parsed.basemapId),
+      syncBasemapToUiTheme: false,
       layers: {
         ...parsed.layers,
         boundaries: true,
@@ -153,14 +156,13 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...persisted?.layers,
   };
   const basemapId = resolveBasemapId(persisted?.basemapId);
-  // Default off so dark Papers stays selected; theme sync is opt-in via sidebar.
-  const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? false;
+  // Dark-only: theme sync is permanently off (Light radio is disabled).
   return {
     openPanels,
     panelPositions,
     layers,
     basemapId,
-    syncBasemapToUiTheme,
+    syncBasemapToUiTheme: false,
   };
 }
 
@@ -210,6 +212,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     syncBasemapToUiTheme,
   ]);
 
+  // Theme → basemap sync disabled (Dark-only catalog).
   useEffect(() => {
     if (!hydrated || !syncBasemapToUiTheme) return;
     setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
@@ -250,19 +253,19 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   );
 
   const setBasemapId = useCallback((id: BasemapId) => {
-    // Manual pick opts out of theme sync so the radio selection sticks.
+    // Dark-only: ignore Light (and any other non-selectable id).
+    const next = resolveBasemapId(id);
     setSyncState(false);
-    setBasemapIdState(id);
+    setBasemapIdState(next);
   }, []);
 
   const setSyncBasemapToUiTheme = useCallback(
-    (sync: boolean) => {
-      setSyncState(sync);
-      if (sync) {
-        setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
-      }
+    (_sync: boolean) => {
+      // Dark-only: keep sync off so Light cannot be selected via theme.
+      setSyncState(false);
+      setBasemapIdState(DEFAULT_BASEMAP_ID);
     },
-    [resolvedTheme],
+    [],
   );
 
   const openCaseDetail = useCallback((caseId: string) => {

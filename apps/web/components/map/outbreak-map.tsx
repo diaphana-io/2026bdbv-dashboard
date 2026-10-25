@@ -15,7 +15,7 @@ import { isTrackedCountryIso } from "@/lib/tracked-countries";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
-import type { BoundaryLayerHandle } from "./boundary-layer";
+import type { CdAdminLayerHandle } from "./cd-admin-layer";
 import type { CaseLayersHandle } from "./case-layer";
 import type { ExposureLayerHandle } from "./exposure-layer";
 import type { LabelLayersHandle } from "./label-layers";
@@ -28,7 +28,7 @@ type Props = {
 };
 
 type LayerBundle = {
-  boundaries: BoundaryLayerHandle;
+  boundaries: CdAdminLayerHandle;
   labels: LabelLayersHandle;
   cases: CaseLayersHandle;
   exposures: ExposureLayerHandle;
@@ -301,13 +301,13 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     setLoading("layers");
     const [
-      { attachBoundaryLayer },
+      { attachCdAdminLayer },
       { attachLabelLayers },
       { attachCaseLayers },
       { attachExposureLayer },
       { attachTravelLayer },
     ] = await Promise.all([
-      import("./boundary-layer"),
+      import("./cd-admin-layer"),
       import("./label-layers"),
       import("./case-layer"),
       import("./exposure-layer"),
@@ -319,13 +319,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       return;
     }
 
-    const boundaries = attachBoundaryLayer(view, entry.mode);
+    const boundaries = attachCdAdminLayer(view);
     const labels = await attachLabelLayers(view, entry.mode);
     const cases = attachCaseLayers(view, entry.mode);
     const exposures = attachExposureLayer(view);
     const travels = attachTravelLayer(view);
 
     const snap = snapshotRef.current;
+    boundaries.setAggregates(snap.aggregates);
     cases.update(snap.cases, snap.aggregates);
     exposures.update(snap.exposures);
     travels.setTravels(snap.travels, asOfRef.current);
@@ -407,6 +408,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       setSnapshot(next);
       const bundle = layersRef.current;
       if (bundle) {
+        bundle.boundaries.setAggregates(next.aggregates);
         bundle.cases.update(next.cases, next.aggregates);
         bundle.exposures.update(next.exposures);
         bundle.travels.setTravels(next.travels, asOf);

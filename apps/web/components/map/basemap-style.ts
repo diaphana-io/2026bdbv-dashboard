@@ -1,7 +1,8 @@
 /**
  * Basemap catalog for Navara OutbreakMap.
  * Dark/Light = Pax Atlas stack: photoreal + Re:Earth terrain + Papers NE
- * (TileJsonPlugin). Satellite / local outline GeoJSON are retired.
+ * (TileJsonPlugin). Only Dark is selectable; Light stays in the catalog for
+ * a disabled sidebar radio. Satellite / local outline GeoJSON are retired.
  */
 
 /** Case marker stroke/fill palette keyed off basemap. */
@@ -76,37 +77,48 @@ export const BASEMAPS = {
 
 export type BasemapId = keyof typeof BASEMAPS;
 
+/** Basemap ids that may be selected in the UI. Light stays catalogued only. */
+export const AVAILABLE_BASEMAP_IDS = [
+  "dark",
+] as const satisfies readonly BasemapId[];
+
 /**
  * Legacy ids from OpenFreeMap / satellite / earlier Navara catalogs.
  * Persisted localStorage values resolve here so radios stay valid.
+ * All paths collapse to Dark (Light is catalog-only / disabled).
  */
 const LEGACY_BASEMAP_IDS: Record<string, BasemapId> = {
   satellite: "dark",
   outline: "dark",
-  positron: "light",
-  bright: "light",
-  liberty: "light",
-  "natural-earth": "light",
-  "natural-earth-light": "light",
+  positron: "dark",
+  bright: "dark",
+  liberty: "dark",
+  "natural-earth": "dark",
+  "natural-earth-light": "dark",
   fiord: "dark",
+  light: "dark",
 };
 
 export function isBasemapId(value: string): value is BasemapId {
   return value in BASEMAPS;
 }
 
+export function isBasemapSelectable(id: BasemapId): boolean {
+  return (AVAILABLE_BASEMAP_IDS as readonly string[]).includes(id);
+}
+
 export function resolveBasemapId(value: string | undefined): BasemapId {
   if (!value) return DEFAULT_BASEMAP_ID;
-  if (isBasemapId(value)) return value;
+  if (isBasemapId(value) && isBasemapSelectable(value)) return value;
+  if (isBasemapId(value)) return DEFAULT_BASEMAP_ID;
   return LEGACY_BASEMAP_IDS[value] ?? DEFAULT_BASEMAP_ID;
 }
 
 /**
- * Sync UI theme → basemap when enabled.
- * Light UI → Papers light; dark UI → Papers dark.
+ * Theme → basemap sync. Dark-only: always returns dark regardless of UI theme.
  */
 export function basemapIdForUiTheme(
-  resolvedTheme: string | undefined,
+  _resolvedTheme: string | undefined,
 ): BasemapId {
-  return resolvedTheme === "dark" ? "dark" : "light";
+  return DEFAULT_BASEMAP_ID;
 }
