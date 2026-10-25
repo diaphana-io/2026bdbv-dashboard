@@ -26,7 +26,7 @@ const PIPELINE: {
   exact?: boolean;
 }[] = [
   {
-    href: "/curate",
+    href: "/curate/overview",
     label: "Overview",
     step: 1,
     icon: LayoutDashboardIcon,
