@@ -23,6 +23,7 @@ CREATE CONSTRAINT border_measure_id IF NOT EXISTS FOR (b:BorderMeasure) REQUIRE 
 CREATE CONSTRAINT discovery_run_id IF NOT EXISTS FOR (d:DiscoveryRun) REQUIRE d.id IS UNIQUE;
 CREATE CONSTRAINT conflict_id IF NOT EXISTS FOR (c:ClaimConflict) REQUIRE c.id IS UNIQUE;
 CREATE CONSTRAINT dismissed_normalized_url IF NOT EXISTS FOR (d:DismissedSource) REQUIRE d.normalized_url IS UNIQUE;
+CREATE CONSTRAINT curate_audit_event_id IF NOT EXISTS FOR (a:CurateAuditEvent) REQUIRE a.id IS UNIQUE;
 
 CREATE INDEX case_classification IF NOT EXISTS FOR (c:Case) ON (c.classification);
 CREATE INDEX case_admin0 IF NOT EXISTS FOR (c:Case) ON (c.admin0_iso);

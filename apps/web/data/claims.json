@@ -17,7 +17,10 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
     "excerpt": "As of 20 October 2026, a total of nine cases of BVD including one death, has been reported in Kenya.",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000001",
+    "version": 1,
+    "is_head": true
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000002",
@@ -37,7 +40,10 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000003",
     "excerpt": "Nigeria confirmed one imported case... 44 contacts have been identified.",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000002",
+    "version": 1,
+    "is_head": true
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000003",
@@ -56,7 +62,10 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000004",
     "excerpt": "News report citing a higher Kenya case total pending official reconciliation.",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000003",
+    "version": 1,
+    "is_head": true
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000010",
@@ -75,7 +84,10 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
     "excerpt": "DRC aggregate series (Ituri epicentre); no individual Case nodes for CD.",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000010",
+    "version": 1,
+    "is_head": true
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000011",
@@ -94,7 +106,10 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
     "excerpt": "DRC multi-province epidemic growth (aggregate claims only).",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000011",
+    "version": 1,
+    "is_head": true
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000012",
@@ -113,6 +128,9 @@
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
     "excerpt": "As of 20 October 2026, DRC remains the aggregate epicentre for BDBV.",
-    "claim_category": "aggregate_count"
+    "claim_category": "aggregate_count",
+    "lineage_id": "eeeeeeee-0000-4000-8000-000000000012",
+    "version": 1,
+    "is_head": true
   }
 ]

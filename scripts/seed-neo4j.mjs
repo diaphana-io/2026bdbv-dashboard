@@ -273,7 +273,10 @@ async function main() {
             cl.reviewed_at = $reviewed_at,
             cl.reviewed_by = $reviewed_by,
             cl.excerpt = $excerpt,
-            cl.source_id = $source_id
+            cl.source_id = $source_id,
+            cl.lineage_id = $lineage_id,
+            cl.version = $version,
+            cl.is_head = $is_head
         WITH cl
         MATCH (s:SourceDocument {id: $source_id})
         MERGE (cl)-[:FROM]->(s)
@@ -293,6 +296,10 @@ async function main() {
           reviewed_by: claim.reviewed_by ?? null,
           excerpt: claim.excerpt ?? null,
           source_id: claim.source_id,
+          lineage_id: claim.lineage_id ?? claim.id,
+          version: claim.version ?? 1,
+          is_head:
+            claim.is_head ?? claim.review_status === "approved",
         },
       );
     }
