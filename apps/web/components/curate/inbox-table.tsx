@@ -1,3 +1,10 @@
+"use client";
+
+import {
+  flexRender,
+  useTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -8,8 +15,76 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InboxRow } from "@/lib/data-types";
+import { curateTableFeatures } from "./curate-table-features";
 import { DuplicateLevelBadge } from "./duplicate-level-badge";
 import { InboxActions } from "./inbox-actions";
+
+const baseColumns: Array<ColumnDef<typeof curateTableFeatures, InboxRow>> = [
+  {
+    id: "title",
+    accessorFn: (row) => row.title ?? row.url,
+    header: "Title",
+    cell: ({ row }) => {
+      const i = row.original;
+      return (
+        <>
+          <a
+            href={i.url}
+            className="text-blue-700 hover:underline dark:text-blue-400"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {i.title ?? i.url}
+          </a>
+          {i.discovered_at && (
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              Discovered {i.discovered_at.slice(0, 10)}
+            </div>
+          )}
+        </>
+      );
+    },
+  },
+  {
+    accessorKey: "publisher",
+    header: "Publisher",
+    cell: ({ getValue }) => getValue<string | undefined>() ?? "—",
+  },
+  {
+    accessorKey: "kind",
+    header: "Kind",
+    cell: ({ getValue }) => (
+      <Badge variant="outline">{getValue<string>()}</Badge>
+    ),
+  },
+  {
+    id: "evidence",
+    accessorFn: (row) => row.evidence_class ?? "other",
+    header: "Evidence",
+    cell: ({ getValue }) => (
+      <Badge variant="secondary">{getValue<string>()}</Badge>
+    ),
+  },
+  {
+    id: "duplicate",
+    accessorFn: (row) => row.duplicate_level,
+    header: "Duplicate",
+    cell: ({ row }) => (
+      <DuplicateLevelBadge level={row.original.duplicate_level} />
+    ),
+  },
+];
+
+const actionsColumn: ColumnDef<typeof curateTableFeatures, InboxRow> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => (
+    <InboxActions
+      url={row.original.url}
+      duplicateLevel={row.original.duplicate_level}
+    />
+  ),
+};
 
 export function InboxTable({
   rows,
@@ -20,65 +95,55 @@ export function InboxTable({
   limit?: number;
   showActions?: boolean;
 }) {
-  const list = typeof limit === "number" ? rows.slice(0, limit) : rows;
-  const cols = showActions ? 6 : 5;
+  const data = typeof limit === "number" ? rows.slice(0, limit) : rows;
+  const columns = showActions
+    ? [...baseColumns, actionsColumn]
+    : baseColumns;
+
+  const table = useTable({
+    features: curateTableFeatures,
+    columns,
+    data,
+    getRowId: (row) => row.id,
+  });
+  const modelRows = table.getRowModel().rows;
+  const colCount = table.getAllColumns().length;
 
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead>Publisher</TableHead>
-          <TableHead>Kind</TableHead>
-          <TableHead>Evidence</TableHead>
-          <TableHead>Duplicate</TableHead>
-          {showActions && <TableHead>Actions</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {list.map((i) => (
-          <TableRow key={i.id}>
-            <TableCell>
-              <a
-                href={i.url}
-                className="text-blue-700 hover:underline dark:text-blue-400"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {i.title ?? i.url}
-              </a>
-              {i.discovered_at && (
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  Discovered {i.discovered_at.slice(0, 10)}
-                </div>
-              )}
-            </TableCell>
-            <TableCell>{i.publisher ?? "—"}</TableCell>
-            <TableCell>
-              <Badge variant="outline">{i.kind}</Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="secondary">{i.evidence_class ?? "other"}</Badge>
-            </TableCell>
-            <TableCell>
-              <DuplicateLevelBadge level={i.duplicate_level} />
-            </TableCell>
-            {showActions && (
-              <TableCell>
-                <InboxActions
-                  url={i.url}
-                  duplicateLevel={i.duplicate_level}
-                />
-              </TableCell>
-            )}
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableHead key={header.id}>
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+              </TableHead>
+            ))}
           </TableRow>
         ))}
-        {list.length === 0 && (
+      </TableHeader>
+      <TableBody>
+        {modelRows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={cols} className="text-muted-foreground">
+            <TableCell colSpan={colCount} className="text-muted-foreground">
               No candidates
             </TableCell>
           </TableRow>
+        ) : (
+          modelRows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getAllCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))
         )}
       </TableBody>
     </Table>

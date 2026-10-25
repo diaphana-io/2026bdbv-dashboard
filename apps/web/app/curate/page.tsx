@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../components/ui/table";
+import { ConflictsPreviewTable } from "../../components/curate/conflicts-preview-table";
 import { InboxTable } from "../../components/curate/inbox-table";
+import { PipelineTable } from "../../components/curate/pipeline-table";
 import { getClaims, getConflictViews, getInboxCandidates } from "../../lib/data";
 
 /**
@@ -76,31 +70,7 @@ export default async function CurateOverviewPage() {
       <Card>
         <CardHeader className="text-sm font-semibold">Pipeline counts</CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Stage</TableHead>
-                <TableHead>Count</TableHead>
-                <TableHead>Notes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pipelineRows.map((row) => (
-                <TableRow key={row.stage}>
-                  <TableCell>
-                    <Link
-                      href={row.href}
-                      className="font-medium text-blue-700 hover:underline dark:text-blue-400"
-                    >
-                      {row.stage}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="tabular-nums">{row.count}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.note}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <PipelineTable rows={pipelineRows} />
         </CardContent>
       </Card>
 
@@ -125,42 +95,7 @@ export default async function CurateOverviewPage() {
           <Badge variant="warning">{openConflicts.length}</Badge>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Detected</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {openConflicts.slice(0, 5).map((c) => (
-                <TableRow key={c.conflict.id}>
-                  <TableCell>{c.conflict.subject_ref}</TableCell>
-                  <TableCell>{c.conflict.claim_type}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {c.conflict.detected_at.slice(0, 10)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link
-                      href="/curate/conflicts"
-                      className="text-xs text-blue-700 hover:underline dark:text-blue-400"
-                    >
-                      Resolve
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {openConflicts.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">
-                    No open conflicts
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <ConflictsPreviewTable rows={openConflicts} />
         </CardContent>
       </Card>
 
