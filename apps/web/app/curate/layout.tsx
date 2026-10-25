@@ -19,7 +19,7 @@ export default async function CurateLayout({
       dataSource={dataSource}
       neo4jConfigured={isNeo4jConfigured()}
     >
-      <div className="mx-auto max-w-7xl px-4 py-4">{children}</div>
+      <div className="w-full px-4 py-4">{children}</div>
     </CurateShell>
   );
 }
