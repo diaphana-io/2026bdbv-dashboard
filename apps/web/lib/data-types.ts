@@ -33,6 +33,11 @@ export type ClaimRow = {
   review_status: string;
   source_id: string;
   excerpt?: string;
+  lineage_id?: string;
+  version?: number;
+  is_head?: boolean;
+  extractor?: string;
+  reviewed_at?: string | null;
 };
 
 export type SourceRow = {
@@ -43,6 +48,62 @@ export type SourceRow = {
   kind: string;
   published_at?: string | null;
   curation_status: string;
+  normalized_url?: string;
+  evidence_class?: string;
+  discovered_at?: string | null;
+};
+
+export type CatalogAuditSnippet = {
+  id: string;
+  at: string;
+  actor: string;
+  action: string;
+  lineage_id?: string | null;
+  claim_id?: string | null;
+  from_version?: number | null;
+  to_version?: number | null;
+  reason?: string | null;
+};
+
+export type CatalogClaimRow = {
+  id: string;
+  lineage_id: string;
+  version: number;
+  is_head: boolean;
+  claim_type: string;
+  claim_category?: string;
+  subject_ref: string;
+  object_value: Record<string, unknown>;
+  as_of_date: string;
+  confidence: string;
+  extractor: string;
+  review_status: string;
+  reviewed_at?: string | null;
+  excerpt?: string | null;
+  audits: CatalogAuditSnippet[];
+};
+
+export type CatalogSourceRow = {
+  id: string;
+  url: string;
+  normalized_url: string;
+  title?: string | null;
+  publisher?: string | null;
+  kind: string;
+  evidence_class?: string;
+  curation_status: string;
+  published_at?: string | null;
+  discovered_at?: string | null;
+  claim_count: number;
+  approved_count: number;
+  pending_count: number;
+  latest_reviewed_at?: string | null;
+  extractors: string[];
+};
+
+export type CatalogSourceDetail = {
+  source: CatalogSourceRow;
+  claims: CatalogClaimRow[];
 };
 
 export type ContactRow = {

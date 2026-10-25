@@ -1,6 +1,7 @@
 import {
   getCaseDetailJson,
   getCasesJson,
+  getCatalogSourcesJson,
   getClaimsJson,
   getConflictViewsJson,
   getContactsJson,
@@ -9,6 +10,7 @@ import {
   getMapSnapshotJson,
   getMeasuresJson,
   getOutbreakJson,
+  getSourceCatalogDetailJson,
   getSourcesJson,
   overviewKpisJson,
 } from "./data-json";
@@ -18,6 +20,7 @@ import { isNeo4jConfigured } from "./neo4j";
 import {
   getCaseDetailNeo4j,
   getCasesNeo4j,
+  getCatalogSourcesNeo4j,
   getClaimsNeo4j,
   getConflictViewsNeo4j,
   getContactsNeo4j,
@@ -26,6 +29,7 @@ import {
   getMapSnapshotNeo4j,
   getMeasuresNeo4j,
   getOutbreakNeo4j,
+  getSourceCatalogDetailNeo4j,
   getSourcesNeo4j,
   overviewKpisNeo4j,
 } from "./neo4j-queries";
@@ -34,6 +38,9 @@ export type {
   CaseDetail,
   CaseQueryOpts,
   CaseRow,
+  CatalogClaimRow,
+  CatalogSourceDetail,
+  CatalogSourceRow,
   ClaimRow,
   ConflictRow,
   ConflictView,
@@ -176,5 +183,22 @@ export async function getCountryStats(asOf?: string) {
     `countryStats:${asOf ?? "latest"}`,
     () => getCountryStatsNeo4j(asOf),
     () => getCountryStatsJson(asOf),
+  );
+}
+
+export async function getCatalogSources(opts?: { includeDismissed?: boolean }) {
+  const key = `catalogSources:${opts?.includeDismissed ? "all" : "active"}`;
+  return fromNeo4jOrJson(
+    key,
+    () => getCatalogSourcesNeo4j(opts),
+    () => getCatalogSourcesJson(opts),
+  );
+}
+
+export async function getSourceCatalogDetail(key: string) {
+  return fromNeo4jOrJson(
+    `catalogDetail:${key}`,
+    () => getSourceCatalogDetailNeo4j(key),
+    () => getSourceCatalogDetailJson(key),
   );
 }

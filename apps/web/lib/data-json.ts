@@ -15,6 +15,9 @@ import type {
   CaseDetailSource,
   CaseQueryOpts,
   CaseRow,
+  CatalogClaimRow,
+  CatalogSourceDetail,
+  CatalogSourceRow,
   ClaimRow,
   ConflictRow,
   ConflictView,
@@ -26,6 +29,13 @@ import type {
   MeasureRow,
   SourceRow,
 } from "./data-types";
+
+const CATALOG_STATUSES = new Set([
+  "fetched",
+  "extracted",
+  "in_review",
+  "done",
+]);
 
 type AdminUnitRow = {
   id: string;
@@ -352,4 +362,122 @@ export function getCaseDetailJson(caseId: string): CaseDetail | null {
 /** Stub — country stats are not derived from MapCase rollups. */
 export function getCountryStatsJson(_asOf?: string): CountryStatRow[] {
   return [];
+}
+
+type SeedSource = SourceRow & {
+  normalized_url?: string;
+  evidence_class?: string;
+  discovered_at?: string | null;
+};
+
+type SeedClaim = ClaimRow & {
+  lineage_id?: string;
+  version?: number;
+  is_head?: boolean;
+  extractor?: string;
+  reviewed_at?: string | null;
+};
+
+function catalogSourceFromSeed(
+  s: SeedSource,
+  sourceClaims: SeedClaim[],
+): CatalogSourceRow {
+  const extractors = [
+    ...new Set(
+      sourceClaims
+        .map((c) => c.extractor)
+        .filter((e): e is string => Boolean(e)),
+    ),
+  ];
+  const latest_reviewed_at =
+    sourceClaims
+      .map((c) => c.reviewed_at)
+      .filter((x): x is string => Boolean(x))
+      .sort()
+      .at(-1) ?? null;
+  return {
+    id: s.id,
+    url: s.url,
+    normalized_url: s.normalized_url ?? s.url,
+    title: s.title ?? null,
+    publisher: s.publisher ?? null,
+    kind: s.kind,
+    evidence_class: s.evidence_class,
+    curation_status: s.curation_status,
+    published_at: s.published_at ?? null,
+    discovered_at: s.discovered_at ?? null,
+    claim_count: sourceClaims.length,
+    approved_count: sourceClaims.filter((c) => c.review_status === "approved")
+      .length,
+    pending_count: sourceClaims.filter(
+      (c) => c.review_status === "pending_review",
+    ).length,
+    latest_reviewed_at,
+    extractors,
+  };
+}
+
+export function getCatalogSourcesJson(opts?: {
+  includeDismissed?: boolean;
+}): CatalogSourceRow[] {
+  const seedSources = sources as SeedSource[];
+  const seedClaims = claims as SeedClaim[];
+  return seedSources
+    .filter((s) => {
+      if (CATALOG_STATUSES.has(s.curation_status)) return true;
+      return Boolean(opts?.includeDismissed && s.curation_status === "dismissed");
+    })
+    .map((s) => {
+      const sourceClaims = seedClaims.filter((c) => c.source_id === s.id);
+      return catalogSourceFromSeed(s, sourceClaims);
+    })
+    .sort((a, b) => {
+      const ta =
+        a.latest_reviewed_at ?? a.published_at ?? a.discovered_at ?? "";
+      const tb =
+        b.latest_reviewed_at ?? b.published_at ?? b.discovered_at ?? "";
+      return tb.localeCompare(ta);
+    });
+}
+
+export function getSourceCatalogDetailJson(
+  key: string,
+): CatalogSourceDetail | null {
+  const seedSources = sources as SeedSource[];
+  const seedClaims = claims as SeedClaim[];
+  const s = seedSources.find(
+    (row) =>
+      row.id === key ||
+      row.normalized_url === key ||
+      row.url === key,
+  );
+  if (!s) return null;
+  if (
+    !CATALOG_STATUSES.has(s.curation_status) &&
+    s.curation_status !== "dismissed"
+  ) {
+    return null;
+  }
+  const sourceClaims = seedClaims.filter((c) => c.source_id === s.id);
+  const claimsOut: CatalogClaimRow[] = sourceClaims.map((c) => ({
+    id: c.id,
+    lineage_id: c.lineage_id ?? c.id,
+    version: c.version ?? 1,
+    is_head: c.is_head ?? c.review_status === "approved",
+    claim_type: c.claim_type,
+    claim_category: c.claim_category,
+    subject_ref: c.subject_ref,
+    object_value: c.object_value,
+    as_of_date: c.as_of_date,
+    confidence: c.confidence,
+    extractor: c.extractor ?? "human",
+    review_status: c.review_status,
+    reviewed_at: c.reviewed_at ?? null,
+    excerpt: c.excerpt ?? null,
+    audits: [],
+  }));
+  return {
+    source: catalogSourceFromSeed(s, sourceClaims),
+    claims: claimsOut,
+  };
 }
