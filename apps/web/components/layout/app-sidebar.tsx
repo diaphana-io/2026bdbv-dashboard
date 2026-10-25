@@ -80,9 +80,12 @@ export function NavSection({
  */
 export function AppSidebar({
   headerAction,
+  footerTop,
   children,
 }: {
   headerAction?: ReactNode;
+  /** Optional block above theme/links (e.g. Curate data-source toggle). */
+  footerTop?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -104,6 +107,7 @@ export function AppSidebar({
 
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
+          {footerTop ? <SidebarMenuItem>{footerTop}</SidebarMenuItem> : null}
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between gap-1 px-1">
               <ModeToggle />

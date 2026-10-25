@@ -1,9 +1,9 @@
-import { invalidateGraphReadCache } from "../../../../lib/data";
 import {
   claimCategoryForType,
   isClaimCategory,
 } from "../../../../lib/claim-category";
-import { isNeo4jConfigured } from "../../../../lib/neo4j";
+import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
+import { invalidateGraphReadCache } from "../../../../lib/data";
 import { persistReviewClaim } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     let persisted = false;
     let claimId: string | undefined =
       typeof record.claim_id === "string" ? record.claim_id : undefined;
-    if (isNeo4jConfigured()) {
+    if (await shouldUseNeo4j()) {
       try {
         const out = await persistReviewClaim({
           action: "reject",
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
   let persisted = false;
   let claimId = claimIdIn;
-  if (isNeo4jConfigured()) {
+  if (await shouldUseNeo4j()) {
     try {
       const out = await persistReviewClaim({
         action: "approve",

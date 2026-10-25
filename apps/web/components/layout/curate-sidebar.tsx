@@ -10,12 +10,14 @@ import {
   LayoutDashboardIcon,
   SparklesIcon,
 } from "lucide-react";
+import { CurateDataSourceToggle } from "@/components/curate/data-source-toggle";
 import { Button } from "@/components/ui/button";
 import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import type { CurateDataSource } from "@/lib/curate-data-source";
 import { AppSidebar } from "./app-sidebar";
 
 const PIPELINE: {
@@ -46,10 +48,14 @@ const PIPELINE: {
 export function CurateSidebar({
   inboxCount,
   conflictCount,
+  dataSource,
+  neo4jConfigured,
 }: {
   inboxCount?: number;
   conflictCount?: number;
-} = {}) {
+  dataSource: CurateDataSource;
+  neo4jConfigured: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -61,6 +67,12 @@ export function CurateSidebar({
             <ExternalLinkIcon data-icon="inline-end" />
           </Link>
         </Button>
+      }
+      footerTop={
+        <CurateDataSourceToggle
+          initialSource={dataSource}
+          neo4jConfigured={neo4jConfigured}
+        />
       }
     >
       <SidebarMenuItem>

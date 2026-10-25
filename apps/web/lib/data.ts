@@ -13,6 +13,7 @@ import {
   overviewKpisJson,
 } from "./data-json";
 import type { CaseQueryOpts } from "./data-types";
+import { preferFixtureData } from "./curate-data-source.server";
 import { isNeo4jConfigured } from "./neo4j";
 import {
   getCaseDetailNeo4j,
@@ -67,7 +68,9 @@ async function fromNeo4jOrJson<T>(
   neo4jFn: () => Promise<T>,
   jsonFn: () => T | Promise<T>,
 ): Promise<T> {
-  if (!isNeo4jConfigured()) return jsonFn();
+  if (!isNeo4jConfigured() || (await preferFixtureData())) {
+    return jsonFn();
+  }
 
   const now = Date.now();
   const cached = readCache.get(cacheKey) as CacheEntry<T> | undefined;

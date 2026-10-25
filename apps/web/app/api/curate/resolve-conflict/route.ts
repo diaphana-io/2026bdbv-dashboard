@@ -1,6 +1,6 @@
 import { isResolveStatus } from "../../../../lib/curate-api";
+import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { isNeo4jConfigured } from "../../../../lib/neo4j";
 import { persistResolveConflict } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   let persisted = false;
-  if (isNeo4jConfigured()) {
+  if (await shouldUseNeo4j()) {
     try {
       await persistResolveConflict(conflictId, status);
       invalidateGraphReadCache();
