@@ -18,11 +18,7 @@ import {
   resolveBasemapId,
 } from "./basemap-style";
 import type { PanelId, PanelPosition } from "../panels/types";
-import {
-  defaultCountryStatsVisibility,
-  isTrackedCountryIso,
-  type TrackedCountryIso,
-} from "@/lib/tracked-countries";
+import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
  * v5: force boundaries + countryNames ON (tracked-country emphasis + labels;
@@ -36,6 +32,7 @@ const PANEL_DEFAULTS: Record<
   PanelId,
   { defaultOpen: boolean; defaultPosition: PanelPosition }
 > = {
+  "country-stats": { defaultOpen: false, defaultPosition: { x: 12, y: 12 } },
   "case-detail": { defaultOpen: false, defaultPosition: { x: 10_000, y: 12 } },
 };
 
@@ -50,15 +47,12 @@ export type LayerVisibility = {
   travels: boolean;
 };
 
-export type CountryStatsVisibility = Record<TrackedCountryIso, boolean>;
-
 export type { PanelPosition };
 
 type PersistedMapUi = {
   openPanels?: Partial<Record<PanelId, boolean>>;
   panelPositions?: Partial<Record<PanelId, PanelPosition>>;
   layers?: Partial<LayerVisibility>;
-  countryStatsVisible?: Partial<CountryStatsVisibility>;
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
 };
@@ -67,20 +61,21 @@ type MapUiContextValue = {
   openPanels: Record<PanelId, boolean>;
   panelPositions: Record<PanelId, PanelPosition>;
   layers: LayerVisibility;
-  countryStatsVisible: CountryStatsVisibility;
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
   selectedCaseId: string | null;
+  selectedCountryIso: TrackedCountryIso | null;
   focusedPanelId: PanelId | null;
   setPanelOpen: (id: PanelId, open: boolean) => void;
   togglePanel: (id: PanelId) => void;
   setPanelPosition: (id: PanelId, position: PanelPosition) => void;
   setLayerVisible: (layer: keyof LayerVisibility, visible: boolean) => void;
-  setCountryStatsVisible: (iso: TrackedCountryIso, visible: boolean) => void;
   setBasemapId: (id: BasemapId) => void;
   setSyncBasemapToUiTheme: (sync: boolean) => void;
   openCaseDetail: (caseId: string) => void;
   closeCaseDetail: () => void;
+  /** Open country-stats; pass iso to focus one country, omit for all tracked. */
+  openCountryStats: (iso?: TrackedCountryIso) => void;
   focusPanel: (id: PanelId) => void;
   basemapOptions: typeof BASEMAPS;
 };
@@ -136,19 +131,6 @@ function readPersisted(): PersistedMapUi | null {
   }
 }
 
-function mergeCountryStats(
-  persisted?: Partial<CountryStatsVisibility>,
-): CountryStatsVisibility {
-  const out = defaultCountryStatsVisibility();
-  if (!persisted) return out;
-  for (const [iso, visible] of Object.entries(persisted)) {
-    if (isTrackedCountryIso(iso) && typeof visible === "boolean") {
-      out[iso] = visible;
-    }
-  }
-  return out;
-}
-
 function mergeInitialState(persisted: PersistedMapUi | null) {
   const openPanels = defaultOpenPanels();
   const panelPositions = defaultPanelPositions();
@@ -170,7 +152,6 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...DEFAULT_LAYERS,
     ...persisted?.layers,
   };
-  const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
   const basemapId = resolveBasemapId(persisted?.basemapId);
   // Default off so dark Papers stays selected; theme sync is opt-in via sidebar.
   const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? false;
@@ -178,7 +159,6 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     openPanels,
     panelPositions,
     layers,
-    countryStatsVisible,
     basemapId,
     syncBasemapToUiTheme,
   };
@@ -190,12 +170,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [openPanels, setOpenPanels] = useState(defaultOpenPanels);
   const [panelPositions, setPanelPositions] = useState(defaultPanelPositions);
   const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
-  const [countryStatsVisible, setCountryStatsState] = useState(
-    defaultCountryStatsVisibility,
-  );
   const [basemapId, setBasemapIdState] = useState<BasemapId>(DEFAULT_BASEMAP_ID);
   const [syncBasemapToUiTheme, setSyncState] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [selectedCountryIso, setSelectedCountryIso] =
+    useState<TrackedCountryIso | null>(null);
   const [focusedPanelId, setFocusedPanelId] = useState<PanelId | null>(null);
 
   useEffect(() => {
@@ -203,7 +182,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels(merged.openPanels);
     setPanelPositions(merged.panelPositions);
     setLayers(merged.layers);
-    setCountryStatsState(merged.countryStatsVisible);
     setBasemapIdState(merged.basemapId);
     setSyncState(merged.syncBasemapToUiTheme);
     setHydrated(true);
@@ -215,7 +193,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
     };
@@ -229,7 +206,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     openPanels,
     panelPositions,
     layers,
-    countryStatsVisible,
     basemapId,
     syncBasemapToUiTheme,
   ]);
@@ -241,17 +217,23 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
 
   const setPanelOpen = useCallback((id: PanelId, open: boolean) => {
     setOpenPanels((prev) => ({ ...prev, [id]: open }));
-    if (open) setFocusedPanelId(id);
-    if (!open && id === "case-detail") {
-      setSelectedCaseId(null);
+    if (open) {
+      setFocusedPanelId(id);
+      if (id === "country-stats") setSelectedCountryIso(null);
     }
+    if (!open && id === "case-detail") setSelectedCaseId(null);
+    if (!open && id === "country-stats") setSelectedCountryIso(null);
   }, []);
 
   const togglePanel = useCallback((id: PanelId) => {
     setOpenPanels((prev) => {
       const next = !prev[id];
-      if (next) setFocusedPanelId(id);
+      if (next) {
+        setFocusedPanelId(id);
+        if (id === "country-stats") setSelectedCountryIso(null);
+      }
       if (!next && id === "case-detail") setSelectedCaseId(null);
+      if (!next && id === "country-stats") setSelectedCountryIso(null);
       return { ...prev, [id]: next };
     });
   }, []);
@@ -263,13 +245,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const setLayerVisible = useCallback(
     (layer: keyof LayerVisibility, visible: boolean) => {
       setLayers((prev) => ({ ...prev, [layer]: visible }));
-    },
-    [],
-  );
-
-  const setCountryStatsVisible = useCallback(
-    (iso: TrackedCountryIso, visible: boolean) => {
-      setCountryStatsState((prev) => ({ ...prev, [iso]: visible }));
     },
     [],
   );
@@ -301,6 +276,12 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels((prev) => ({ ...prev, "case-detail": false }));
   }, []);
 
+  const openCountryStats = useCallback((iso?: TrackedCountryIso) => {
+    setSelectedCountryIso(iso ?? null);
+    setOpenPanels((prev) => ({ ...prev, "country-stats": true }));
+    setFocusedPanelId("country-stats");
+  }, []);
+
   const focusPanel = useCallback((id: PanelId) => {
     setFocusedPanelId(id);
   }, []);
@@ -310,20 +291,20 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
+      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
       setLayerVisible,
-      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
       closeCaseDetail,
+      openCountryStats,
       focusPanel,
       basemapOptions: BASEMAPS,
     }),
@@ -331,20 +312,20 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
+      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
       setLayerVisible,
-      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
       closeCaseDetail,
+      openCountryStats,
       focusPanel,
     ],
   );

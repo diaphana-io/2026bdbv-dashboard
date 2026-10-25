@@ -135,10 +135,10 @@ export function MapSidebar() {
   const {
     openPanels,
     setPanelOpen,
+    openCountryStats,
+    selectedCountryIso,
     layers,
     setLayerVisible,
-    countryStatsVisible,
-    setCountryStatsVisible,
     basemapId,
     setBasemapId,
     syncBasemapToUiTheme,
@@ -172,20 +172,33 @@ export function MapSidebar() {
                 defaultOpen
               >
                 <SidebarMenuSubItem>
-                  <div className="px-2 pt-1 pb-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                    Country statistics
-                  </div>
+                  <ToggleRow
+                    id="panel-country-stats"
+                    label="Country statistics"
+                    checked={openPanels["country-stats"]}
+                    onCheckedChange={(checked) => {
+                      if (checked) openCountryStats();
+                      else setPanelOpen("country-stats", false);
+                    }}
+                  />
                 </SidebarMenuSubItem>
                 {TRACKED_COUNTRIES.map((country) => (
                   <SidebarMenuSubItem key={country.iso}>
-                    <ToggleRow
-                      id={`country-stats-${country.iso}`}
-                      label={country.shortName}
-                      checked={countryStatsVisible[country.iso]}
-                      onCheckedChange={(checked) =>
-                        setCountryStatsVisible(country.iso, checked)
+                    <SidebarMenuButton
+                      size="sm"
+                      isActive={
+                        openPanels["country-stats"] &&
+                        selectedCountryIso === country.iso
                       }
-                    />
+                      onClick={() => openCountryStats(country.iso)}
+                    >
+                      <span
+                        className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: country.color }}
+                        aria-hidden
+                      />
+                      <span>{country.shortName}</span>
+                    </SidebarMenuButton>
                   </SidebarMenuSubItem>
                 ))}
                 <SidebarMenuSubItem>

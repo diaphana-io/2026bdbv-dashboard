@@ -11,6 +11,7 @@ import {
   type BasemapId,
   type PapersBasemapColors,
 } from "./basemap-style";
+import { isTrackedCountryIso } from "@/lib/tracked-countries";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
@@ -80,9 +81,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const cameraRef = useRef<ViewCamera>(DEFAULT_CAMERA);
   const bootGenerationRef = useRef(0);
 
-  const { basemapId, layers, openCaseDetail, selectedCaseId } = useMapUi();
+  const { basemapId, layers, openCaseDetail, openCountryStats, selectedCaseId } =
+    useMapUi();
   const openCaseDetailRef = useRef(openCaseDetail);
   openCaseDetailRef.current = openCaseDetail;
+  const openCountryStatsRef = useRef(openCountryStats);
+  openCountryStatsRef.current = openCountryStats;
 
   const [asOf, setAsOf] = useState(initialSnapshot.asOf);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -104,7 +108,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.travels.setVisible(vis.travels);
   }
 
-  function wireCaseClick(
+  function wireFeatureClick(
     view: import("@navaramap/three").default,
   ): () => void {
     const onClick = (
@@ -113,11 +117,19 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         | null
         | undefined,
     ) => {
-      const kind = info?.properties?.["kind"];
-      const id = info?.properties?.["id"];
-      if (kind !== "case" || typeof id !== "string") return;
-      layersRef.current?.travels.setHighlightCaseId(id);
-      openCaseDetailRef.current(id);
+      const props = info?.properties;
+      if (!props) return;
+      const kind = props["kind"];
+      const id = props["id"];
+      if (kind === "case" && typeof id === "string") {
+        layersRef.current?.travels.setHighlightCaseId(id);
+        openCaseDetailRef.current(id);
+        return;
+      }
+      const rawIso = props["admin0_iso"] ?? props["iso"];
+      if (typeof rawIso === "string" && isTrackedCountryIso(rawIso)) {
+        openCountryStatsRef.current(rawIso);
+      }
     };
     view.on("featureClick", onClick);
     return () => {
@@ -327,7 +339,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     };
     layersRef.current = bundle;
     applyLayerVisibility(bundle);
-    removeClickRef.current = wireCaseClick(view);
+    removeClickRef.current = wireFeatureClick(view);
 
     setLoading(null);
     setMapReady(true);
