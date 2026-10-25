@@ -25,6 +25,7 @@ export type CaseRow = {
 export type ClaimRow = {
   id: string;
   claim_type: string;
+  claim_category?: string;
   subject_ref: string;
   object_value: Record<string, unknown>;
   as_of_date: string;
@@ -187,6 +188,16 @@ export type CaseDetailEvent = {
   meta?: Record<string, unknown>;
 };
 
+/** Source cited by a case — keyed by internal SourceDocument id. */
+export type CaseDetailSource = {
+  id: string;
+  title: string | null;
+  publisher: string | null;
+  kind: string;
+  url: string;
+  published_at: string | null;
+};
+
 export type CaseDetail = {
   id: string;
   visual_id: string;
@@ -194,6 +205,9 @@ export type CaseDetail = {
   classification: string;
   lat?: number;
   lon?: number;
+  /** Ordered by Case.source_ids (internal UUIDs). */
+  source_ids: string[];
+  sources: CaseDetailSource[];
   events: CaseDetailEvent[];
 };
 

@@ -23,6 +23,8 @@ export const CaseSchema = z.object({
   admin0_iso: z.enum(["NG", "KE", "UG", "CD", "XX"]).or(z.string()),
   confidence: ConfidenceSchema,
   is_synthetic: z.boolean().default(false),
+  /** Internal SourceDocument ids backing this case (UUID). */
+  source_ids: z.array(z.string().uuid()).optional().default([]),
 });
 
 export type Case = z.infer<typeof CaseSchema>;

@@ -2,6 +2,7 @@ import type { Integer, Node, Record as Neo4jRecord } from "neo4j-driver";
 import type {
   CaseDetail,
   CaseDetailEvent,
+  CaseDetailSource,
   CaseQueryOpts,
   CaseRow,
   ClaimRow,
@@ -72,6 +73,7 @@ function claimFromNode(n: Node): ClaimRow {
   return {
     id: String(p.id),
     claim_type: String(p.claim_type),
+    claim_category: (p.claim_category as string | undefined) ?? undefined,
     subject_ref: String(p.subject_ref),
     object_value,
     as_of_date: String(p.as_of_date),
@@ -587,6 +589,47 @@ export async function getCaseDetailNeo4j(
     }
 
     events.sort((a, b) => a.at.localeCompare(b.at));
+
+    const srcRes = await session.run(
+      `
+      MATCH (c:Case {id: $caseId})
+      OPTIONAL MATCH (c)-[:SOURCED_FROM]->(s:SourceDocument)
+      WITH c, collect(DISTINCT s) AS linked
+      WITH c,
+           CASE
+             WHEN size(linked) > 0 AND linked[0] IS NOT NULL THEN linked
+             ELSE []
+           END AS fromRel,
+           coalesce(c.source_ids, []) AS ids
+      UNWIND
+        CASE
+          WHEN size(fromRel) > 0 THEN [x IN fromRel | x.id]
+          ELSE ids
+        END AS sid
+      MATCH (s:SourceDocument {id: sid})
+      RETURN s, sid
+      ORDER BY sid
+      `,
+      { caseId },
+    );
+    const byId = new Map<string, CaseDetailSource>();
+    for (const r of srcRes.records) {
+      const s = sourceFromNode(r.get("s") as Node);
+      byId.set(s.id, {
+        id: s.id,
+        title: s.title ?? null,
+        publisher: s.publisher ?? null,
+        kind: s.kind,
+        url: s.url,
+        published_at: s.published_at ?? null,
+      });
+    }
+    const sourceIds =
+      (c.source_ids?.length ? c.source_ids : [...byId.keys()]) ?? [];
+    const detailSources = sourceIds
+      .map((id) => byId.get(id))
+      .filter((s): s is CaseDetailSource => Boolean(s));
+
     return {
       id: c.id,
       visual_id: c.visual_id,
@@ -594,6 +637,8 @@ export async function getCaseDetailNeo4j(
       classification: c.classification,
       lat: c.lat,
       lon: c.lon,
+      source_ids: sourceIds,
+      sources: detailSources,
       events,
     };
   });

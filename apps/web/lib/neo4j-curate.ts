@@ -54,6 +54,7 @@ export async function persistReviewClaim(input: {
   claimId?: string;
   rejectionReason?: string;
   claimType?: string;
+  claimCategory?: string;
   subjectRef?: string;
   asOfDate?: string;
   objectValue?: Record<string, unknown>;
@@ -91,6 +92,7 @@ export async function persistReviewClaim(input: {
       `
       MERGE (c:Claim {id: $id})
       SET c.claim_type = $claim_type,
+          c.claim_category = $claim_category,
           c.subject_ref = $subject_ref,
           c.object_value_json = $object_value_json,
           c.as_of_date = $as_of_date,
@@ -113,6 +115,7 @@ export async function persistReviewClaim(input: {
       {
         id: claimId,
         claim_type: input.claimType,
+        claim_category: input.claimCategory ?? "other",
         subject_ref: input.subjectRef,
         object_value_json: JSON.stringify(input.objectValue ?? {}),
         as_of_date: input.asOfDate,

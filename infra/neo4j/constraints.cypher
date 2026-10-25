@@ -31,6 +31,8 @@ CREATE INDEX case_inclusion IF NOT EXISTS FOR (c:Case) ON (c.inclusion_reason);
 CREATE INDEX case_date_of_onset IF NOT EXISTS FOR (c:Case) ON (c.date_of_onset);
 CREATE INDEX claim_review_status IF NOT EXISTS FOR (c:Claim) ON (c.review_status);
 CREATE INDEX claim_as_of_date IF NOT EXISTS FOR (c:Claim) ON (c.as_of_date);
+CREATE INDEX claim_category IF NOT EXISTS FOR (c:Claim) ON (c.claim_category);
+CREATE INDEX claim_type IF NOT EXISTS FOR (c:Claim) ON (c.claim_type);
 CREATE INDEX admin_iso IF NOT EXISTS FOR (a:AdminUnit) ON (a.iso);
 CREATE INDEX admin_tracking_mode IF NOT EXISTS FOR (a:AdminUnit) ON (a.tracking_mode);
 CREATE INDEX source_curation_status IF NOT EXISTS FOR (s:SourceDocument) ON (s.curation_status);

@@ -12,6 +12,7 @@ import travelLegsData from "../data/travel_legs.json";
 import type {
   CaseDetail,
   CaseDetailEvent,
+  CaseDetailSource,
   CaseQueryOpts,
   CaseRow,
   ClaimRow,
@@ -320,6 +321,21 @@ export function getCaseDetailJson(caseId: string): CaseDetail | null {
     }
   }
   events.sort((a, b) => a.at.localeCompare(b.at));
+  const sourceIds = c.source_ids ?? [];
+  const detailSources: CaseDetailSource[] = sourceIds.flatMap((sid) => {
+    const s = sources.find((row) => row.id === sid);
+    if (!s) return [];
+    return [
+      {
+        id: s.id,
+        title: s.title ?? null,
+        publisher: s.publisher ?? null,
+        kind: s.kind,
+        url: s.url,
+        published_at: s.published_at ?? null,
+      },
+    ];
+  });
   return {
     id: c.id,
     visual_id: c.visual_id,
@@ -327,6 +343,8 @@ export function getCaseDetailJson(caseId: string): CaseDetail | null {
     classification: c.classification,
     lat: c.lat,
     lon: c.lon,
+    source_ids: sourceIds,
+    sources: detailSources,
     events,
   };
 }

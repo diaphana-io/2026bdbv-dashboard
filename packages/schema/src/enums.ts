@@ -49,6 +49,47 @@ export const EvidenceRoleSchema = z.enum([
   "corroboration",
   "background",
 ]);
+/**
+ * Coarse claim bucket for Neo4j filter / Map / conflict scope.
+ * Fine grain stays on `claim_type` (e.g. case_count vs death_count).
+ */
+export const ClaimCategorySchema = z.enum([
+  "aggregate_count",
+  "case_detail",
+  "exposure_contact",
+  "border_measure",
+  "outbreak_status",
+  "other",
+]);
+export type ClaimCategory = z.infer<typeof ClaimCategorySchema>;
+
+/** Default category from a free-form claim_type string. */
+export function claimCategoryForType(claimType: string): ClaimCategory {
+  switch (claimType) {
+    case "case_count":
+    case "death_count":
+    case "contact_count":
+    case "hospitalization_count":
+      return "aggregate_count";
+    case "case_travel":
+    case "case_lab":
+    case "case_outcome":
+    case "case_identity":
+      return "case_detail";
+    case "exposure":
+    case "contact_followup":
+      return "exposure_contact";
+    case "border_measure":
+    case "travel_advisory":
+      return "border_measure";
+    case "outbreak_declared":
+    case "outbreak_ended":
+    case "pheic":
+      return "outbreak_status";
+    default:
+      return "other";
+  }
+}
 /** Inbox / discover duplicate flag (deterministic first; possible = soft match). */
 export const DuplicateLevelSchema = z.enum([
   "none",

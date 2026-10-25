@@ -3,7 +3,11 @@
     "id": "eeeeeeee-0000-4000-8000-000000000001",
     "claim_type": "case_count",
     "subject_ref": "KE",
-    "object_value": { "confirmed": 9, "deaths": 1, "contacts": 135 },
+    "object_value": {
+      "confirmed": 9,
+      "deaths": 1,
+      "contacts": 135
+    },
     "as_of_date": "2026-10-20",
     "claim_fingerprint": "ke-case-count-2026-10-20-official",
     "confidence": "official",
@@ -12,13 +16,18 @@
     "reviewed_at": "2026-10-23T12:00:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
-    "excerpt": "As of 20 October 2026, a total of nine cases of BVD including one death, has been reported in Kenya."
+    "excerpt": "As of 20 October 2026, a total of nine cases of BVD including one death, has been reported in Kenya.",
+    "claim_category": "aggregate_count"
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000002",
     "claim_type": "case_count",
     "subject_ref": "NG",
-    "object_value": { "confirmed": 1, "deaths": 0, "contacts": 44 },
+    "object_value": {
+      "confirmed": 1,
+      "deaths": 0,
+      "contacts": 44
+    },
     "as_of_date": "2026-10-20",
     "claim_fingerprint": "ng-case-count-2026-10-20-official",
     "confidence": "official",
@@ -27,13 +36,17 @@
     "reviewed_at": "2026-10-23T12:05:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000003",
-    "excerpt": "Nigeria confirmed one imported case... 44 contacts have been identified."
+    "excerpt": "Nigeria confirmed one imported case... 44 contacts have been identified.",
+    "claim_category": "aggregate_count"
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000003",
     "claim_type": "case_count",
     "subject_ref": "KE",
-    "object_value": { "confirmed": 11, "deaths": 1 },
+    "object_value": {
+      "confirmed": 11,
+      "deaths": 1
+    },
     "as_of_date": "2026-10-21",
     "claim_fingerprint": "ke-case-count-2026-10-21-news",
     "confidence": "news_single",
@@ -42,13 +55,17 @@
     "reviewed_at": "2026-10-23T12:10:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000004",
-    "excerpt": "News report citing a higher Kenya case total pending official reconciliation."
+    "excerpt": "News report citing a higher Kenya case total pending official reconciliation.",
+    "claim_category": "aggregate_count"
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000010",
     "claim_type": "case_count",
     "subject_ref": "CD",
-    "object_value": { "confirmed": 48, "deaths": 28 },
+    "object_value": {
+      "confirmed": 48,
+      "deaths": 28
+    },
     "as_of_date": "2026-06-15",
     "claim_fingerprint": "cd-case-count-2026-06-15-official",
     "confidence": "official",
@@ -57,13 +74,17 @@
     "reviewed_at": "2026-10-23T12:20:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
-    "excerpt": "DRC aggregate series (Ituri epicentre); no individual Case nodes for CD."
+    "excerpt": "DRC aggregate series (Ituri epicentre); no individual Case nodes for CD.",
+    "claim_category": "aggregate_count"
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000011",
     "claim_type": "case_count",
     "subject_ref": "CD",
-    "object_value": { "confirmed": 92, "deaths": 51 },
+    "object_value": {
+      "confirmed": 92,
+      "deaths": 51
+    },
     "as_of_date": "2026-08-01",
     "claim_fingerprint": "cd-case-count-2026-08-01-official",
     "confidence": "official",
@@ -72,13 +93,17 @@
     "reviewed_at": "2026-10-23T12:21:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
-    "excerpt": "DRC multi-province epidemic growth (aggregate claims only)."
+    "excerpt": "DRC multi-province epidemic growth (aggregate claims only).",
+    "claim_category": "aggregate_count"
   },
   {
     "id": "eeeeeeee-0000-4000-8000-000000000012",
     "claim_type": "case_count",
     "subject_ref": "CD",
-    "object_value": { "confirmed": 146, "deaths": 78 },
+    "object_value": {
+      "confirmed": 146,
+      "deaths": 78
+    },
     "as_of_date": "2026-10-20",
     "claim_fingerprint": "cd-case-count-2026-10-20-official",
     "confidence": "official",
@@ -87,6 +112,7 @@
     "reviewed_at": "2026-10-23T12:22:00.000Z",
     "reviewed_by": "curator",
     "source_id": "bbbbbbbb-0000-4000-8000-000000000001",
-    "excerpt": "As of 20 October 2026, DRC remains the aggregate epicentre for BDBV."
+    "excerpt": "As of 20 October 2026, DRC remains the aggregate epicentre for BDBV.",
+    "claim_category": "aggregate_count"
   }
 ]

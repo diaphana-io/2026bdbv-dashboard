@@ -61,6 +61,22 @@ describe("schema smoke", () => {
     expect(c.lineage_id).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     expect(c.version).toBe(2);
     expect(c.needs_revision).toBe(true);
+    expect(c.claim_category).toBe("aggregate_count");
+  });
+
+  it("defaults claim_category from claim_type", () => {
+    const travel = ClaimSchema.parse({
+      id: "22222222-2222-2222-2222-222222222223",
+      claim_type: "case_travel",
+      subject_ref: "KE-2026-001",
+      object_value: { from: "CD", to: "KE" },
+      as_of_date: "2026-10-03",
+      claim_fingerprint: "fp-travel",
+      confidence: "news_single",
+      extractor: "human",
+      review_status: "pending_review",
+    });
+    expect(travel.claim_category).toBe("case_detail");
   });
 
   it("parses source document with evidence and duplicate defaults", () => {

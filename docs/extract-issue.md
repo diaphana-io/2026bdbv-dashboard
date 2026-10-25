@@ -74,7 +74,8 @@ Do not conflate:
 | Layer | Field | Meaning |
 |-------|-------|---------|
 | What document | Source `evidence_class` (+ existing `kind`) | intl org / government / academic / news / … |
-| What assertion | Claim fingerprint (`claim_type`, `subject_ref`, `object_value`, `as_of_date`) | Map fact unit |
+| When published | Source `published_at` | Article / bulletin post day — **provenance only**, not the fact cut |
+| What assertion | Claim fingerprint (`claim_type`, `subject_ref`, `object_value`, `as_of_date`) + Neo4j `claim_category` | Map fact unit; `as_of_date` = in-body “as of …”, **never defaulted from `published_at`**. **One source → many claims** bucketed by category (`aggregate_count`, `case_detail`, …) |
 | How much to trust | Claim `confidence` | Dashboard label; **set on human approve** (Extract may only suggest) |
 
 ### `evidence_class`
@@ -90,7 +91,7 @@ Optional later: `evidence_role` = `primary_count | corroboration | background`.
 - `news_corroborated` — ≥2 **independent** sources, same fingerprint
 - `inferred` — derived; not Map primary by default
 
-Same fingerprint across sources = **corroboration**, not conflict. Differing `object_value` for same type/subject/as_of → `CONFLICTS_WITH`, both visible until resolve. Exact URL / content_hash → inbox duplicate flag; do not grow claims. Wire-service copies → `possible` dup; exclude from corroboration counts.
+Same fingerprint across sources = **corroboration**, not conflict. Differing `object_value` for same type/subject/`as_of_date` → `CONFLICTS_WITH`, both visible until resolve. Do not use `published_at` as the conflict or fingerprint key. Exact URL / content_hash → inbox duplicate flag; do not grow claims. Wire-service copies → `possible` dup; exclude from corroboration counts. Sample-driven curator policy (no `resolved_both` for now; article day vs in-body as-of): [`conflict-resolution.md`](./conflict-resolution.md).
 
 **No auto-promote confidence.** Extract/classify return `suggested_confidence` only. Review UI proposes defaults from independent source counts; human approves. Auto-approve stays off in staging and production.
 
