@@ -24,6 +24,8 @@ import type {
   ContactRow,
   CountryStatRow,
   InboxRow,
+  IncidenceRow,
+  IncidenceSeriesOpts,
   MapAggregate,
   MapSnapshot,
   MeasureRow,
@@ -111,6 +113,60 @@ export function getSourcesJson() {
 
 export function getClaimsJson() {
   return claims;
+}
+
+function incidenceFromClaimJson(claim: ClaimRow): IncidenceRow | null {
+  const ov = claim.object_value;
+  const period_start = ov.period_start;
+  const period_end = ov.period_end;
+  const grain = ov.grain;
+  const metric_basis = ov.metric_basis;
+  const new_confirmed = ov.new_confirmed;
+  if (
+    typeof period_start !== "string" ||
+    typeof period_end !== "string" ||
+    typeof grain !== "string" ||
+    typeof metric_basis !== "string" ||
+    typeof new_confirmed !== "number"
+  ) {
+    return null;
+  }
+  const row: IncidenceRow = {
+    id: claim.id,
+    subject_ref: claim.subject_ref,
+    as_of_date: claim.as_of_date,
+    period_start,
+    period_end,
+    grain,
+    new_confirmed,
+    metric_basis,
+    confidence: claim.confidence,
+    source_id: claim.source_id,
+  };
+  if (typeof ov.new_deaths === "number") {
+    row.new_deaths = ov.new_deaths;
+  }
+  return row;
+}
+
+export function getIncidenceSeriesJson(
+  opts?: IncidenceSeriesOpts,
+): IncidenceRow[] {
+  const metricBasis = opts?.metricBasis ?? "reporting_date";
+  return claims
+    .filter(
+      (c) =>
+        c.claim_type === "incidence" &&
+        c.review_status === "approved" &&
+        (!opts?.country ||
+          opts.country === "ALL" ||
+          c.subject_ref === opts.country) &&
+        (!opts?.asOf || c.as_of_date <= opts.asOf),
+    )
+    .map(incidenceFromClaimJson)
+    .filter((row): row is IncidenceRow => row != null)
+    .filter((row) => row.metric_basis === metricBasis)
+    .sort((a, b) => a.period_start.localeCompare(b.period_start));
 }
 
 export function getConflictViewsJson(): ConflictView[] {

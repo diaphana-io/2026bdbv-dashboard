@@ -70,6 +70,7 @@ export function claimCategoryForType(claimType: string): ClaimCategory {
     case "death_count":
     case "contact_count":
     case "hospitalization_count":
+    case "incidence":
       return "aggregate_count";
     case "case_travel":
     case "case_lab":

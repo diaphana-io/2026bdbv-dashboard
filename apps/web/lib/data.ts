@@ -7,6 +7,7 @@ import {
   getContactsJson,
   getCountryStatsJson,
   getInboxCandidatesJson,
+  getIncidenceSeriesJson,
   getMapSnapshotJson,
   getMeasuresJson,
   getOutbreakJson,
@@ -14,7 +15,7 @@ import {
   getSourcesJson,
   overviewKpisJson,
 } from "./data-json";
-import type { CaseQueryOpts } from "./data-types";
+import type { CaseQueryOpts, IncidenceSeriesOpts } from "./data-types";
 import { preferFixtureData } from "./curate-data-source.server";
 import { isNeo4jConfigured } from "./neo4j";
 import {
@@ -26,6 +27,7 @@ import {
   getContactsNeo4j,
   getCountryStatsNeo4j,
   getInboxCandidatesNeo4j,
+  getIncidenceSeriesNeo4j,
   getMapSnapshotNeo4j,
   getMeasuresNeo4j,
   getOutbreakNeo4j,
@@ -47,6 +49,8 @@ export type {
   ContactRow,
   CountryStatRow,
   InboxRow,
+  IncidenceRow,
+  IncidenceSeriesOpts,
   MapSnapshot,
   MeasureRow,
   SourceRow,
@@ -119,6 +123,16 @@ export async function getSources() {
 
 export async function getClaims() {
   return fromNeo4jOrJson("claims", getClaimsNeo4j, getClaimsJson);
+}
+
+export async function getIncidenceSeries(opts?: IncidenceSeriesOpts) {
+  const metric = opts?.metricBasis ?? "reporting_date";
+  const key = `incidence:${opts?.country ?? ""}:${opts?.asOf ?? ""}:${metric}`;
+  return fromNeo4jOrJson(
+    key,
+    () => getIncidenceSeriesNeo4j(opts),
+    () => getIncidenceSeriesJson(opts),
+  );
 }
 
 export async function getConflictViews() {

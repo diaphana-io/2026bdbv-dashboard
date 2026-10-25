@@ -14,6 +14,8 @@ import type {
   ContactRow,
   CountryStatRow,
   InboxRow,
+  IncidenceRow,
+  IncidenceSeriesOpts,
   MapAggregate,
   MapCase,
   MapExposure,
@@ -174,6 +176,67 @@ export async function getClaimsNeo4j(): Promise<ClaimRow[]> {
   return withSession(async (session) => {
     const res = await session.run(`MATCH (c:Claim) RETURN c`);
     return res.records.map((r) => claimFromNode(r.get("c")));
+  });
+}
+
+function incidenceFromClaim(claim: ClaimRow): IncidenceRow | null {
+  const ov = claim.object_value;
+  const period_start = ov.period_start;
+  const period_end = ov.period_end;
+  const grain = ov.grain;
+  const metric_basis = ov.metric_basis;
+  const new_confirmed = ov.new_confirmed;
+  if (
+    typeof period_start !== "string" ||
+    typeof period_end !== "string" ||
+    typeof grain !== "string" ||
+    typeof metric_basis !== "string" ||
+    typeof new_confirmed !== "number"
+  ) {
+    return null;
+  }
+  const row: IncidenceRow = {
+    id: claim.id,
+    subject_ref: claim.subject_ref,
+    as_of_date: claim.as_of_date,
+    period_start,
+    period_end,
+    grain,
+    new_confirmed,
+    metric_basis,
+    confidence: claim.confidence,
+    source_id: claim.source_id,
+  };
+  if (typeof ov.new_deaths === "number") {
+    row.new_deaths = ov.new_deaths;
+  }
+  return row;
+}
+
+export async function getIncidenceSeriesNeo4j(
+  opts?: IncidenceSeriesOpts,
+): Promise<IncidenceRow[]> {
+  const metricBasis = opts?.metricBasis ?? "reporting_date";
+  return withSession(async (session) => {
+    const res = await session.run(
+      `
+      MATCH (cl:Claim)
+      WHERE cl.claim_type = 'incidence'
+        AND cl.review_status = 'approved'
+        AND ($country IS NULL OR cl.subject_ref = $country)
+        AND ($asOf IS NULL OR cl.as_of_date <= $asOf)
+      RETURN cl
+      `,
+      {
+        country: opts?.country && opts.country !== "ALL" ? opts.country : null,
+        asOf: opts?.asOf ?? null,
+      },
+    );
+    return res.records
+      .map((r) => incidenceFromClaim(claimFromNode(r.get("cl"))))
+      .filter((row): row is IncidenceRow => row != null)
+      .filter((row) => row.metric_basis === metricBasis)
+      .sort((a, b) => a.period_start.localeCompare(b.period_start));
   });
 }
 
