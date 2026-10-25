@@ -6,9 +6,10 @@ import {
   TRACKED_COUNTRIES,
   type TrackedCountryIso,
 } from "@/lib/tracked-countries";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { useMapUi } from "../map/map-ui-context";
+import { PanelFrame } from "./panel-frame";
 
 function emptyRow(iso: TrackedCountryIso, name: string): CountryStatRow {
   return {
@@ -23,7 +24,7 @@ function emptyRow(iso: TrackedCountryIso, name: string): CountryStatRow {
 }
 
 export function CountryStatsPanel() {
-  const { countryStatsVisible } = useMapUi();
+  const { selectedCountryIso } = useMapUi();
   const [byIso, setByIso] = useState<
     Partial<Record<TrackedCountryIso, CountryStatRow>>
   >({});
@@ -63,60 +64,63 @@ export function CountryStatsPanel() {
     };
   }, []);
 
-  const visible = TRACKED_COUNTRIES.filter((c) => countryStatsVisible[c.iso]);
-  if (visible.length === 0) return null;
+  const countries = selectedCountryIso
+    ? TRACKED_COUNTRIES.filter((c) => c.iso === selectedCountryIso)
+    : TRACKED_COUNTRIES;
+
+  const title = selectedCountryIso
+    ? (TRACKED_COUNTRIES.find((c) => c.iso === selectedCountryIso)?.shortName ??
+      "Country statistics")
+    : "Country statistics";
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center px-12 sm:px-14">
-      <div className="pointer-events-auto flex w-full max-w-5xl flex-wrap justify-center gap-2">
-        {visible.map((country) => {
+    <PanelFrame id="country-stats" title={title} contentClassName="space-y-3 pt-2">
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Spinner className="size-3.5" />
+          Loading…
+        </div>
+      ) : (
+        countries.map((country) => {
           const row = byIso[country.iso] ?? emptyRow(country.iso, country.name);
+          const selected = selectedCountryIso === country.iso;
           return (
-            <Card
+            <div
               key={country.iso}
-              size="sm"
-              className="min-w-[9.5rem] flex-1 overflow-hidden border-l-4 bg-card/95 shadow-md backdrop-blur"
+              className={cn(
+                "overflow-hidden rounded-md border border-l-4",
+                selected && "bg-muted/40",
+              )}
               style={
                 {
                   borderLeftColor: country.color,
                 } as CSSProperties
               }
             >
-              <CardHeader
-                className="border-b py-2"
+              <div
+                className="flex items-center gap-2 border-b px-2.5 py-1.5 text-xs font-medium"
                 style={{
                   backgroundColor: `color-mix(in oklab, ${country.color} 18%, transparent)`,
                 }}
               >
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <span
-                    className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
-                    style={{ backgroundColor: country.color }}
-                    aria-hidden
-                  />
-                  {country.shortName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 py-2 text-xs tabular-nums">
-                {loading ? (
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Spinner className="size-3" />
-                    Loading…
-                  </div>
-                ) : (
-                  <>
-                    <StatLine label="Confirmed" value={row.confirmed} />
-                    <StatLine label="Suspected" value={row.suspected} />
-                    <StatLine label="Recovered" value={row.recovered} />
-                    <StatLine label="Deceased" value={row.deceased} />
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                <span
+                  className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
+                  style={{ backgroundColor: country.color }}
+                  aria-hidden
+                />
+                {country.shortName}
+              </div>
+              <div className="space-y-1 px-2.5 py-2 text-xs tabular-nums">
+                <StatLine label="Confirmed" value={row.confirmed} />
+                <StatLine label="Suspected" value={row.suspected} />
+                <StatLine label="Recovered" value={row.recovered} />
+                <StatLine label="Deceased" value={row.deceased} />
+              </div>
+            </div>
           );
-        })}
-      </div>
-    </div>
+        })
+      )}
+    </PanelFrame>
   );
 }
 

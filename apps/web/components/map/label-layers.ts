@@ -20,7 +20,7 @@ export type LabelLayersHandle = {
 
 const LABEL_FONT = "Noto Sans";
 
-/** Dark fill on light land; bright fill + halo on dark/satellite. */
+/** Dark fill on light Papers land; bright fill + halo on dark Papers. */
 function labelColors(mode: CaseLayerMode) {
   if (mode === "light") {
     return {
@@ -36,7 +36,7 @@ function labelColors(mode: CaseLayerMode) {
   }
   return {
     country: {
-      // Bright fill + dark halo reads on Esri satellite / dark outline.
+      // Bright fill + dark halo reads on dark Papers land.
       color: new Color().setStyle("#f8fafc"),
       outlineColor: new Color().setStyle("#0b1220"),
     },
@@ -114,13 +114,12 @@ export async function attachLabelLayers(
   );
 
   const colors = labelColors(mode);
-  // Lift above ellipsoid/raster so labels don't z-fight satellite tiles
-  // (same trap as non-draped boundary strokes without height).
+  // Lift above terrain so upright labels don't z-fight draped Papers land.
   const labelHeight = 12_000;
 
   const countrySource = view.addSource({
     type: "geojson",
-    data: filterCountryLabels() as GeoJSON.FeatureCollection,
+    data: filterCountryLabels(),
   });
   const countryLayer = view.addLayer({
     type: "vector",
@@ -149,7 +148,7 @@ export async function attachLabelLayers(
 
   const citySource = view.addSource({
     type: "geojson",
-    data: filterCities() as GeoJSON.FeatureCollection,
+    data: filterCities(),
   });
   const cityLayer = view.addLayer({
     type: "vector",

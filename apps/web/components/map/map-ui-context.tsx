@@ -18,24 +18,21 @@ import {
   resolveBasemapId,
 } from "./basemap-style";
 import type { PanelId, PanelPosition } from "../panels/types";
-import {
-  defaultCountryStatsVisibility,
-  isTrackedCountryIso,
-  type TrackedCountryIso,
-} from "@/lib/tracked-countries";
+import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
- * v5: force boundaries + countryNames ON so satellite boots with borders/names
- * (v3/v4 could still hold those toggles off from earlier experiments).
+ * v6: Dark basemap only; boundaries = DRC COD-AB LOD outlines (not tracked fills).
+ * v5 could still hold light basemap / theme-sync prefs.
  */
-const STORAGE_KEY = "bdbv-map-ui-v5";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v4";
+const STORAGE_KEY = "bdbv-map-ui-v6";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v5";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
   PanelId,
   { defaultOpen: boolean; defaultPosition: PanelPosition }
 > = {
+  "country-stats": { defaultOpen: false, defaultPosition: { x: 12, y: 12 } },
   "case-detail": { defaultOpen: false, defaultPosition: { x: 10_000, y: 12 } },
 };
 
@@ -50,15 +47,12 @@ export type LayerVisibility = {
   travels: boolean;
 };
 
-export type CountryStatsVisibility = Record<TrackedCountryIso, boolean>;
-
 export type { PanelPosition };
 
 type PersistedMapUi = {
   openPanels?: Partial<Record<PanelId, boolean>>;
   panelPositions?: Partial<Record<PanelId, PanelPosition>>;
   layers?: Partial<LayerVisibility>;
-  countryStatsVisible?: Partial<CountryStatsVisibility>;
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
 };
@@ -67,20 +61,21 @@ type MapUiContextValue = {
   openPanels: Record<PanelId, boolean>;
   panelPositions: Record<PanelId, PanelPosition>;
   layers: LayerVisibility;
-  countryStatsVisible: CountryStatsVisibility;
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
   selectedCaseId: string | null;
+  selectedCountryIso: TrackedCountryIso | null;
   focusedPanelId: PanelId | null;
   setPanelOpen: (id: PanelId, open: boolean) => void;
   togglePanel: (id: PanelId) => void;
   setPanelPosition: (id: PanelId, position: PanelPosition) => void;
   setLayerVisible: (layer: keyof LayerVisibility, visible: boolean) => void;
-  setCountryStatsVisible: (iso: TrackedCountryIso, visible: boolean) => void;
   setBasemapId: (id: BasemapId) => void;
   setSyncBasemapToUiTheme: (sync: boolean) => void;
   openCaseDetail: (caseId: string) => void;
   closeCaseDetail: () => void;
+  /** Open country-stats; pass iso to focus one country, omit for all tracked. */
+  openCountryStats: (iso?: TrackedCountryIso) => void;
   focusPanel: (id: PanelId) => void;
   basemapOptions: typeof BASEMAPS;
 };
@@ -118,13 +113,16 @@ function readPersisted(): PersistedMapUi | null {
     const raw =
       window.localStorage.getItem(STORAGE_KEY) ??
       window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v4") ??
       window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show country borders + names (needed on satellite; outline
-    // basemaps also draw their own strokes). Other prefs may migrate.
+    // Always show DRC admin boundaries + country names. Dark-only: drop theme
+    // sync and normalize any persisted light basemap.
     return {
       ...parsed,
+      basemapId: resolveBasemapId(parsed.basemapId),
+      syncBasemapToUiTheme: false,
       layers: {
         ...parsed.layers,
         boundaries: true,
@@ -134,19 +132,6 @@ function readPersisted(): PersistedMapUi | null {
   } catch {
     return null;
   }
-}
-
-function mergeCountryStats(
-  persisted?: Partial<CountryStatsVisibility>,
-): CountryStatsVisibility {
-  const out = defaultCountryStatsVisibility();
-  if (!persisted) return out;
-  for (const [iso, visible] of Object.entries(persisted)) {
-    if (isTrackedCountryIso(iso) && typeof visible === "boolean") {
-      out[iso] = visible;
-    }
-  }
-  return out;
 }
 
 function mergeInitialState(persisted: PersistedMapUi | null) {
@@ -170,17 +155,14 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...DEFAULT_LAYERS,
     ...persisted?.layers,
   };
-  const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
   const basemapId = resolveBasemapId(persisted?.basemapId);
-  // Default off so satellite stays selected; theme sync is opt-in via sidebar.
-  const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? false;
+  // Dark-only: theme sync is permanently off (Light radio is disabled).
   return {
     openPanels,
     panelPositions,
     layers,
-    countryStatsVisible,
     basemapId,
-    syncBasemapToUiTheme,
+    syncBasemapToUiTheme: false,
   };
 }
 
@@ -190,12 +172,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [openPanels, setOpenPanels] = useState(defaultOpenPanels);
   const [panelPositions, setPanelPositions] = useState(defaultPanelPositions);
   const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
-  const [countryStatsVisible, setCountryStatsState] = useState(
-    defaultCountryStatsVisibility,
-  );
   const [basemapId, setBasemapIdState] = useState<BasemapId>(DEFAULT_BASEMAP_ID);
   const [syncBasemapToUiTheme, setSyncState] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [selectedCountryIso, setSelectedCountryIso] =
+    useState<TrackedCountryIso | null>(null);
   const [focusedPanelId, setFocusedPanelId] = useState<PanelId | null>(null);
 
   useEffect(() => {
@@ -203,7 +184,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels(merged.openPanels);
     setPanelPositions(merged.panelPositions);
     setLayers(merged.layers);
-    setCountryStatsState(merged.countryStatsVisible);
     setBasemapIdState(merged.basemapId);
     setSyncState(merged.syncBasemapToUiTheme);
     setHydrated(true);
@@ -215,7 +195,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
     };
@@ -229,11 +208,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     openPanels,
     panelPositions,
     layers,
-    countryStatsVisible,
     basemapId,
     syncBasemapToUiTheme,
   ]);
 
+  // Theme → basemap sync disabled (Dark-only catalog).
   useEffect(() => {
     if (!hydrated || !syncBasemapToUiTheme) return;
     setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
@@ -241,17 +220,23 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
 
   const setPanelOpen = useCallback((id: PanelId, open: boolean) => {
     setOpenPanels((prev) => ({ ...prev, [id]: open }));
-    if (open) setFocusedPanelId(id);
-    if (!open && id === "case-detail") {
-      setSelectedCaseId(null);
+    if (open) {
+      setFocusedPanelId(id);
+      if (id === "country-stats") setSelectedCountryIso(null);
     }
+    if (!open && id === "case-detail") setSelectedCaseId(null);
+    if (!open && id === "country-stats") setSelectedCountryIso(null);
   }, []);
 
   const togglePanel = useCallback((id: PanelId) => {
     setOpenPanels((prev) => {
       const next = !prev[id];
-      if (next) setFocusedPanelId(id);
+      if (next) {
+        setFocusedPanelId(id);
+        if (id === "country-stats") setSelectedCountryIso(null);
+      }
       if (!next && id === "case-detail") setSelectedCaseId(null);
+      if (!next && id === "country-stats") setSelectedCountryIso(null);
       return { ...prev, [id]: next };
     });
   }, []);
@@ -267,27 +252,20 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setCountryStatsVisible = useCallback(
-    (iso: TrackedCountryIso, visible: boolean) => {
-      setCountryStatsState((prev) => ({ ...prev, [iso]: visible }));
-    },
-    [],
-  );
-
   const setBasemapId = useCallback((id: BasemapId) => {
-    // Manual pick opts out of theme sync so the radio selection sticks.
+    // Dark-only: ignore Light (and any other non-selectable id).
+    const next = resolveBasemapId(id);
     setSyncState(false);
-    setBasemapIdState(id);
+    setBasemapIdState(next);
   }, []);
 
   const setSyncBasemapToUiTheme = useCallback(
-    (sync: boolean) => {
-      setSyncState(sync);
-      if (sync) {
-        setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
-      }
+    (_sync: boolean) => {
+      // Dark-only: keep sync off so Light cannot be selected via theme.
+      setSyncState(false);
+      setBasemapIdState(DEFAULT_BASEMAP_ID);
     },
-    [resolvedTheme],
+    [],
   );
 
   const openCaseDetail = useCallback((caseId: string) => {
@@ -301,6 +279,12 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels((prev) => ({ ...prev, "case-detail": false }));
   }, []);
 
+  const openCountryStats = useCallback((iso?: TrackedCountryIso) => {
+    setSelectedCountryIso(iso ?? null);
+    setOpenPanels((prev) => ({ ...prev, "country-stats": true }));
+    setFocusedPanelId("country-stats");
+  }, []);
+
   const focusPanel = useCallback((id: PanelId) => {
     setFocusedPanelId(id);
   }, []);
@@ -310,20 +294,20 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
+      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
       setLayerVisible,
-      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
       closeCaseDetail,
+      openCountryStats,
       focusPanel,
       basemapOptions: BASEMAPS,
     }),
@@ -331,20 +315,20 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openPanels,
       panelPositions,
       layers,
-      countryStatsVisible,
       basemapId,
       syncBasemapToUiTheme,
       selectedCaseId,
+      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
       setLayerVisible,
-      setCountryStatsVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       openCaseDetail,
       closeCaseDetail,
+      openCountryStats,
       focusPanel,
     ],
   );

@@ -2,11 +2,13 @@
   "name": "@bdbv/web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "packageManager": "npm@10.9.9",
   "dependencies": {
     "@navaramap/three": "^0.2.1",
     "@navaramap/three-default-descs": "^0.2.1",
     "@navaramap/three-default-plugin": "^0.2.1",
+    "@navaramap/three-plugins": "^0.2.1",
     "@tanstack/react-table": "^9.3.1",
     "@vinext/cloudflare": "^1.2.0",
     "class-variance-authority": "^0.7.1",

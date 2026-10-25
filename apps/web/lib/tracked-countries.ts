@@ -1,7 +1,7 @@
 /**
- * Tracked outbreak countries for map panels / boundaries.
- * Add an entry here to extend country stats + boundary coverage.
- * `color` is a flag-derived accent used by country stat cards (and map boundaries).
+ * Tracked outbreak countries for country-stats panel (and case/aggregate ISO).
+ * DRC admin outlines come from COD-AB (`cd-admin-layer`), not this list.
+ * `color` is a flag-derived accent used by stats cards.
  */
 export const TRACKED_COUNTRIES = [
   // Sky blue from the national flag
@@ -18,15 +18,4 @@ export type TrackedCountryIso = (typeof TRACKED_COUNTRIES)[number]["iso"];
 
 export function isTrackedCountryIso(value: string): value is TrackedCountryIso {
   return TRACKED_COUNTRIES.some((c) => c.iso === value);
-}
-
-export function defaultCountryStatsVisibility(): Record<
-  TrackedCountryIso,
-  boolean
-> {
-  const out = {} as Record<TrackedCountryIso, boolean>;
-  for (const c of TRACKED_COUNTRIES) {
-    out[c.iso] = true;
-  }
-  return out;
 }

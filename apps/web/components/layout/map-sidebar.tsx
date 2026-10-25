@@ -11,16 +11,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
-import { SidebarMenuSubItem } from "@/components/ui/sidebar";
+import {
+  SidebarMenuButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
 import { AppSidebar, NavSection } from "./app-sidebar";
 import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
-import type { BasemapId } from "../map/basemap-style";
+import { isBasemapSelectable, type BasemapId } from "../map/basemap-style";
 
 const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "boundaries", label: "Country boundary" },
+  { key: "boundaries", label: "DRC boundaries" },
   { key: "countryNames", label: "Country name" },
   { key: "cities", label: "Cities" },
 ];
@@ -61,14 +63,12 @@ export function MapSidebar() {
   const {
     openPanels,
     setPanelOpen,
+    openCountryStats,
+    selectedCountryIso,
     layers,
     setLayerVisible,
-    countryStatsVisible,
-    setCountryStatsVisible,
     basemapId,
     setBasemapId,
-    syncBasemapToUiTheme,
-    setSyncBasemapToUiTheme,
     basemapOptions,
   } = useMapUi();
 
@@ -85,20 +85,33 @@ export function MapSidebar() {
     >
       <NavSection icon={<LayoutDashboardIcon />} label="Data panels" defaultOpen>
         <SidebarMenuSubItem>
-          <div className="px-2 pt-1 pb-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            Country statistics
-          </div>
+          <ToggleRow
+            id="panel-country-stats"
+            label="Country statistics"
+            checked={openPanels["country-stats"]}
+            onCheckedChange={(checked) => {
+              if (checked) openCountryStats();
+              else setPanelOpen("country-stats", false);
+            }}
+          />
         </SidebarMenuSubItem>
         {TRACKED_COUNTRIES.map((country) => (
           <SidebarMenuSubItem key={country.iso}>
-            <ToggleRow
-              id={`country-stats-${country.iso}`}
-              label={country.shortName}
-              checked={countryStatsVisible[country.iso]}
-              onCheckedChange={(checked) =>
-                setCountryStatsVisible(country.iso, checked)
+            <SidebarMenuButton
+              size="sm"
+              isActive={
+                openPanels["country-stats"] &&
+                selectedCountryIso === country.iso
               }
-            />
+              onClick={() => openCountryStats(country.iso)}
+            >
+              <span
+                className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
+                style={{ backgroundColor: country.color }}
+                aria-hidden
+              />
+              <span>{country.shortName}</span>
+            </SidebarMenuButton>
           </SidebarMenuSubItem>
         ))}
         <SidebarMenuSubItem>
@@ -147,27 +160,30 @@ export function MapSidebar() {
               onValueChange={(value) => setBasemapId(value as BasemapId)}
               className="gap-2"
             >
-              {(Object.keys(basemapOptions) as BasemapId[]).map((id) => (
-                <div key={id} className="flex items-center gap-2">
-                  <RadioGroupItem value={id} id={`basemap-${id}`} />
-                  <Label
-                    htmlFor={`basemap-${id}`}
-                    className="text-sm font-normal"
-                  >
-                    {basemapOptions[id].label}
-                  </Label>
-                </div>
-              ))}
+              {(Object.keys(basemapOptions) as BasemapId[]).map((id) => {
+                const selectable = isBasemapSelectable(id);
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value={id}
+                      id={`basemap-${id}`}
+                      disabled={!selectable}
+                    />
+                    <Label
+                      htmlFor={`basemap-${id}`}
+                      className={
+                        selectable
+                          ? "text-sm font-normal"
+                          : "text-sm font-normal text-muted-foreground"
+                      }
+                    >
+                      {basemapOptions[id].label}
+                      {!selectable ? " (unavailable)" : null}
+                    </Label>
+                  </div>
+                );
+              })}
             </RadioGroup>
-            <Separator />
-            <ToggleRow
-              id="sync-basemap"
-              label="Disable automatic map theme change"
-              checked={!syncBasemapToUiTheme}
-              onCheckedChange={(disabled) =>
-                setSyncBasemapToUiTheme(!disabled)
-              }
-            />
           </div>
         </SidebarMenuSubItem>
       </NavSection>
