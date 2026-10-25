@@ -43,6 +43,10 @@ function colorForIso(iso: unknown): Color {
 /**
  * Static boundary GeoJSON — create once (not time-varying).
  * World outlines + tracked-country fills/strokes.
+ *
+ * Polylines use clampToGround:false — draped lines vanish at Africa /
+ * globe-scale camera heights in Navara; non-draped lines need ambient light
+ * (added in OutbreakMap).
  */
 export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
   const worldSource = view.addSource({
@@ -54,11 +58,11 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     source: worldSource,
     polyline: {
       geometryTypes: ["line", "polygon"],
-      color: new Color().setStyle("#94a3b8"),
-      width: 0.8,
+      color: new Color().setStyle("#e2e8f0"),
+      width: 0.9,
       maxWidth: 100_000,
-      opacity: 0.75,
-      clampToGround: true,
+      opacity: 0.85,
+      clampToGround: false,
     },
   });
 
@@ -71,7 +75,7 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     source: trackedSource,
     polygon: {
       color: new Color().setStyle("#64748b"),
-      opacity: 0.1,
+      opacity: 0.12,
       clampToGround: true,
     },
   });
@@ -90,11 +94,11 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     source: trackedSource,
     polyline: {
       geometryTypes: ["line", "polygon"],
-      color: new Color().setStyle("#64748b"),
-      width: 1.5,
+      color: new Color().setStyle("#f8fafc"),
+      width: 1.75,
       maxWidth: 100_000,
-      opacity: 0.9,
-      clampToGround: true,
+      opacity: 0.95,
+      clampToGround: false,
     },
   });
   outline.on("featureUpdated", ({ evaluator }) => {

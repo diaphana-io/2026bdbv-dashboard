@@ -41,12 +41,17 @@ type ViewCamera = {
   roll: number;
 };
 
+/**
+ * Full-Africa framing, nadir-ish so the globe sits centered in the viewport
+ * (pitch -45 left most of the globe below the fold).
+ * Center ~Central Africa; height frames the continent with ocean margin.
+ */
 const DEFAULT_CAMERA: ViewCamera = {
   lng: 20,
-  lat: 3,
-  height: 8_000_000,
+  lat: 5,
+  height: 6_800_000,
   heading: 0,
-  pitch: -45,
+  pitch: -88,
   roll: 0,
 };
 
@@ -55,7 +60,6 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const viewRef = useRef<import("@navaramap/three").default | null>(null);
   const layersRef = useRef<LayerBundle | null>(null);
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
-  const appliedBasemapRef = useRef<BasemapId | null>(null);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
   const visibilityRef = useRef({
@@ -142,6 +146,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       }
       view.dispose();
     }
+    const container = containerRef.current;
+    if (container) {
+      container.replaceChildren();
+    }
   }
 
   async function bootView(bootId: BasemapId, generation: number) {
@@ -180,12 +188,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     view.addPlugin(defaultPlugin);
 
     if (entry.kind === "maplibre-style") {
-      // forceMapLibreFov exists at runtime in Navara examples; not in 0.2.1 types.
-      view.addPlugin(
-        new MapLibreStylePlugin(entry.styleUrl, {
-          forceMapLibreFov: true,
-        } as ConstructorParameters<typeof MapLibreStylePlugin>[1]),
-      );
+      view.addPlugin(new MapLibreStylePlugin(entry.styleUrl));
     }
 
     await view.init();
@@ -214,7 +217,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       ]);
     }
 
-    // Non-draped travel tubes need at least ambient light.
+    // Non-draped boundary lines + travel tubes need ambient light.
     view.addLight({ ambient: { intensity: 1 } });
 
     const cam = cameraRef.current;
@@ -262,26 +265,28 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     applyLayerVisibility(bundle);
     removeClickRef.current = wireCaseClick(view);
 
-    appliedBasemapRef.current = bootId;
     setLoading(null);
     setMapReady(true);
   }
 
+  // Single boot path keyed on basemapId — avoids the mapReady/swap race that
+  // cancelled recreates when bootView flipped mapReady mid-swap.
   useEffect(() => {
     let cancelled = false;
     const generation = ++bootGenerationRef.current;
-    const bootId = basemapId;
-    appliedBasemapRef.current = bootId;
 
     async function run() {
       try {
-        await bootView(bootId, generation);
+        await destroyView();
+        if (cancelled || generation !== bootGenerationRef.current) return;
+        await bootView(basemapId, generation);
       } catch (err) {
         if (!cancelled && generation === bootGenerationRef.current) {
           setMapError(
             err instanceof Error ? err.message : "Failed to initialize map",
           );
           setLoading(null);
+          setMapReady(false);
         }
       }
     }
@@ -293,38 +298,9 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       bootGenerationRef.current += 1;
       void destroyView();
       setMapReady(false);
-      appliedBasemapRef.current = null;
     };
-    // Boot once; basemap swaps handled below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
-  }, []);
-
-  useEffect(() => {
-    if (!mapReady) return;
-    if (appliedBasemapRef.current === basemapId) return;
-
-    let cancelled = false;
-    const generation = ++bootGenerationRef.current;
-    appliedBasemapRef.current = basemapId;
-
-    async function swap() {
-      try {
-        await destroyView();
-        if (cancelled) return;
-        await bootView(basemapId, generation);
-      } catch (err) {
-        if (!cancelled) {
-          console.warn("[OutbreakMap] basemap swap failed", err);
-        }
-      }
-    }
-
-    void swap();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- basemapId drives swap
-  }, [basemapId, mapReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- basemapId drives full recreate
+  }, [basemapId]);
 
   useEffect(() => {
     const bundle = layersRef.current;
