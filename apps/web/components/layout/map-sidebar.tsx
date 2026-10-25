@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
+import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "./mode-toggle";
 import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
@@ -313,12 +314,12 @@ export function MapSidebar() {
               aria-label="Neo4j"
             >
               <img
-                src="/logos/neo4j.svg"
+                src={withBasePath("/logos/neo4j.svg")}
                 alt="Neo4j"
                 className="h-4 w-auto dark:hidden"
               />
               <img
-                src="/logos/neo4j-white.svg"
+                src={withBasePath("/logos/neo4j-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"
@@ -332,12 +333,12 @@ export function MapSidebar() {
               aria-label="Navara"
             >
               <img
-                src="/logos/navara.svg"
+                src={withBasePath("/logos/navara.svg")}
                 alt="Navara"
                 className="h-4 w-auto dark:hidden"
               />
               <img
-                src="/logos/navara-white.svg"
+                src={withBasePath("/logos/navara-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"
