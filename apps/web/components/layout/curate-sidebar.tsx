@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ActivityIcon,
   AlertTriangleIcon,
+  BookOpenIcon,
   ExternalLinkIcon,
   FilePenLineIcon,
   InboxIcon,
@@ -45,9 +46,15 @@ const PIPELINE: {
     icon: AlertTriangleIcon,
   },
   {
+    href: "/curate/catalog",
+    label: "Catalog",
+    step: 6,
+    icon: BookOpenIcon,
+  },
+  {
     href: "/curate/status",
     label: "Status",
-    step: 6,
+    step: 7,
     icon: ActivityIcon,
   },
 ];

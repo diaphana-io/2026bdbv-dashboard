@@ -1,14 +1,33 @@
+import Link from "next/link";
 import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { ClaimReviewForm } from "../../../components/curate/claim-review-form";
+import { getSourceCatalogDetail } from "../../../lib/data";
 
 export default async function CurateReviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ url?: string }>;
+  searchParams: Promise<{ url?: string; claim?: string }>;
 }) {
   const sp = await searchParams;
   const url = sp.url ?? "";
+  const claimId = sp.claim ?? "";
+
+  const detail = url ? await getSourceCatalogDetail(url) : null;
+  const audits =
+    detail?.claims
+      .flatMap((c) =>
+        c.audits.map((a) => ({
+          ...a,
+          claim_type: c.claim_type,
+          subject_ref: c.subject_ref,
+        })),
+      )
+      .sort((a, b) => b.at.localeCompare(a.at)) ?? [];
+  const catalogHref = url
+    ? `/curate/catalog?source=${encodeURIComponent(url)}`
+    : "/curate/catalog";
 
   return (
     <main className="flex flex-col gap-4">
@@ -25,8 +44,16 @@ export default async function CurateReviewPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="text-sm font-semibold">Source</CardHeader>
-          <CardContent className="text-sm break-all text-zinc-700 dark:text-zinc-300">
-            {url || "No source URL — open a candidate from Inbox, or paste a URL below."}
+          <CardContent className="space-y-2 text-sm break-all text-zinc-700 dark:text-zinc-300">
+            <p>
+              {url ||
+                "No source URL — open a candidate from Inbox, or paste a URL below."}
+            </p>
+            {claimId && (
+              <p className="text-xs text-muted-foreground">
+                Focus claim: <code>{claimId}</code>
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -38,26 +65,48 @@ export default async function CurateReviewPage({
       </div>
 
       <Card>
-        <CardHeader className="flex items-center justify-between gap-2">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-semibold">History</span>
-          <Badge variant="outline">stub</Badge>
+          <div className="flex items-center gap-2">
+            {audits.length > 0 ? (
+              <Badge variant="secondary">{audits.length} events</Badge>
+            ) : (
+              <Badge variant="outline">empty</Badge>
+            )}
+            <Button variant="outline" size="xs" asChild>
+              <Link href={catalogHref}>Open in Catalog</Link>
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            Claim lineage, version timeline, and{" "}
-            <code className="text-xs">CurateAuditEvent</code> trail will render here
-            (backed by <code className="text-xs">reviseClaim</code> /{" "}
-            <code className="text-xs">rollbackClaim</code> /{" "}
-            <code className="text-xs">appendAudit</code>).
-          </p>
-          <p>
-            Append-only: approved heads are never overwritten; revisions and rollbacks
-            create new pending versions. Full version browser is a follow-up.
-          </p>
-          <ul className="list-inside list-disc text-xs">
-            <li>Approvals: 1 of 1 (policy) — multi-approver later</li>
-            <li>reviewed_by / reviewed_at shown when a claim is loaded</li>
-          </ul>
+        <CardContent className="space-y-2 text-sm">
+          {audits.length === 0 ? (
+            <p className="text-muted-foreground">
+              No audit events for this source yet. Approve or reject a claim, or
+              open Catalog to browse lineages and roll back Map heads.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {audits.slice(0, 6).map((a) => (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-2 last:border-0"
+                >
+                  <div>
+                    <Badge variant="outline">{a.action}</Badge>{" "}
+                    <span className="text-muted-foreground">
+                      {a.claim_type} · {a.subject_ref}
+                    </span>
+                    {a.reason && (
+                      <span className="ml-2 text-xs">— {a.reason}</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {a.at.slice(0, 19)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </main>

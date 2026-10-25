@@ -4,17 +4,23 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { ConflictsPreviewTable } from "../../../components/curate/conflicts-preview-table";
 import { InboxTable } from "../../../components/curate/inbox-table";
 import { PipelineTable } from "../../../components/curate/pipeline-table";
-import { getClaims, getConflictViews, getInboxCandidates } from "../../../lib/data";
+import {
+  getCatalogSources,
+  getClaims,
+  getConflictViews,
+  getInboxCandidates,
+} from "../../../lib/data";
 
 /**
  * Overview command center. Graph reads via lib/data (cache → Bolt timeout → JSON).
  * Do not call Neo4j directly — hung Aura must not block first HTML (MATT-314).
  */
 export default async function CurateOverviewPage() {
-  const [inbox, conflicts, claims] = await Promise.all([
+  const [inbox, conflicts, claims, catalog] = await Promise.all([
     getInboxCandidates(),
     getConflictViews(),
     getClaims(),
+    getCatalogSources(),
   ]);
   const extractEnabled = process.env.EXTRACT_ENABLED === "true";
   const pendingReview = claims.filter((c) => c.review_status === "pending_review");
@@ -47,6 +53,12 @@ export default async function CurateOverviewPage() {
       href: "/curate/conflicts",
       count: openConflicts.length,
       note: "Both claims visible until resolve",
+    },
+    {
+      stage: "Catalog",
+      href: "/curate/catalog",
+      count: catalog.length,
+      note: "Sources + claim rollback",
     },
   ];
 
