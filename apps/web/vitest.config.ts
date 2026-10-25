@@ -1,9 +1,7 @@
 import { defineConfig } from "vitest/config";
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
 
+// surv-engine uses `*.wasm?url` + WebAssembly.instantiate — no wasm/TLA plugins.
 export default defineConfig({
-  plugins: [wasm(), topLevelAwait()],
   test: {
     include: ["lib/**/*.test.ts"],
   },
