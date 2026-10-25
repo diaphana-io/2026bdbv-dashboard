@@ -5,33 +5,16 @@ import type {
   CaseDetailSource,
   CaseQueryOpts,
   CaseRow,
-  CatalogAuditSnippet,
-  CatalogClaimRow,
-  CatalogSourceDetail,
-  CatalogSourceRow,
-  ClaimRow,
-  ConflictView,
   ContactRow,
   CountryStatRow,
-  InboxRow,
-  IncidenceRow,
-  IncidenceSeriesOpts,
-  MapAggregate,
   MapCase,
   MapExposure,
-  MapSnapshot,
   MapTravel,
   MeasureRow,
   SourceRow,
 } from "./data-types";
-import {
-  composeMapSnapshot,
-  type AggregateAdminUnit,
-  type MapSnapshotGraph,
-} from "./map-snapshot";
+import type { AggregateAdminUnit, MapSnapshotGraph } from "./map-snapshot";
 import { withSession } from "./neo4j";
-
-const CATALOG_STATUSES = ["fetched", "extracted", "in_review", "done"] as const;
 
 function num(v: unknown): number | undefined {
   if (v == null) return undefined;
@@ -73,35 +56,6 @@ function caseFromNode(n: Node): CaseRow {
   };
 }
 
-function claimFromNode(n: Node): ClaimRow {
-  const p = props(n);
-  let object_value: Record<string, unknown> = {};
-  if (typeof p.object_value_json === "string") {
-    try {
-      object_value = JSON.parse(p.object_value_json) as Record<string, unknown>;
-    } catch {
-      object_value = {};
-    }
-  }
-  return {
-    id: String(p.id),
-    claim_type: String(p.claim_type),
-    claim_category: (p.claim_category as string | undefined) ?? undefined,
-    subject_ref: String(p.subject_ref),
-    object_value,
-    as_of_date: String(p.as_of_date),
-    confidence: String(p.confidence),
-    review_status: String(p.review_status),
-    source_id: String(p.source_id),
-    excerpt: (p.excerpt as string | undefined) ?? undefined,
-    lineage_id: p.lineage_id != null ? String(p.lineage_id) : undefined,
-    version: num(p.version),
-    is_head: p.is_head != null ? Boolean(p.is_head) : undefined,
-    extractor: p.extractor != null ? String(p.extractor) : undefined,
-    reviewed_at: (p.reviewed_at as string | null | undefined) ?? undefined,
-  };
-}
-
 function sourceFromNode(n: Node): SourceRow {
   const p = props(n);
   return {
@@ -115,20 +69,6 @@ function sourceFromNode(n: Node): SourceRow {
     normalized_url: p.normalized_url != null ? String(p.normalized_url) : undefined,
     evidence_class: p.evidence_class != null ? String(p.evidence_class) : undefined,
     discovered_at: (p.discovered_at as string | null | undefined) ?? undefined,
-  };
-}
-
-function auditFromProps(p: Record<string, unknown>): CatalogAuditSnippet {
-  return {
-    id: String(p.id),
-    at: String(p.at),
-    actor: String(p.actor),
-    action: String(p.action),
-    lineage_id: p.lineage_id != null ? String(p.lineage_id) : null,
-    claim_id: p.claim_id != null ? String(p.claim_id) : null,
-    from_version: num(p.from_version) ?? null,
-    to_version: num(p.to_version) ?? null,
-    reason: p.reason != null ? String(p.reason) : null,
   };
 }
 
@@ -163,122 +103,6 @@ export async function getCasesNeo4j(opts?: CaseQueryOpts): Promise<CaseRow[]> {
       rows = rows.filter((c) => c.inclusion_reason !== "temporal_suspect");
     }
     return rows;
-  });
-}
-
-export async function getSourcesNeo4j(): Promise<SourceRow[]> {
-  return withSession(async (session) => {
-    const all = await session.run(
-      `MATCH (s:SourceDocument) RETURN s ORDER BY coalesce(s.published_at, s.discovered_at)`,
-    );
-    return all.records
-      .map((r) => sourceFromNode(r.get("s")))
-      .filter((s) => s.curation_status !== "candidate");
-  });
-}
-
-export async function getClaimsNeo4j(): Promise<ClaimRow[]> {
-  return withSession(async (session) => {
-    const res = await session.run(`MATCH (c:Claim) RETURN c`);
-    return res.records.map((r) => claimFromNode(r.get("c")));
-  });
-}
-
-function incidenceFromClaim(claim: ClaimRow): IncidenceRow | null {
-  const ov = claim.object_value;
-  const period_start = ov.period_start;
-  const period_end = ov.period_end;
-  const grain = ov.grain;
-  const metric_basis = ov.metric_basis;
-  const new_confirmed = ov.new_confirmed;
-  if (
-    typeof period_start !== "string" ||
-    typeof period_end !== "string" ||
-    typeof grain !== "string" ||
-    typeof metric_basis !== "string" ||
-    typeof new_confirmed !== "number"
-  ) {
-    return null;
-  }
-  const row: IncidenceRow = {
-    id: claim.id,
-    subject_ref: claim.subject_ref,
-    as_of_date: claim.as_of_date,
-    period_start,
-    period_end,
-    grain,
-    new_confirmed,
-    metric_basis,
-    confidence: claim.confidence,
-    source_id: claim.source_id,
-  };
-  if (typeof ov.new_deaths === "number") {
-    row.new_deaths = ov.new_deaths;
-  }
-  return row;
-}
-
-export async function getIncidenceSeriesNeo4j(
-  opts?: IncidenceSeriesOpts,
-): Promise<IncidenceRow[]> {
-  const metricBasis = opts?.metricBasis ?? "reporting_date";
-  return withSession(async (session) => {
-    const res = await session.run(
-      `
-      MATCH (cl:Claim)
-      WHERE cl.claim_type = 'incidence'
-        AND cl.review_status = 'approved'
-        AND ($country IS NULL OR cl.subject_ref = $country)
-        AND ($asOf IS NULL OR cl.as_of_date <= $asOf)
-      RETURN cl
-      `,
-      {
-        country: opts?.country && opts.country !== "ALL" ? opts.country : null,
-        asOf: opts?.asOf ?? null,
-      },
-    );
-    return res.records
-      .map((r) => incidenceFromClaim(claimFromNode(r.get("cl"))))
-      .filter((row): row is IncidenceRow => row != null)
-      .filter((row) => row.metric_basis === metricBasis)
-      .sort((a, b) => a.period_start.localeCompare(b.period_start));
-  });
-}
-
-export async function getConflictViewsNeo4j(): Promise<ConflictView[]> {
-  return withSession(async (session) => {
-    const res = await session.run(
-      `
-      MATCH (cf:ClaimConflict {status: 'open'})-[:SIDE_A]->(a:Claim),
-            (cf)-[:SIDE_B]->(b:Claim)
-      OPTIONAL MATCH (a)-[:FROM]->(sa:SourceDocument)
-      OPTIONAL MATCH (b)-[:FROM]->(sb:SourceDocument)
-      RETURN cf, a, b, sa, sb
-      ORDER BY cf.detected_at
-      `,
-    );
-    return res.records.map((r) => {
-      const cf = props(r.get("cf") as Node);
-      const claim_a = claimFromNode(r.get("a"));
-      const claim_b = claimFromNode(r.get("b"));
-      const sa = r.get("sa") as Node | null;
-      const sb = r.get("sb") as Node | null;
-      return {
-        conflict: {
-          id: String(cf.id),
-          claim_a_id: String(cf.claim_a_id ?? claim_a.id),
-          claim_b_id: String(cf.claim_b_id ?? claim_b.id),
-          subject_ref: String(cf.subject_ref),
-          claim_type: String(cf.claim_type),
-          status: String(cf.status),
-          detected_at: String(cf.detected_at),
-        },
-        claim_a,
-        claim_b,
-        source_a: sa ? sourceFromNode(sa) : undefined,
-        source_b: sb ? sourceFromNode(sb) : undefined,
-      };
-    });
   });
 }
 
@@ -352,41 +176,6 @@ export async function getMeasuresNeo4j(country?: string): Promise<MeasureRow[]> 
         applies_to_countries: (p.applies_to_countries as string[]) ?? [],
         poe: (p.poe as string | undefined) ?? undefined,
         confidence: String(p.confidence),
-      };
-    });
-  });
-}
-
-export async function getInboxCandidatesNeo4j(): Promise<InboxRow[]> {
-  return withSession(async (session) => {
-    const res = await session.run(
-      `
-      MATCH (s:SourceDocument {curation_status: 'candidate'})
-      RETURN s
-      ORDER BY s.discovered_at DESC
-      `,
-    );
-    return res.records.map((r) => {
-      const p = props(r.get("s") as Node);
-      const dup = p.duplicate_level;
-      return {
-        id: String(p.id),
-        url: String(p.url),
-        title: (p.title as string | undefined) ?? undefined,
-        publisher: (p.publisher as string | undefined) ?? undefined,
-        kind: String(p.kind),
-        evidence_class: (p.evidence_class as string | undefined) ?? "other",
-        duplicate_level:
-          dup === "exact_url" ||
-          dup === "content_hash" ||
-          dup === "possible" ||
-          dup === "none"
-            ? dup
-            : "none",
-        duplicate_of_source_id:
-          (p.duplicate_of_source_id as string | undefined) ?? null,
-        curation_status: String(p.curation_status),
-        discovered_at: (p.discovered_at as string | undefined) ?? undefined,
       };
     });
   });
@@ -472,7 +261,7 @@ export async function getAggregateAdminUnitsNeo4j(): Promise<
 }
 
 /**
- * Case / Travel / Exposure map layers — no Claim MATCH (Phase 4 happy path).
+ * Case / Travel / Exposure map layers — no Claim MATCH (Phase 5).
  */
 export async function getMapSnapshotGraphNeo4j(
   asOf: string,
@@ -570,55 +359,6 @@ export async function getMapSnapshotGraphNeo4j(
 
     return { cases: mapCases, travels, exposures };
   });
-}
-
-/**
- * Fallback-only: Neo4j Claim case_count aggregates joined to AdminUnit.
- * Happy path uses D1 claims + getAggregateAdminUnitsNeo4j instead.
- */
-export async function getMapAggregatesFromClaimsNeo4j(
-  asOf: string,
-): Promise<MapAggregate[]> {
-  return withSession(async (session) => {
-    const aggRes = await session.run(
-      `
-      MATCH (a:AdminUnit {tracking_mode: 'aggregate'})
-      OPTIONAL MATCH (cl:Claim)
-      WHERE cl.claim_type = 'case_count'
-        AND cl.subject_ref = a.iso
-        AND cl.review_status = 'approved'
-        AND cl.as_of_date <= $asOf
-      WITH a, cl
-      ORDER BY cl.as_of_date DESC
-      WITH a, collect(cl)[0] AS latest
-      WHERE latest IS NOT NULL AND a.lat IS NOT NULL AND a.lon IS NOT NULL
-      RETURN a, latest
-      `,
-      { asOf },
-    );
-    return aggRes.records.map((r) => {
-      const a = props(r.get("a") as Node);
-      const claim = claimFromNode(r.get("latest") as Node);
-      return {
-        admin_iso: String(a.iso),
-        name: String(a.name),
-        lat: num(a.lat)!,
-        lon: num(a.lon)!,
-        confirmed: Number(claim.object_value.confirmed ?? 0),
-        deaths: Number(claim.object_value.deaths ?? 0),
-        as_of_date: claim.as_of_date,
-      };
-    });
-  });
-}
-
-/** Neo4j fallback snapshot (Claim MATCH isolated in getMapAggregatesFromClaimsNeo4j). */
-export async function getMapSnapshotNeo4j(asOf: string): Promise<MapSnapshot> {
-  const [aggregates, graph] = await Promise.all([
-    getMapAggregatesFromClaimsNeo4j(asOf),
-    getMapSnapshotGraphNeo4j(asOf),
-  ]);
-  return composeMapSnapshot(asOf, aggregates, graph);
 }
 
 export async function getCaseDetailNeo4j(
@@ -734,6 +474,7 @@ export async function getCaseDetailNeo4j(
 
     events.sort((a, b) => a.at.localeCompare(b.at));
 
+    // SourceDocument remains on Neo4j for Case SOURCED_FROM (Claim FROM edges are D1-only).
     const srcRes = await session.run(
       `
       MATCH (c:Case {id: $caseId})
@@ -793,148 +534,4 @@ export async function getCountryStatsNeo4j(
   _asOf?: string,
 ): Promise<CountryStatRow[]> {
   return [];
-}
-
-export async function getCatalogSourcesNeo4j(opts?: {
-  includeDismissed?: boolean;
-}): Promise<CatalogSourceRow[]> {
-  return withSession(async (session) => {
-    const statuses = opts?.includeDismissed
-      ? [...CATALOG_STATUSES, "dismissed"]
-      : [...CATALOG_STATUSES];
-    const res = await session.run(
-      `
-      MATCH (s:SourceDocument)
-      WHERE s.curation_status IN $statuses
-      OPTIONAL MATCH (c:Claim)-[:FROM]->(s)
-      WITH s,
-           collect(c) AS claims,
-           max(c.reviewed_at) AS latest_reviewed_at
-      RETURN s, claims, latest_reviewed_at
-      ORDER BY coalesce(latest_reviewed_at, s.published_at, s.discovered_at) DESC
-      `,
-      { statuses },
-    );
-    return res.records.map((r) => {
-      const s = sourceFromNode(r.get("s") as Node);
-      const claimNodes = (r.get("claims") as Node[]).filter(Boolean);
-      const claimRows = claimNodes.map(claimFromNode);
-      const extractors = [
-        ...new Set(
-          claimRows
-            .map((c) => c.extractor)
-            .filter((e): e is string => Boolean(e)),
-        ),
-      ];
-      const latest = r.get("latest_reviewed_at");
-      return {
-        id: s.id,
-        url: s.url,
-        normalized_url: s.normalized_url ?? s.url,
-        title: s.title ?? null,
-        publisher: s.publisher ?? null,
-        kind: s.kind,
-        evidence_class: s.evidence_class,
-        curation_status: s.curation_status,
-        published_at: s.published_at ?? null,
-        discovered_at: s.discovered_at ?? null,
-        claim_count: claimRows.length,
-        approved_count: claimRows.filter((c) => c.review_status === "approved")
-          .length,
-        pending_count: claimRows.filter(
-          (c) => c.review_status === "pending_review",
-        ).length,
-        latest_reviewed_at: typeof latest === "string" ? latest : null,
-        extractors,
-      };
-    });
-  });
-}
-
-export async function getSourceCatalogDetailNeo4j(
-  key: string,
-): Promise<CatalogSourceDetail | null> {
-  return withSession(async (session) => {
-    const srcRes = await session.run(
-      `
-      MATCH (s:SourceDocument)
-      WHERE s.id = $key OR s.normalized_url = $key OR s.url = $key
-      RETURN s
-      LIMIT 1
-      `,
-      { key },
-    );
-    if (srcRes.records.length === 0) return null;
-    const sNode = srcRes.records[0].get("s") as Node;
-    const s = sourceFromNode(sNode);
-
-    const claimRes = await session.run(
-      `
-      MATCH (c:Claim)-[:FROM]->(s:SourceDocument {id: $id})
-      OPTIONAL MATCH (a:CurateAuditEvent)
-      WHERE a.lineage_id = c.lineage_id OR a.claim_id = c.id
-      WITH c, a
-      ORDER BY a.at DESC
-      WITH c, collect(a)[0..5] AS audits
-      RETURN c, audits
-      ORDER BY c.lineage_id, c.version
-      `,
-      { id: s.id },
-    );
-
-    const claims: CatalogClaimRow[] = claimRes.records.map((r) => {
-      const row = claimFromNode(r.get("c") as Node);
-      const auditNodes = (r.get("audits") as Node[]).filter(Boolean);
-      const audits = auditNodes.map((n) => auditFromProps(props(n)));
-      return {
-        id: row.id,
-        lineage_id: row.lineage_id ?? row.id,
-        version: row.version ?? 1,
-        is_head: row.is_head ?? row.review_status === "approved",
-        claim_type: row.claim_type,
-        claim_category: row.claim_category,
-        subject_ref: row.subject_ref,
-        object_value: row.object_value,
-        as_of_date: row.as_of_date,
-        confidence: row.confidence,
-        extractor: row.extractor ?? "human",
-        review_status: row.review_status,
-        reviewed_at: row.reviewed_at ?? null,
-        excerpt: row.excerpt ?? null,
-        audits,
-      };
-    });
-
-    const extractors = [
-      ...new Set(claims.map((c) => c.extractor).filter(Boolean)),
-    ];
-    const latest_reviewed_at =
-      claims
-        .map((c) => c.reviewed_at)
-        .filter((x): x is string => Boolean(x))
-        .sort()
-        .at(-1) ?? null;
-
-    const source: CatalogSourceRow = {
-      id: s.id,
-      url: s.url,
-      normalized_url: s.normalized_url ?? s.url,
-      title: s.title ?? null,
-      publisher: s.publisher ?? null,
-      kind: s.kind,
-      evidence_class: s.evidence_class,
-      curation_status: s.curation_status,
-      published_at: s.published_at ?? null,
-      discovered_at: s.discovered_at ?? null,
-      claim_count: claims.length,
-      approved_count: claims.filter((c) => c.review_status === "approved")
-        .length,
-      pending_count: claims.filter((c) => c.review_status === "pending_review")
-        .length,
-      latest_reviewed_at,
-      extractors,
-    };
-
-    return { source, claims };
-  });
 }

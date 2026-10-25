@@ -22,7 +22,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 5. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet (R2 curated snapshots also complete the Curate read path in MATT-314).
 6. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place. After deploy, confirm Curate no longer intermittent-1101s (MATT-314 verify checkbox).
 7. **Cori/Rt + incidence API/UI** — estimate Rt from `getIncidenceSeries` (reporting-date caveats); thin API and UI. Tracker: [GitHub #15](https://github.com/diaphana-io/2026bdbv-dashboard/issues/15). Out of scope there: DRC linelist / SI from sitreps alone.
-8. **Claim curation SoT → D1** — Curate reads/writes + Map Claim aggregates/incidence on D1 (Phases 2–4). Remaining: Phase 5 Aura Claim label cleanup; optional R2 map dumps; country-stats. Policy: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19).
+8. **Claim curation SoT → D1** — Phases 0–5 code complete (D1 → JSON; no Neo4j Claim fallback). Remaining ops: manual Aura `DETACH DELETE` after prod D1 verified; optional R2 map dumps; country-stats. Policy: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19).
 
 ## Out of scope until Extract decision
 

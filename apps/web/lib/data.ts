@@ -40,19 +40,11 @@ import {
   getAggregateAdminUnitsNeo4j,
   getCaseDetailNeo4j,
   getCasesNeo4j,
-  getCatalogSourcesNeo4j,
-  getClaimsNeo4j,
-  getConflictViewsNeo4j,
   getContactsNeo4j,
   getCountryStatsNeo4j,
-  getInboxCandidatesNeo4j,
-  getIncidenceSeriesNeo4j,
   getMapSnapshotGraphNeo4j,
-  getMapSnapshotNeo4j,
   getMeasuresNeo4j,
   getOutbreakNeo4j,
-  getSourceCatalogDetailNeo4j,
-  getSourcesNeo4j,
   overviewKpisNeo4j,
 } from "./neo4j-queries";
 
@@ -133,13 +125,12 @@ async function fromNeo4jOrJson<T>(
 }
 
 /**
- * Curate Claim reads: D1 (non-empty sources) → Neo4j → bundled JSON.
- * `preferFixtureData` forces JSON only (skips D1 and Neo4j).
+ * Curate Claim + Map Claim reads: D1 (non-empty sources) → bundled JSON.
+ * No Neo4j Claim fallback (Phase 5). `preferFixtureData` forces JSON only.
  */
-async function fromD1OrNeo4jOrJson<T>(
+async function fromD1OrJson<T>(
   cacheKey: string,
   d1Fn: (db: D1Database) => Promise<T>,
-  neo4jFn: () => Promise<T>,
   jsonFn: () => T | Promise<T>,
 ): Promise<T> {
   if (await preferFixtureData()) {
@@ -167,19 +158,7 @@ async function fromD1OrNeo4jOrJson<T>(
     }
   }
 
-  if (!isNeo4jConfigured()) {
-    return jsonFn();
-  }
-
-  try {
-    const value = await neo4jFn();
-    cacheSet(cacheKey, value);
-    return value;
-  } catch (err) {
-    console.error("[data] neo4j query failed; falling back", err);
-    if (cached) return cached.value;
-    return jsonFn();
-  }
+  return jsonFn();
 }
 
 export async function getOutbreak() {
@@ -196,39 +175,27 @@ export async function getCases(opts?: CaseQueryOpts) {
 }
 
 export async function getSources() {
-  return fromD1OrNeo4jOrJson(
-    "sources",
-    getSourcesD1,
-    getSourcesNeo4j,
-    getSourcesJson,
-  );
+  return fromD1OrJson("sources", getSourcesD1, getSourcesJson);
 }
 
 export async function getClaims() {
-  return fromD1OrNeo4jOrJson(
-    "claims",
-    getClaimsD1,
-    getClaimsNeo4j,
-    getClaimsJson,
-  );
+  return fromD1OrJson("claims", getClaimsD1, getClaimsJson);
 }
 
 export async function getIncidenceSeries(opts?: IncidenceSeriesOpts) {
   const metric = opts?.metricBasis ?? "reporting_date";
   const key = `incidence:${opts?.country ?? ""}:${opts?.asOf ?? ""}:${metric}`;
-  return fromD1OrNeo4jOrJson(
+  return fromD1OrJson(
     key,
     (db) => getIncidenceSeriesD1(db, opts),
-    () => getIncidenceSeriesNeo4j(opts),
     () => getIncidenceSeriesJson(opts),
   );
 }
 
 export async function getConflictViews() {
-  return fromD1OrNeo4jOrJson(
+  return fromD1OrJson(
     "conflicts",
     getConflictViewsD1,
-    getConflictViewsNeo4j,
     getConflictViewsJson,
   );
 }
@@ -250,10 +217,9 @@ export async function getMeasures(country?: string) {
 }
 
 export async function getInboxCandidates() {
-  return fromD1OrNeo4jOrJson(
+  return fromD1OrJson(
     "inbox",
     getInboxCandidatesD1,
-    getInboxCandidatesNeo4j,
     getInboxCandidatesJson,
   );
 }
@@ -268,7 +234,7 @@ export async function overviewKpis(country?: string) {
 
 /**
  * Map snapshot: D1 case_count aggregates + Neo4j graph (no Claim MATCH).
- * Empty D1 / unbound → Neo4j Claim fallback → JSON (same miss pattern as Curate).
+ * Empty D1 / unbound → JSON aggregates + Neo4j graph (never Aura Claim).
  */
 export async function getMapSnapshot(asOf: string): Promise<MapSnapshot> {
   if (await preferFixtureData()) {
@@ -282,6 +248,8 @@ export async function getMapSnapshot(asOf: string): Promise<MapSnapshot> {
     return cached.value;
   }
 
+  let aggregates = getMapSnapshotJson(asOf).aggregates;
+
   const db = getDb();
   if (db) {
     try {
@@ -289,41 +257,45 @@ export async function getMapSnapshot(asOf: string): Promise<MapSnapshot> {
       if (n >= 1) {
         const claims = await getApprovedCaseCountClaimsD1(db, asOf);
         let units;
-        let graph;
         if (isNeo4jConfigured()) {
           try {
-            [units, graph] = await Promise.all([
-              getAggregateAdminUnitsNeo4j(),
-              getMapSnapshotGraphNeo4j(asOf),
-            ]);
+            units = await getAggregateAdminUnitsNeo4j();
           } catch (err) {
             console.error(
-              "[data] neo4j map graph failed; using JSON geo/graph with D1 claims",
+              "[data] neo4j AdminUnit failed; using JSON geo with D1 claims",
               err,
             );
             units = getAggregateAdminUnitsJson();
-            graph = getMapSnapshotGraphJson(asOf);
           }
         } else {
           units = getAggregateAdminUnitsJson();
-          graph = getMapSnapshotGraphJson(asOf);
         }
-        const aggregates = joinCaseCountClaimsToAdminUnits(claims, units);
-        const value = composeMapSnapshot(asOf, aggregates, graph);
-        cacheSet(cacheKey, value);
-        return value;
+        aggregates = joinCaseCountClaimsToAdminUnits(claims, units);
       }
     } catch (err) {
-      console.error("[data] d1 map aggregates failed; falling back", err);
+      console.error("[data] d1 map aggregates failed; using JSON aggregates", err);
       if (cached) return cached.value;
     }
   }
 
-  return fromNeo4jOrJson(
-    cacheKey,
-    () => getMapSnapshotNeo4j(asOf),
-    () => getMapSnapshotJson(asOf),
-  );
+  let graph;
+  if (isNeo4jConfigured()) {
+    try {
+      graph = await getMapSnapshotGraphNeo4j(asOf);
+    } catch (err) {
+      console.error(
+        "[data] neo4j map graph failed; using JSON graph",
+        err,
+      );
+      graph = getMapSnapshotGraphJson(asOf);
+    }
+  } else {
+    graph = getMapSnapshotGraphJson(asOf);
+  }
+
+  const value = composeMapSnapshot(asOf, aggregates, graph);
+  cacheSet(cacheKey, value);
+  return value;
 }
 
 export async function getCaseDetail(caseId: string) {
@@ -345,19 +317,17 @@ export async function getCountryStats(asOf?: string) {
 
 export async function getCatalogSources(opts?: { includeDismissed?: boolean }) {
   const key = `catalogSources:${opts?.includeDismissed ? "all" : "active"}`;
-  return fromD1OrNeo4jOrJson(
+  return fromD1OrJson(
     key,
     (db) => getCatalogSourcesD1(db, opts),
-    () => getCatalogSourcesNeo4j(opts),
     () => getCatalogSourcesJson(opts),
   );
 }
 
 export async function getSourceCatalogDetail(key: string) {
-  return fromD1OrNeo4jOrJson(
+  return fromD1OrJson(
     `catalogDetail:${key}`,
     (db) => getSourceCatalogDetailD1(db, key),
-    () => getSourceCatalogDetailNeo4j(key),
     () => getSourceCatalogDetailJson(key),
   );
 }

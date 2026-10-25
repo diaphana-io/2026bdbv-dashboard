@@ -1,6 +1,6 @@
 /**
  * D1 writers for Claim Curate tabular SoT (Phase 3).
- * Mirrors neo4j-curate persist shapes; uses D1 batch() for multi-statement writes.
+ * Curate Claim tabular writers (Phase 3+); uses D1 batch() for multi-statement writes.
  */
 import type { ResolveStatus } from "./curate-api";
 

@@ -38,20 +38,20 @@ Commands (contract + stubs in this issue):
 
 Extends [Curate graph serving](./curate-graph-serving.md) (MATT-314): snapshot-first reads, mutation-only Bolt writes. **Workers must not hold responses hostage to Bolt.**
 
-> **Supersede (Claim SoT):** Curate tabular SoT for `SourceDocument` / `Claim` / `ClaimConflict` / `CurateAuditEvent` moves from Neo4j to **Cloudflare D1**. Extract persist for claims becomes **D1 INSERT** (not Neo4j MERGE) once that migration lands. Policy and phases: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19). The table below is the **pre-migration** Extract-era split; treat Claim/Source/Conflict/Audit rows as targeting D1 going forward. Neo4j remains SoT for the Case graph.
+> **Claim SoT (post #19 Phase 5):** Curate tabular SoT for curated `SourceDocument` / `Claim` / `ClaimConflict` / `CurateAuditEvent` is **Cloudflare D1** (reads D1 → JSON; writes D1-only). Extract persist for claims is **D1 INSERT** (not Neo4j MERGE). Neo4j remains SoT for the Case graph; keep minimal `SourceDocument` nodes for Case `SOURCED_FROM`. Policy: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19).
 
 | Store | Source of truth | Not for |
 |-------|-----------------|---------|
-| **Neo4j** | Graph: `SourceDocument`, `Claim`, `ClaimConflict`, `CurateAuditEvent`, relationships. Sole persist for Curate mutations _(pre-migration; Claims → D1 per #19)_ | Raw HTML/PDF, job queues, first SSR read |
-| **R2** | Blobs + read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** | Approval SoT (always Neo4j pre-migration / D1 post-#19; snapshots are derived) |
-| **D1** | Ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs`, optional audit copies; **post-#19 also Claim/Source/Conflict/Audit SoT** | Source bodies _(Claim/conflict graph superseded by #19)_ |
+| **Neo4j** | Case graph (`Person`, `Case`, Travel, Exposure, …) + `SourceDocument` for Case citation | Claim / ClaimConflict / CurateAuditEvent; Claim `FROM` edges |
+| **R2** | Blobs + derived read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** when wired | Approval SoT (D1 for Claims; snapshots are derived) |
+| **D1** | Claim Curate SoT + ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs` | Source bodies / Case graph |
 
 Rules:
 
-1. SSR / Overview / Inbox: R2 read-model (future) → isolate TTL → Bolt (hard timeout) → bundled JSON. D1 may feed job badges only.
-2. Curate mutation → Neo4j only; then invalidate cache; later async R2 snapshot refresh.
-3. Discover / classify / extract jobs → D1 row + R2 body; Rust decides on params; MERGE results into Neo4j.
-4. Duplicate inputs: normalized URL / content_hash lists from Neo4j (or R2 snapshot) as params — no URL master in D1.
+1. SSR Curate Claim reads: D1 → bundled JSON (no Neo4j Claim). Case graph: R2 read-model (future) → isolate TTL → Bolt (hard timeout) → JSON.
+2. Curate Claim mutation → D1 only; invalidate cache; later async R2 snapshot refresh.
+3. Discover / classify / extract jobs → D1 row + R2 body; Rust decides on params; **INSERT claims into D1**; Case graph MERGE stays Neo4j.
+4. Duplicate inputs: normalized URL / content_hash lists from D1 sources (or R2 snapshot) as params.
 5. No KV for this path.
 
 Bindings and writers are **follow-up**. Until then, “R2-equivalent” is `apps/web/data/*.json` + schema `r2_snapshot_key`.

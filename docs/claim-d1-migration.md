@@ -1,6 +1,6 @@
 # Claim curation SoT: Neo4j → Cloudflare D1
 
-**Status:** Phase 4 Map Claim reads (incidence + case_count aggregates) prefer **D1**; Case / Travel / Exposure graph stays Neo4j. Curate reads/writes already on D1 (Phases 2–3). Aura Claim deletion is Phase 5.
+**Status:** Phase 5 complete in code — Claim / Conflict / Audit SoT is **D1 → JSON** only (no Neo4j Claim fallback). Case / Travel / Exposure / AdminUnit stay Neo4j; `SourceDocument` remains for Case `SOURCED_FROM`. Operators still run Aura DETACH DELETE manually (recipe below).
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) → Linear **MATT** (one-way sync per [AGENTS.md](../AGENTS.md); triage priority/project in Linear after sync).
 
@@ -17,7 +17,7 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 | Store | Source of truth | Not for |
 |-------|-----------------|---------|
 | **D1** | Curate tabular: `SourceDocument`, `Claim` (zone1 count assertions), `ClaimConflict`, `CurateAuditEvent`, `DismissedSource`; future `extract_jobs` / `classify_jobs` / discovery runs | Case graph, raw HTML/PDF bodies |
-| **Neo4j** | Case graph: `Person`, `Case`, `TravelLeg`, `Hospitalization`, `Exposure`, `FollowUp`, `Facility`, `Outbreak`, and related relationships | Claim / SourceDocument / ClaimConflict / CurateAuditEvent (after migration) |
+| **Neo4j** | Case graph: `Person`, `Case`, `TravelLeg`, `Hospitalization`, `Exposure`, `FollowUp`, `Facility`, `Outbreak`, `AdminUnit`, and `SourceDocument` for Case `SOURCED_FROM` | Claim / ClaimConflict / CurateAuditEvent (D1); Claim `FROM` edges |
 | **R2** | Source blobs + derived read snapshots (inbox / conflicts / map claim JSON). Snapshots are derived from D1 after migration | Approval SoT (always D1 for Claims) |
 | **AdminUnit** | Geographic master stays Neo4j (or static JSON) for now. Claim `subject_ref` is a zone1 code **string** in D1 — no mandatory FK |
 
@@ -31,7 +31,7 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
   R2: source bodies + map/curate claim snapshots (derived)
 ```
 
-**Map / incidence:** approved Claims are read from **D1** (Phase 4). Neo4j Claim matching for snapshot aggregates / incidence is fallback-only when D1 is empty. `getCountryStats` remains a stub (`[]`). Derived R2 map dumps are a follow-up (not Phase 4).
+**Map / incidence:** approved Claims are read from **D1** (empty D1 → bundled JSON). Map graph layers stay Neo4j without Claim MATCH. `getCountryStats` remains a stub (`[]`). Derived R2 map dumps are a follow-up.
 
 **UI note:** Claim curation and Case curation may separate in the product IA; this issue owns the **persistence** cutover. Source workspace IA is a separate slice.
 
@@ -52,19 +52,16 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 
 | Area | Role today |
 |------|------------|
-| [`apps/web/lib/d1-curate.ts`](../apps/web/lib/d1-curate.ts) | Curate **writes** (Phase 3): resolve conflict, dismiss source, submit/update source, review claim, rollback claim |
-| [`apps/web/lib/neo4j-curate.ts`](../apps/web/lib/neo4j-curate.ts) | Former Neo4j Curate writes (dead on Worker routes until Phase 5 cleanup) |
-| [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) | Case graph + Map graph layers; Claim Cypher only on D1-miss fallback (`getIncidenceSeriesNeo4j`, `getMapAggregatesFromClaimsNeo4j`) |
+| [`apps/web/lib/d1-curate.ts`](../apps/web/lib/d1-curate.ts) | Curate **writes** (Phase 3+): resolve conflict, dismiss/submit/update source, review/rollback claim |
+| [`apps/web/lib/neo4j-queries.ts`](../apps/web/lib/neo4j-queries.ts) | Case graph + Map graph layers only (no Claim Cypher after Phase 5) |
 | [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts) | Curate + Map Claim **reads** (incidence, approved case_count heads) |
 | `/api/curate/*` | Thin routes → D1 persist helpers (Phase 3) |
-| Map / incidence | Happy path: D1 claims + AdminUnit join + Neo4j Case/Travel/Exposure |
-| Bundled JSON | Last-resort fallback when D1 empty and Neo4j unavailable |
-
-Phase 5 removes Claim nodes / Cypher leftovers from Aura. Case graph queries in `neo4j-queries.ts` remain Neo4j.
+| Map / incidence | D1 claims + AdminUnit join + Neo4j Case/Travel/Exposure; D1 miss → JSON aggregates |
+| Bundled JSON | Fallback when D1 empty / unbound (`data/curated/claims.json` kept for seed + JSON) |
 
 ## Relationship to Extract ([`docs/extract-issue.md`](./extract-issue.md))
 
-Extract issue Storage currently lists Neo4j as SoT for `SourceDocument` / `Claim` / `ClaimConflict` / `CurateAuditEvent`, and D1 for job rows only. **That Claim SoT is superseded by this migration:** Extract persist target becomes **D1 INSERT** (not Neo4j MERGE) for claims and curated sources once Phase 3 lands. Job tables (`discovery_runs`, `extract_jobs`, `classify_jobs`) stay on D1 as already designed. R2 remains blobs + derived read models. Production `EXTRACT_ENABLED=false` until Extract implementation follow-ups; this migration unblocks a coherent persist target before that wiring.
+Extract Storage is aligned with Phase 5: Claim/Source/Conflict/Audit Curate SoT is **D1**; Extract persist target is **D1 INSERT** (not Neo4j MERGE). Neo4j keeps the Case graph (+ `SourceDocument` for `SOURCED_FROM`). Job tables (`discovery_runs`, `extract_jobs`, `classify_jobs`) stay on D1. R2 remains blobs + derived read models. Production `EXTRACT_ENABLED=false` until Extract implementation follow-ups.
 
 ## Acceptance (Phase 0)
 
@@ -265,10 +262,68 @@ Implementation: [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts) (`
 - [x] Fixture / empty D1 falls back to JSON or Neo4j
 - [x] Docs + [#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) updated
 
+## Phase 5 — Cleanup (no Neo4j Claim fallback)
+
+**Done when:** code / seed / constraints have **no** Claim / ClaimConflict / CurateAuditEvent read or write path on Neo4j. Curate + Map Claim data: **D1 → JSON**. Operators may purge leftover Aura nodes with the Cypher below (not run automatically from CI).
+
+### Read priority (final)
+
+```text
+preferFixtureData → bundled JSON only
+else D1 (env.DB bound AND sources COUNT ≥ 1)
+  → Curate Claim / Inbox / Conflicts / Catalog / incidence
+  → Map aggregates: getApprovedCaseCountClaimsD1 + AdminUnit join
+else bundled JSON (no Neo4j Claim)
+
+Map graph: Neo4j Case/Travel/Exposure (JSON graph if Bolt fails)
+```
+
+| Area | Phase 5 change |
+|------|----------------|
+| `data.ts` | Claim paths use `fromD1OrJson`; map miss → JSON aggregates + Neo4j graph |
+| `neo4j-queries.ts` | Claim / conflict / catalog Claim Cypher removed |
+| `neo4j-curate.ts` | **Deleted** (writes already D1-only since Phase 3) |
+| `scripts/seed-neo4j.mjs` | No `claims.json` / `conflicts.json` MERGE |
+| `infra/neo4j/constraints.cypher` | Claim / fingerprint / conflict / audit constraints dropped from file |
+| Tests | `phase5-claim-cleanup.test.ts` + `data-cache.test.ts` assert no Claim fallback |
+
+### Aura cleanup (manual / authenticated operator)
+
+Do **not** run from unauthenticated CI agents. After D1 prod seed is verified:
+
+```cypher
+MATCH (a:CurateAuditEvent) DETACH DELETE a;
+MATCH (cf:ClaimConflict) DETACH DELETE cf;
+MATCH (c:Claim) DETACH DELETE c;
+// optional later: orphan SourceDocument with no Case SOURCED_FROM — defer
+```
+
+Re-apply constraints from [`infra/neo4j/constraints.cypher`](../infra/neo4j/constraints.cypher) on a clean DB, or DROP obsolete Claim/Conflict/Audit constraints in Browser if they still exist from earlier seeds:
+
+```cypher
+DROP CONSTRAINT claim_id IF EXISTS;
+DROP CONSTRAINT claim_fingerprint_id IF EXISTS;
+DROP CONSTRAINT conflict_id IF EXISTS;
+DROP CONSTRAINT curate_audit_event_id IF EXISTS;
+DROP INDEX claim_review_status IF EXISTS;
+DROP INDEX claim_as_of_date IF EXISTS;
+DROP INDEX claim_category IF EXISTS;
+DROP INDEX claim_type IF EXISTS;
+DROP INDEX conflict_status IF EXISTS;
+```
+
+### Acceptance (Phase 5)
+
+- [x] Neo4j Claim read/write fallbacks removed (D1 → JSON)
+- [x] seed-neo4j / constraints stripped of Claim · Conflict · Audit
+- [x] Contract + unit tests green (`@bdbv/web`)
+- [x] Docs + Aura recipe + [#19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19) comment
+- [ ] Operator: DETACH DELETE on production Aura after D1 cutover verified (manual)
+
 ## Out of scope (Phase 0 and this tracker’s policy slice)
 
 - Case Curate UI
 - Adopt→Catalog / Source workspace IA — see [curate-ui.md](./curate-ui.md)
 - Postgres or non-D1 RDB
 - Live Jev Extract wiring (still gated by extract-issue)
-- Phase 5: Aura Claim label deletion, job tables, Case graph changes; R2 map dumps; country-stats implementation
+- Case `SourceDocument` full removal; R2 map dumps; country-stats implementation
