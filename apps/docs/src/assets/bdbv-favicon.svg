@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BDBV outbreak tracking favicon">
+  <rect width="64" height="64" rx="15" fill="#101F30"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#34516A" stroke-width="2"/>
+  <circle cx="32" cy="32" r="13" fill="none" stroke="#34516A" stroke-width="2" stroke-dasharray="3 5"/>
+  <path d="M32 7v9M32 48v9M7 32h9M48 32h9" stroke="#7BA9BE" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M27 18c13-3 22 10 16 20-5 9-18 10-23 1-5-9 2-18 10-17 7 1 10 8 6 13-3 4-9 3-10-1" fill="none" stroke="#FF7655" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="26" cy="34" r="3.1" fill="#FFD6A1"/>
+</svg>
