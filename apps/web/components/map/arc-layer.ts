@@ -71,6 +71,20 @@ type KindBatch = {
   arrows: MeshHandle<InstancedCylinderMeshDesc>;
 };
 
+/** One opacity-bucket slice of a kind batch (non-empty geometry required). */
+type ArcLineSlice = {
+  geometry: LatLng[];
+  srcColor: Color;
+  tgtColor: Color;
+  thickness: number;
+  segments: number;
+  arcHeightScale: number;
+  gradation: number;
+  dashed: boolean;
+  transparent: boolean;
+  opacity: number;
+};
+
 export type TravelLayerHandle = {
   setTravels: (travels: MapTravel[], asOf: string) => void;
   setArcs: (arcs: ArcEdge[], asOf: string) => void;
@@ -170,24 +184,19 @@ export function attachTravelLayer(view: View): TravelLayerHandle {
   let highlightCaseId: string | null = null;
   let layerVisible = true;
 
-  function ensureBatch(kind: ArcKind): KindBatch {
+  /**
+   * Create a kind batch only with non-empty arc geometry.
+   * ArclineMeshDesc with `geometry: []` builds a bare ShaderMaterial sub-mesh;
+   * Navara's onResize then does `uniforms?.uViewport.value` and throws
+   * "Cannot read properties of undefined (reading 'value')".
+   */
+  function ensureBatch(kind: ArcKind, initialArcLines: ArcLineSlice[]): KindBatch {
     const existing = batches.get(kind);
     if (existing) return existing;
 
     const color = new Color().setStyle(ARC_KIND_COLORS[kind]);
     const mesh = view.addMesh<ArclineMeshDesc>({
-      arcLines: {
-        geometry: [],
-        srcColor: color,
-        tgtColor: color,
-        thickness: ARC_THICKNESS,
-        segments: ARC_SEGMENTS,
-        arcHeightScale: ARC_HEIGHT_SCALE,
-        gradation: 0.5,
-        dashed: false,
-        transparent: true,
-        opacity: BUCKET_OPACITY.active,
-      },
+      arcLines: initialArcLines,
     });
 
     const arrows = view.addMesh<InstancedCylinderMeshDesc>({
@@ -207,6 +216,13 @@ export function attachTravelLayer(view: View): TravelLayerHandle {
     const batch = { mesh, arrows };
     batches.set(kind, batch);
     return batch;
+  }
+
+  function hideBatch(batch: KindBatch) {
+    // Hide only — never update Arcline with empty geometry (breaks uViewport).
+    batch.mesh.visible = false;
+    batch.arrows.ref.clear();
+    batch.arrows.visible = false;
   }
 
   function clearRuntimes() {
@@ -269,22 +285,8 @@ export function attachTravelLayer(view: View): TravelLayerHandle {
     }
 
     for (const [kind, group] of byKind) {
-      const batch = ensureBatch(kind);
-      const colorHex = ARC_KIND_COLORS[kind];
-      const color = new Color().setStyle(colorHex);
-
-      const arcLines: Array<{
-        geometry: LatLng[];
-        srcColor: Color;
-        tgtColor: Color;
-        thickness: number;
-        segments: number;
-        arcHeightScale: number;
-        gradation: number;
-        dashed: boolean;
-        transparent: boolean;
-        opacity: number;
-      }> = [];
+      const color = new Color().setStyle(ARC_KIND_COLORS[kind]);
+      const arcLines: ArcLineSlice[] = [];
 
       for (const bucket of ["active", "done", "dim"] as OpacityBucket[]) {
         const geometry = group.buckets[bucket];
@@ -303,20 +305,16 @@ export function attachTravelLayer(view: View): TravelLayerHandle {
         });
       }
 
+      if (arcLines.length === 0) {
+        const existing = batches.get(kind);
+        if (existing) hideBatch(existing);
+        continue;
+      }
+
+      const batch = ensureBatch(kind, arcLines);
       batch.mesh.update({
-        arcLines:
-          arcLines.length > 0
-            ? arcLines
-            : {
-                geometry: [],
-                srcColor: color,
-                tgtColor: color,
-                thickness: ARC_THICKNESS,
-                segments: ARC_SEGMENTS,
-                opacity: 0,
-                transparent: true,
-              },
-        visible: arcLines.length > 0,
+        arcLines,
+        visible: true,
       } as never);
 
       const children = group.arrowMatrices.map((matrix) => ({
@@ -349,7 +347,6 @@ export function attachTravelLayer(view: View): TravelLayerHandle {
         geodesic,
         totalDistance: geodesic.distance,
       });
-      ensureBatch(edge.kind);
     }
     applyStyle();
   }
