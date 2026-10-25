@@ -1,94 +1,100 @@
-import type { StyleSpecification } from "maplibre-gl";
-import type { CaseLayerMode } from "./case-layer";
-
 /**
- * Thin free basemap: Natural Earth shaded relief (raster, maxzoom 6, overzooms).
- * Avoids full OpenFreeMap Positron vector PBFs (roads/labels) that stall first paint.
- * See https://github.com/diaphana-io/2026bdbv-dashboard/issues/5
- *
- * Adaptive globe: sphere when zoomed out, flat mercator when zoomed in.
- * Default MapLibre `globe` transitions at zoom 11→12, but this app caps at
- * maxZoom 11 — so use lower breakpoints aligned with Natural Earth maxzoom 6.
+ * Basemap catalog for Navara OutbreakMap.
+ * - `native-raster`: fast Natural Earth XYZ (default first paint).
+ * - `maplibre-style`: OpenFreeMap Style JSON via MapLibreStylePlugin.
+ * Both always sit on ellipsoid terrain so the full globe remains visible.
  */
-const GLOBE_PROJECTION: NonNullable<StyleSpecification["projection"]> = {
-  type: [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    4,
-    "vertical-perspective",
-    5.5,
-    "mercator",
-  ],
+
+/** Case marker stroke/fill palette keyed off basemap. */
+export type CaseLayerMode = "light" | "dark";
+
+/** Blue-black ocean / space behind the globe canvas. */
+export const OCEAN_COLOR = "#071525";
+export const SPACE_COLOR = "#02060e";
+
+const NE_URL =
+  "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png";
+const NE_ATTRIBUTION =
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> Natural Earth · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+type BasemapBase = {
+  label: string;
+  mode: CaseLayerMode;
 };
 
-export function thinBasemapStyle(mode: CaseLayerMode): StyleSpecification {
-  const dark = mode === "dark";
-  return {
-    version: 8,
-    projection: GLOBE_PROJECTION,
-    sources: {
-      ne2: {
-        type: "raster" as const,
-        tiles: [
-          "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png",
-        ],
-        tileSize: 256,
-        maxzoom: 6,
-        attribution:
-          '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> Natural Earth · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-      },
-    },
-    layers: [
-      {
-        id: "background",
-        type: "background" as const,
-        paint: {
-          "background-color": dark ? "#0b1220" : "#e8eef2",
-        },
-      },
-      {
-        id: "ne2",
-        type: "raster" as const,
-        source: "ne2",
-        paint: dark
-          ? {
-              "raster-opacity": 0.72,
-              "raster-saturation": -0.45,
-              "raster-brightness-min": 0,
-              "raster-brightness-max": 0.55,
-            }
-          : {
-              "raster-opacity": 1,
-            },
-      },
-    ],
-  };
-}
+export type BasemapEntry =
+  | (BasemapBase & {
+      kind: "native-raster";
+      url: string;
+      maxZoom: number;
+      attribution: string;
+    })
+  | (BasemapBase & {
+      kind: "maplibre-style";
+      styleUrl: string;
+    });
 
 export const BASEMAPS = {
-  "natural-earth-light": {
-    label: "Natural Earth (light)",
-    mode: "light" as const satisfies CaseLayerMode,
-    style: () => thinBasemapStyle("light"),
+  "natural-earth": {
+    kind: "native-raster",
+    label: "Natural Earth",
+    mode: "dark",
+    url: NE_URL,
+    maxZoom: 6,
+    attribution: NE_ATTRIBUTION,
   },
-  "natural-earth-dark": {
-    label: "Natural Earth (dark)",
-    mode: "dark" as const satisfies CaseLayerMode,
-    style: () => thinBasemapStyle("dark"),
+  positron: {
+    kind: "maplibre-style",
+    label: "Positron",
+    mode: "light",
+    styleUrl: "https://tiles.openfreemap.org/styles/positron",
   },
-} as const;
+  bright: {
+    kind: "maplibre-style",
+    label: "Bright",
+    mode: "light",
+    styleUrl: "https://tiles.openfreemap.org/styles/bright",
+  },
+  liberty: {
+    kind: "maplibre-style",
+    label: "Liberty",
+    mode: "light",
+    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
+  },
+  dark: {
+    kind: "maplibre-style",
+    label: "Dark",
+    mode: "dark",
+    styleUrl: "https://tiles.openfreemap.org/styles/dark",
+  },
+  fiord: {
+    kind: "maplibre-style",
+    label: "Fiord",
+    mode: "dark",
+    styleUrl: "https://tiles.openfreemap.org/styles/fiord",
+  },
+} as const satisfies Record<string, BasemapEntry>;
 
 export type BasemapId = keyof typeof BASEMAPS;
+
+/** Legacy ids persisted before the Navara migration. */
+const LEGACY_BASEMAP_IDS: Record<string, BasemapId> = {
+  "natural-earth-light": "natural-earth",
+};
 
 export function isBasemapId(value: string): value is BasemapId {
   return value in BASEMAPS;
 }
 
+export function resolveBasemapId(value: string | undefined): BasemapId {
+  if (!value) return "natural-earth";
+  if (isBasemapId(value)) return value;
+  return LEGACY_BASEMAP_IDS[value] ?? "natural-earth";
+}
+
+/** Sync UI theme → basemap; keep Natural Earth as the fast default for light. */
 export function basemapIdForUiTheme(
   resolvedTheme: string | undefined,
 ): BasemapId {
-  return resolvedTheme === "dark"
-    ? "natural-earth-dark"
-    : "natural-earth-light";
+  return resolvedTheme === "dark" ? "dark" : "natural-earth";
 }

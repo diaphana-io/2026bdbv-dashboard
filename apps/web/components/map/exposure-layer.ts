@@ -1,8 +1,19 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
+import {
+  Color,
+  type Layer,
+  type Source,
+} from "@navaramap/three";
+import type ThreeView from "@navaramap/three";
+import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import type { MapExposure } from "../../lib/data-types";
 
-const SOURCE = "bdbv-exposures";
-const LAYER = "bdbv-exposures-circle";
+type View = ThreeView<DefaultDescriptions>;
+
+export type ExposureLayerHandle = {
+  update: (exposures: MapExposure[]) => void;
+  setVisible: (visible: boolean) => void;
+  destroy: () => void;
+};
 
 function exposuresGeoJson(exposures: MapExposure[]) {
   const byCase = new Map<
@@ -33,6 +44,7 @@ function exposuresGeoJson(exposures: MapExposure[]) {
         visual_id: row.visual_id,
         count: row.count,
         radius: Math.max(10, Math.min(28, 8 + row.count * 4)),
+        kind: "exposure",
       },
       geometry: {
         type: "Point" as const,
@@ -42,41 +54,64 @@ function exposuresGeoJson(exposures: MapExposure[]) {
   };
 }
 
-export function ensureExposureLayer(map: MapLibreMap): void {
-  if (map.getSource(SOURCE)) return;
-  map.addSource(SOURCE, {
-    type: "geojson",
-    data: exposuresGeoJson([]),
+function wireSizes(layer: Layer) {
+  layer.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        size: (properties?.["radius"] as number) ?? 12,
+        show: true,
+      }),
+      { filters: ["radius"] },
+    );
   });
-  map.addLayer({
-    id: LAYER,
-    type: "circle",
-    source: SOURCE,
-    paint: {
-      "circle-radius": ["get", "radius"],
-      "circle-color": "#2563eb",
-      "circle-opacity": 0.18,
-      "circle-stroke-width": 1,
-      "circle-stroke-color": "#1d4ed8",
-      "circle-stroke-opacity": 0.55,
+}
+
+export function attachExposureLayer(view: View): ExposureLayerHandle {
+  let visible = true;
+  let source: Source | undefined;
+  let layer: Layer | undefined;
+  let last: MapExposure[] = [];
+
+  function clear() {
+    layer?.delete();
+    source?.delete();
+    layer = source = undefined;
+  }
+
+  function rebuild(exposures: MapExposure[]) {
+    clear();
+    if (!visible) return;
+    source = view.addSource({
+      type: "geojson",
+      data: exposuresGeoJson(exposures),
+    });
+    layer = view.addLayer({
+      type: "vector",
+      source,
+      point: {
+        color: new Color().setStyle("#2563eb"),
+        size: 12,
+        sizeInMeters: false,
+        opacity: 0.35,
+        clampToGround: true,
+        declutter: false,
+      },
+    });
+    wireSizes(layer);
+  }
+
+  return {
+    update(exposures) {
+      last = exposures;
+      rebuild(exposures);
     },
-  });
-}
-
-export function updateExposureLayer(
-  map: MapLibreMap,
-  exposures: MapExposure[],
-): void {
-  const src = map.getSource(SOURCE) as
-    | { setData: (d: unknown) => void }
-    | undefined;
-  src?.setData(exposuresGeoJson(exposures));
-}
-
-export function setExposureLayerVisible(
-  map: MapLibreMap,
-  visible: boolean,
-): void {
-  if (!map.getLayer(LAYER)) return;
-  map.setLayoutProperty(LAYER, "visibility", visible ? "visible" : "none");
+    setVisible(next) {
+      if (visible === next) return;
+      visible = next;
+      rebuild(last);
+    },
+    destroy() {
+      clear();
+    },
+  };
 }

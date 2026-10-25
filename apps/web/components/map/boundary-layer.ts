@@ -1,10 +1,20 @@
-import type { ExpressionSpecification, Map as MapLibreMap } from "maplibre-gl";
+import {
+  Color,
+  type Layer,
+  type Source,
+} from "@navaramap/three";
+import type ThreeView from "@navaramap/three";
+import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
 import boundariesData from "../../data/country_boundaries.json";
+import worldBoundariesData from "../../data/world_boundaries.json";
 
-const SOURCE = "bdbv-boundaries";
-const FILL = "bdbv-boundaries-fill";
-const LINE = "bdbv-boundaries-line";
+type View = ThreeView<DefaultDescriptions>;
+
+export type BoundaryLayerHandle = {
+  setVisible: (visible: boolean) => void;
+  destroy: () => void;
+};
 
 const boundaries = boundariesData as {
   type: "FeatureCollection";
@@ -15,57 +25,106 @@ const boundaries = boundariesData as {
   }>;
 };
 
-function countryColorMatch(): ExpressionSpecification {
-  const match: ExpressionSpecification = ["match", ["get", "admin0_iso"]];
-  for (const c of TRACKED_COUNTRIES) {
-    match.push(c.iso, c.color);
-  }
-  match.push("#64748b");
-  return match;
+const worldBoundaries = worldBoundariesData as {
+  type: "FeatureCollection";
+  features: unknown[];
+};
+
+const COLOR_BY_ISO: Record<string, string> = Object.fromEntries(
+  TRACKED_COUNTRIES.map((c) => [c.iso, c.color]),
+);
+
+function colorForIso(iso: unknown): Color {
+  const hex =
+    typeof iso === "string" ? COLOR_BY_ISO[iso] : undefined;
+  return new Color().setStyle(hex ?? "#64748b");
 }
 
-export function ensureBoundaryLayer(map: MapLibreMap): void {
-  if (!map.getSource(SOURCE)) {
-    map.addSource(SOURCE, {
-      type: "geojson",
-      data: boundaries,
-    });
-  }
-  const color = countryColorMatch();
-  if (!map.getLayer(FILL)) {
-    map.addLayer({
-      id: FILL,
-      type: "fill",
-      source: SOURCE,
-      paint: {
-        "fill-color": color,
-        "fill-opacity": 0.1,
-      },
-    });
-  }
-  if (!map.getLayer(LINE)) {
-    map.addLayer({
-      id: LINE,
-      type: "line",
-      source: SOURCE,
-      paint: {
-        "line-color": color,
-        "line-width": 1.5,
-        "line-opacity": 0.9,
-      },
-    });
-  }
-}
+/**
+ * Static boundary GeoJSON — create once (not time-varying).
+ * World outlines + tracked-country fills/strokes.
+ */
+export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
+  const worldSource = view.addSource({
+    type: "geojson",
+    data: worldBoundaries as GeoJSON.FeatureCollection,
+  });
+  const worldLine = view.addLayer({
+    type: "vector",
+    source: worldSource,
+    polyline: {
+      geometryTypes: ["line", "polygon"],
+      color: new Color().setStyle("#94a3b8"),
+      width: 0.8,
+      maxWidth: 100_000,
+      opacity: 0.75,
+      clampToGround: true,
+    },
+  });
 
-export function setBoundaryLayerVisible(
-  map: MapLibreMap,
-  visible: boolean,
-): void {
-  const value = visible ? "visible" : "none";
-  if (map.getLayer(FILL)) {
-    map.setLayoutProperty(FILL, "visibility", value);
-  }
-  if (map.getLayer(LINE)) {
-    map.setLayoutProperty(LINE, "visibility", value);
-  }
+  const trackedSource = view.addSource({
+    type: "geojson",
+    data: boundaries as GeoJSON.FeatureCollection,
+  });
+  const fill = view.addLayer({
+    type: "vector",
+    source: trackedSource,
+    polygon: {
+      color: new Color().setStyle("#64748b"),
+      opacity: 0.1,
+      clampToGround: true,
+    },
+  });
+  fill.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        color: colorForIso(properties?.["admin0_iso"]),
+        show: true,
+      }),
+      { filters: ["admin0_iso"] },
+    );
+  });
+
+  const outline = view.addLayer({
+    type: "vector",
+    source: trackedSource,
+    polyline: {
+      geometryTypes: ["line", "polygon"],
+      color: new Color().setStyle("#64748b"),
+      width: 1.5,
+      maxWidth: 100_000,
+      opacity: 0.9,
+      clampToGround: true,
+    },
+  });
+  outline.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        color: colorForIso(properties?.["admin0_iso"]),
+        show: true,
+      }),
+      { filters: ["admin0_iso"] },
+    );
+  });
+
+  const layers: Layer[] = [worldLine, fill, outline];
+  const sources: Source[] = [worldSource, trackedSource];
+  let visible = true;
+
+  return {
+    setVisible(next) {
+      if (visible === next) return;
+      visible = next;
+      for (const layer of layers) {
+        layer.update({
+          polygon: { show: next },
+          polyline: { show: next },
+        });
+      }
+    },
+    destroy() {
+      for (const layer of layers) layer.delete();
+      for (const source of sources) source.delete();
+    },
+  };
 }

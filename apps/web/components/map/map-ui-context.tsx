@@ -14,7 +14,7 @@ import {
   BASEMAPS,
   type BasemapId,
   basemapIdForUiTheme,
-  isBasemapId,
+  resolveBasemapId,
 } from "./basemap-style";
 import type { PanelId, PanelPosition } from "../panels/types";
 import {
@@ -37,6 +37,8 @@ const PANEL_IDS = Object.keys(PANEL_DEFAULTS) as PanelId[];
 
 export type LayerVisibility = {
   boundaries: boolean;
+  countryNames: boolean;
+  cities: boolean;
   cases: boolean;
   exposures: boolean;
   travels: boolean;
@@ -97,6 +99,8 @@ function defaultPanelPositions(): Record<PanelId, PanelPosition> {
 
 const DEFAULT_LAYERS: LayerVisibility = {
   boundaries: true,
+  countryNames: true,
+  cities: true,
   cases: true,
   exposures: true,
   travels: true,
@@ -148,10 +152,7 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...persisted?.layers,
   };
   const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
-  const basemapId =
-    persisted?.basemapId && isBasemapId(persisted.basemapId)
-      ? persisted.basemapId
-      : "natural-earth-light";
+  const basemapId = resolveBasemapId(persisted?.basemapId);
   const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? true;
   return {
     openPanels,
@@ -172,7 +173,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [countryStatsVisible, setCountryStatsState] = useState(
     defaultCountryStatsVisibility,
   );
-  const [basemapId, setBasemapIdState] = useState<BasemapId>("natural-earth-light");
+  const [basemapId, setBasemapIdState] = useState<BasemapId>("natural-earth");
   const [syncBasemapToUiTheme, setSyncState] = useState(true);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [focusedPanelId, setFocusedPanelId] = useState<PanelId | null>(null);

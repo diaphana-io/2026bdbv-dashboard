@@ -17,7 +17,7 @@ Intentional or deferred work after the English dashboard + curated dataset land.
 
 1. **Extract backend spec** — [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / synced Linear **MATT-310** (draft in `docs/extract-issue.md`). Keep `EXTRACT_ENABLED=false` in production until then. Shared constraint with Curate: Workers must not hold responses hostage to Bolt ([`docs/curate-graph-serving.md`](./curate-graph-serving.md) / **MATT-314**).
 2. **Measures RAG** — replace keyword stand-in with Vectorize / Workers AI when bindings exist.
-3. **Map tiles** — optional MapLibre once a token/tileset is available (SVG projection is intentional for now).
+3. **Map data backlog** — Navara globe + OFM basemaps shipped; remaining DEM / exposure coords / commercial tiles are data needs only — see [`docs/navara-migration.md`](./navara-migration.md).
 4. **Source discovery cron** — `data/discovery/queries.json` is config only; Workers cron + R2 snapshot ingest not scheduled yet (R2 curated snapshots also complete the Curate read path in MATT-314).
 5. **Production cutover** — full Extract decision still gates automatic extraction; graph-backed dashboard + Access for Curate are in place. After deploy, confirm Curate no longer intermittent-1101s (MATT-314 verify checkbox).
 

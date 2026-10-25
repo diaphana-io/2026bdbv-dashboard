@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "navara-add-docs-example": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/navara-add-docs-example/SKILL.md",
+      "computedHash": "4eecf8a51cb82e9094dfb9377aae3b33077003a64a82ba085acee6c0225354a2"
+    },
+    "navara-add-example": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/navara-add-example/SKILL.md",
+      "computedHash": "76472a4a3350c94002b581ee08626de07bcf79de74b2cec15c5ff6bc65106c56"
+    },
+    "navara-engine-dev": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/navara-engine-dev/SKILL.md",
+      "computedHash": "5eae910637fe3ba21672ae0dbe323e8c1ddd9db0d7ce0c48767513ee65183e22"
+    },
+    "navara-lp": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/navara-lp/SKILL.md",
+      "computedHash": "e0e49eda2c959dac465157e80a7f71b3c99da269f343c4953f50d0c19fe7857c"
+    },
+    "navara-maplibre-render-review": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/navara-maplibre-render-review/SKILL.md",
+      "computedHash": "bcf0d04ed17cea79666dfdf5d9a28e19e099409d5f2244b462078e4bf8786a57"
+    },
+    "supported-maplibre-status": {
+      "source": "maplibre/navara",
+      "sourceType": "github",
+      "skillPath": "skills/supported-maplibre-status/SKILL.md",
+      "computedHash": "c2c2ad0549d86b3853572c064b1487d01b105dcd6fcc2c0236ab2feb13f6ebfd"
+    }
+  }
+}

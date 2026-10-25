@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
-  /** Module / component currently being loaded, e.g. `maplibre-gl`. */
+  /** Module / component currently being loaded, e.g. `navara`. */
   loading?: string | null;
   error?: string | null;
 };

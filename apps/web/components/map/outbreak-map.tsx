@@ -2,25 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MapSnapshot } from "../../lib/data-types";
-import { BASEMAPS, type BasemapId } from "./basemap-style";
 import {
-  ensureBoundaryLayer,
-  setBoundaryLayerVisible,
-} from "./boundary-layer";
-import {
-  ensureCaseLayers,
-  onCaseClick,
-  setCaseLayersVisible,
-  updateCaseLayers,
-} from "./case-layer";
-import {
-  ensureExposureLayer,
-  setExposureLayerVisible,
-  updateExposureLayer,
-} from "./exposure-layer";
+  BASEMAPS,
+  OCEAN_COLOR,
+  SPACE_COLOR,
+  type BasemapEntry,
+  type BasemapId,
+} from "./basemap-style";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
+import type { BoundaryLayerHandle } from "./boundary-layer";
+import type { CaseLayersHandle } from "./case-layer";
+import type { ExposureLayerHandle } from "./exposure-layer";
+import type { LabelLayersHandle } from "./label-layers";
 import type { TravelLayerHandle } from "./travel-layer";
 
 type Props = {
@@ -29,41 +24,50 @@ type Props = {
   maxDate: string;
 };
 
-function waitForStyle(map: import("maplibre-gl").Map): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const t = window.setTimeout(() => {
-      if (map.isStyleLoaded()) {
-        resolve();
-        return;
-      }
-      reject(new Error("Basemap style timed out"));
-    }, 15_000);
-    const done = () => {
-      window.clearTimeout(t);
-      resolve();
-    };
-    if (map.isStyleLoaded()) {
-      done();
-      return;
-    }
-    map.once("style.load", done);
-  });
-}
+type LayerBundle = {
+  boundaries: BoundaryLayerHandle;
+  labels: LabelLayersHandle;
+  cases: CaseLayersHandle;
+  exposures: ExposureLayerHandle;
+  travels: TravelLayerHandle;
+};
+
+type ViewCamera = {
+  lng: number;
+  lat: number;
+  height: number;
+  heading: number;
+  pitch: number;
+  roll: number;
+};
+
+const DEFAULT_CAMERA: ViewCamera = {
+  lng: 20,
+  lat: 3,
+  height: 8_000_000,
+  heading: 0,
+  pitch: -45,
+  roll: 0,
+};
 
 export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<import("maplibre-gl").Map | null>(null);
-  const travelRef = useRef<TravelLayerHandle | null>(null);
+  const viewRef = useRef<import("@navaramap/three").default | null>(null);
+  const layersRef = useRef<LayerBundle | null>(null);
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
   const appliedBasemapRef = useRef<BasemapId | null>(null);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
-  const layersRef = useRef({
+  const visibilityRef = useRef({
     boundaries: true,
+    countryNames: true,
+    cities: true,
     cases: true,
     exposures: true,
     travels: true,
   });
+  const cameraRef = useRef<ViewCamera>(DEFAULT_CAMERA);
+  const bootGenerationRef = useRef(0);
 
   const { basemapId, layers, openCaseDetail, selectedCaseId } = useMapUi();
   const openCaseDetailRef = useRef(openCaseDetail);
@@ -71,120 +75,209 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
   const [asOf, setAsOf] = useState(initialSnapshot.asOf);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [loading, setLoading] = useState<string | null>("maplibre-gl");
+  const [loading, setLoading] = useState<string | null>("navara");
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   snapshotRef.current = snapshot;
   asOfRef.current = asOf;
-  layersRef.current = layers;
+  visibilityRef.current = layers;
 
-  function applyLayerVisibility(map: import("maplibre-gl").Map) {
-    const vis = layersRef.current;
-    setBoundaryLayerVisible(map, vis.boundaries);
-    setCaseLayersVisible(map, vis.cases);
-    setExposureLayerVisible(map, vis.exposures);
-    travelRef.current?.setVisible(vis.travels);
+  function applyLayerVisibility(bundle: LayerBundle) {
+    const vis = visibilityRef.current;
+    bundle.boundaries.setVisible(vis.boundaries);
+    bundle.labels.setCountryNamesVisible(vis.countryNames);
+    bundle.labels.setCitiesVisible(vis.cities);
+    bundle.cases.setVisible(vis.cases);
+    bundle.exposures.setVisible(vis.exposures);
+    bundle.travels.setVisible(vis.travels);
   }
 
-  function wireCaseClick(map: import("maplibre-gl").Map) {
+  function wireCaseClick(
+    view: import("@navaramap/three").default,
+  ): () => void {
+    const onClick = (
+      info:
+        | { properties?: Record<string, unknown> }
+        | null
+        | undefined,
+    ) => {
+      const kind = info?.properties?.["kind"];
+      const id = info?.properties?.["id"];
+      if (kind !== "case" || typeof id !== "string") return;
+      layersRef.current?.travels.setHighlightCaseId(id);
+      openCaseDetailRef.current(id);
+    };
+    view.on("featureClick", onClick);
+    return () => {
+      view.off("featureClick", onClick);
+    };
+  }
+
+  async function destroyView() {
     removeClickRef.current?.();
-    removeClickRef.current = onCaseClick(map, (caseId) => {
-      travelRef.current?.setHighlightCaseId(caseId);
-      openCaseDetailRef.current(caseId);
+    removeClickRef.current = undefined;
+    layersRef.current?.travels.destroy();
+    layersRef.current?.cases.destroy();
+    layersRef.current?.exposures.destroy();
+    layersRef.current?.labels.destroy();
+    layersRef.current?.boundaries.destroy();
+    layersRef.current = null;
+    const view = viewRef.current;
+    viewRef.current = null;
+    if (view) {
+      try {
+        const geo = view.camera.positionGeographic;
+        const ori = view.camera.orientation;
+        cameraRef.current = {
+          lng: geo.lng,
+          lat: geo.lat,
+          height: geo.height,
+          heading: ori.heading ?? DEFAULT_CAMERA.heading,
+          pitch: ori.pitch ?? DEFAULT_CAMERA.pitch,
+          roll: ori.roll ?? DEFAULT_CAMERA.roll,
+        };
+      } catch {
+        /* dispose may already have torn down camera */
+      }
+      view.dispose();
+    }
+  }
+
+  async function bootView(bootId: BasemapId, generation: number) {
+    const container = containerRef.current;
+    if (!container) return;
+
+    setLoading("navara");
+    setMapError(null);
+    setMapReady(false);
+
+    const [
+      { default: ThreeView, Color },
+      { DefaultPlugin },
+      { MapLibreStylePlugin },
+    ] = await Promise.all([
+      import("@navaramap/three"),
+      import("@navaramap/three-default-plugin"),
+      import("@navaramap/maplibre-style"),
+    ]);
+    if (generation !== bootGenerationRef.current || !containerRef.current) {
+      return;
+    }
+
+    setLoading("OutbreakMap");
+    const entry: BasemapEntry = BASEMAPS[bootId];
+    const view = new ThreeView<
+      import("@navaramap/three-default-plugin").DefaultDescriptions
+    >({
+      container: containerRef.current,
+      backgroundColor: new Color().setStyle(SPACE_COLOR),
+      picking: true,
+      animation: true,
     });
+
+    const defaultPlugin = new DefaultPlugin();
+    view.addPlugin(defaultPlugin);
+
+    if (entry.kind === "maplibre-style") {
+      // forceMapLibreFov exists at runtime in Navara examples; not in 0.2.1 types.
+      view.addPlugin(
+        new MapLibreStylePlugin(entry.styleUrl, {
+          forceMapLibreFov: true,
+        } as ConstructorParameters<typeof MapLibreStylePlugin>[1]),
+      );
+    }
+
+    await view.init();
+    if (generation !== bootGenerationRef.current) {
+      view.dispose();
+      return;
+    }
+
+    viewRef.current = view;
+    view.globe.color = new Color().setStyle(OCEAN_COLOR);
+
+    // Always ellipsoid so both native and MapLibre styles drape on a full globe.
+    view.addLayer({ type: "terrain", ellipsoid: {} });
+
+    if (entry.kind === "native-raster") {
+      const raster = view.addSource({
+        type: "raster-tile",
+        url: entry.url,
+        maxZoom: entry.maxZoom,
+      });
+      view.addLayer({ type: "raster", source: raster });
+      view.attribution?.add([
+        {
+          attributionHtml: entry.attribution,
+        },
+      ]);
+    }
+
+    // Non-draped travel tubes need at least ambient light.
+    view.addLight({ ambient: { intensity: 1 } });
+
+    const cam = cameraRef.current;
+    view.setCamera(cam);
+
+    setLoading("layers");
+    const [
+      { attachBoundaryLayer },
+      { attachLabelLayers },
+      { attachCaseLayers },
+      { attachExposureLayer },
+      { attachTravelLayer },
+    ] = await Promise.all([
+      import("./boundary-layer"),
+      import("./label-layers"),
+      import("./case-layer"),
+      import("./exposure-layer"),
+      import("./travel-layer"),
+    ]);
+    if (generation !== bootGenerationRef.current) {
+      view.dispose();
+      viewRef.current = null;
+      return;
+    }
+
+    const boundaries = attachBoundaryLayer(view);
+    const labels = await attachLabelLayers(view);
+    const cases = attachCaseLayers(view, entry.mode);
+    const exposures = attachExposureLayer(view);
+    const travels = attachTravelLayer(view);
+
+    const snap = snapshotRef.current;
+    cases.update(snap.cases, snap.aggregates);
+    exposures.update(snap.exposures);
+    travels.setTravels(snap.travels, asOfRef.current);
+
+    const bundle: LayerBundle = {
+      boundaries,
+      labels,
+      cases,
+      exposures,
+      travels,
+    };
+    layersRef.current = bundle;
+    applyLayerVisibility(bundle);
+    removeClickRef.current = wireCaseClick(view);
+
+    appliedBasemapRef.current = bootId;
+    setLoading(null);
+    setMapReady(true);
   }
 
   useEffect(() => {
     let cancelled = false;
-    let resizeObserver: ResizeObserver | undefined;
+    const generation = ++bootGenerationRef.current;
     const bootId = basemapId;
     appliedBasemapRef.current = bootId;
 
-    async function boot() {
+    async function run() {
       try {
-        setLoading("maplibre-gl");
-        const maplibre = await import("maplibre-gl");
-        if (cancelled || !containerRef.current) return;
-
-        setLoading("OutbreakMap");
-        const entry = BASEMAPS[bootId];
-        const map = new maplibre.Map({
-          container: containerRef.current,
-          style: entry.style(),
-          center: [20, 3],
-          zoom: 2.5,
-          pitch: 0,
-          bearing: 0,
-          minZoom: 0,
-          // Region/city is enough; avoid neighborhood-scale tile cost (#5).
-          maxZoom: 11,
-        });
-        map.addControl(
-          new maplibre.NavigationControl({ visualizePitch: true }),
-          "top-left",
-        );
-        mapRef.current = map;
-
-        map.on("error", (e) => {
-          console.warn("[OutbreakMap]", e.error);
-        });
-
-        setLoading("basemap");
-        await waitForStyle(map);
-        if (cancelled) return;
-
-        map.resize();
-        resizeObserver = new ResizeObserver(() => {
-          map.resize();
-        });
-        resizeObserver.observe(containerRef.current);
-
-        map.fitBounds(
-          [
-            [-18, -35],
-            [52, 38],
-          ],
-          { padding: 48, duration: 0, pitch: 0, bearing: 0 },
-        );
-
-        ensureBoundaryLayer(map);
-        ensureCaseLayers(map, entry.mode);
-        ensureExposureLayer(map);
-        updateCaseLayers(
-          map,
-          snapshotRef.current.cases,
-          snapshotRef.current.aggregates,
-        );
-        updateExposureLayer(map, snapshotRef.current.exposures);
-        applyLayerVisibility(map);
-        wireCaseClick(map);
-
-        map.resize();
-        const canvas = map.getCanvas();
-        if (!canvas.width || !canvas.height) {
-          setMapError(
-            `Map canvas is ${canvas.width}×${canvas.height}px — layout/CSS failed`,
-          );
-          return;
-        }
-        setLoading(null);
-        setMapReady(true);
-
-        try {
-          const { attachTravelLayer } = await import("./travel-layer");
-          if (cancelled) return;
-          travelRef.current = await attachTravelLayer(map);
-          travelRef.current.setTravels(
-            snapshotRef.current.travels,
-            asOfRef.current,
-          );
-          travelRef.current.setVisible(layersRef.current.travels);
-        } catch (err) {
-          console.error("[OutbreakMap] travel layer failed", err);
-        }
+        await bootView(bootId, generation);
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && generation === bootGenerationRef.current) {
           setMapError(
             err instanceof Error ? err.message : "Failed to initialize map",
           );
@@ -193,75 +286,40 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       }
     }
 
-    void boot();
+    void run();
 
     return () => {
       cancelled = true;
-      resizeObserver?.disconnect();
-      removeClickRef.current?.();
-      removeClickRef.current = undefined;
-      travelRef.current?.destroy();
-      travelRef.current = null;
-      mapRef.current?.remove();
-      mapRef.current = null;
-      appliedBasemapRef.current = null;
+      bootGenerationRef.current += 1;
+      void destroyView();
       setMapReady(false);
+      appliedBasemapRef.current = null;
     };
     // Boot once; basemap swaps handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
   }, []);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
+    if (!mapReady) return;
     if (appliedBasemapRef.current === basemapId) return;
-    appliedBasemapRef.current = basemapId;
 
     let cancelled = false;
-    const active = map;
-    const entry = BASEMAPS[basemapId];
+    const generation = ++bootGenerationRef.current;
+    appliedBasemapRef.current = basemapId;
 
-    async function swapStyle() {
+    async function swap() {
       try {
-        travelRef.current?.destroy();
-        travelRef.current = null;
-        removeClickRef.current?.();
-        removeClickRef.current = undefined;
-
-        active.setStyle(entry.style());
-        await waitForStyle(active);
+        await destroyView();
         if (cancelled) return;
-
-        ensureBoundaryLayer(active);
-        ensureCaseLayers(active, entry.mode);
-        ensureExposureLayer(active);
-        updateCaseLayers(
-          active,
-          snapshotRef.current.cases,
-          snapshotRef.current.aggregates,
-        );
-        updateExposureLayer(active, snapshotRef.current.exposures);
-        applyLayerVisibility(active);
-        wireCaseClick(active);
-
-        try {
-          const { attachTravelLayer } = await import("./travel-layer");
-          if (cancelled) return;
-          travelRef.current = await attachTravelLayer(active);
-          travelRef.current.setTravels(
-            snapshotRef.current.travels,
-            asOfRef.current,
-          );
-          travelRef.current.setVisible(layersRef.current.travels);
-        } catch (err) {
-          console.error("[OutbreakMap] travel layer failed", err);
-        }
+        await bootView(basemapId, generation);
       } catch (err) {
-        console.warn("[OutbreakMap] style swap failed", err);
+        if (!cancelled) {
+          console.warn("[OutbreakMap] basemap swap failed", err);
+        }
       }
     }
 
-    void swapStyle();
+    void swap();
     return () => {
       cancelled = true;
     };
@@ -269,14 +327,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   }, [basemapId, mapReady]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    applyLayerVisibility(map);
+    const bundle = layersRef.current;
+    if (!bundle || !mapReady) return;
+    applyLayerVisibility(bundle);
   }, [layers, mapReady]);
 
   useEffect(() => {
     if (selectedCaseId) return;
-    travelRef.current?.setHighlightCaseId(null);
+    layersRef.current?.travels.setHighlightCaseId(null);
   }, [selectedCaseId]);
 
   const skipFetchRef = useRef(true);
@@ -295,14 +353,13 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       const next = (await res.json()) as MapSnapshot;
       if (cancelled) return;
       setSnapshot(next);
-      const map = mapRef.current;
-      if (map?.isStyleLoaded()) {
-        updateCaseLayers(map, next.cases, next.aggregates);
-        updateExposureLayer(map, next.exposures);
-        applyLayerVisibility(map);
+      const bundle = layersRef.current;
+      if (bundle) {
+        bundle.cases.update(next.cases, next.aggregates);
+        bundle.exposures.update(next.exposures);
+        bundle.travels.setTravels(next.travels, asOf);
+        applyLayerVisibility(bundle);
       }
-      travelRef.current?.setTravels(next.travels, asOf);
-      travelRef.current?.setVisible(layersRef.current.travels);
     }
     void load();
     return () => {
@@ -311,10 +368,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   }, [asOf]);
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden bg-background">
+    <div
+      className="relative h-full min-h-0 w-full overflow-hidden"
+      style={{ backgroundColor: SPACE_COLOR }}
+    >
       <div
         ref={containerRef}
-        className="absolute inset-0 h-full w-full [&_.maplibregl-map]:!h-full [&_.maplibregl-map]:!w-full [&_.maplibregl-ctrl-top-left]:!top-11"
+        className="absolute inset-0 h-full w-full"
+        style={{ backgroundColor: SPACE_COLOR }}
       />
       <MapBootStatus loading={loading} error={mapError} />
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
