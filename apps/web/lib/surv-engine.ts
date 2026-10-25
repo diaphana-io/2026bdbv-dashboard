@@ -4,9 +4,9 @@
  *
  * Build the wasm package first: `npm run build:wasm` (repo root).
  *
- * Loads via `surv_wasm_bg.wasm?url` + WebAssembly.instantiate so vinext/Workers
- * RSC builds never pull bundler-target `import * as wasm from "*.wasm"` through
- * vite-plugin-top-level-await (SWC printSync crash).
+ * Prefer Cloudflare/Vite `*.wasm?module` → WebAssembly.Module (no fetch /
+ * import.meta.url — both break on workerd with "Invalid URL string").
+ * Fall back to `?url` + bytes for Vitest/Node.
  */
 
 type SurvWasmBg = {
@@ -36,7 +36,7 @@ async function readFileBytes(path: string): Promise<ArrayBuffer> {
   return toArrayBuffer(buf);
 }
 
-/** Resolve Vite `?url` asset to bytes (Workers fetch, Node/vitest filesystem). */
+/** Resolve Vite `?url` asset to bytes (Node/vitest filesystem; http(s) URLs). */
 async function readWasmBytes(url: string): Promise<ArrayBuffer> {
   if (url.startsWith("file:")) {
     const { fileURLToPath } = await import("node:url");
@@ -48,35 +48,76 @@ async function readWasmBytes(url: string): Promise<ArrayBuffer> {
     return readFileBytes(url);
   }
 
-  // Prefer fetch (Workers / browser / http(s) asset URLs).
-  try {
+  // Absolute http(s) only — relative paths throw "Invalid URL string" on workerd.
+  if (/^https?:\/\//i.test(url)) {
     const res = await fetch(url);
     if (res.ok) return res.arrayBuffer();
-  } catch {
-    /* Node often cannot fetch Vite's absolute `/lib/...` paths */
   }
 
   // Vitest: `?url` is typically `/lib/surv_wasm/surv_wasm_bg.wasm` (site root).
   if (url.startsWith("/") && !url.startsWith("//")) {
-    const { join } = await import("node:path");
-    const { fileURLToPath } = await import("node:url");
-    const rel = url.replace(/^\/+/, "");
-    const here = fileURLToPath(new URL(".", import.meta.url));
-    const candidates = [
-      join(process.cwd(), rel),
-      join(here, "surv_wasm", "surv_wasm_bg.wasm"),
-      join(process.cwd(), "apps", "web", rel),
-    ];
-    for (const path of candidates) {
-      try {
-        return await readFileBytes(path);
-      } catch {
-        /* try next */
+    try {
+      const { join } = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+      const rel = url.replace(/^\/+/, "");
+      const here = fileURLToPath(new URL(".", import.meta.url));
+      const candidates = [
+        join(process.cwd(), rel),
+        join(here, "surv_wasm", "surv_wasm_bg.wasm"),
+        join(process.cwd(), "apps", "web", rel),
+      ];
+      for (const path of candidates) {
+        try {
+          return await readFileBytes(path);
+        } catch {
+          /* try next */
+        }
       }
+    } catch {
+      /* Workers: no fs / invalid import.meta.url */
     }
   }
 
   throw new Error(`wasm bytes unavailable for ${url}`);
+}
+
+function asWasmModule(value: unknown): WebAssembly.Module | null {
+  if (value instanceof WebAssembly.Module) return value;
+  return null;
+}
+
+async function compileWasmSource(): Promise<WebAssembly.Module> {
+  // Cloudflare Vite plugin: `.wasm` / `.wasm?module` → WebAssembly.Module.
+  try {
+    const mod = await import("./surv_wasm/surv_wasm_bg.wasm?module");
+    const candidate = asWasmModule(
+      (mod as { default?: unknown }).default ?? mod,
+    );
+    if (candidate) return candidate;
+  } catch {
+    /* vitest / plain Vite may not resolve ?module */
+  }
+
+  try {
+    const mod = await import("./surv_wasm/surv_wasm_bg.wasm");
+    const raw = (mod as { default?: unknown }).default ?? mod;
+    const asModule = asWasmModule(raw);
+    if (asModule) return asModule;
+    if (raw instanceof ArrayBuffer) {
+      return WebAssembly.compile(raw);
+    }
+    if (ArrayBuffer.isView(raw)) {
+      return WebAssembly.compile(toArrayBuffer(raw as Uint8Array));
+    }
+    if (typeof raw === "string") {
+      return WebAssembly.compile(await readWasmBytes(raw));
+    }
+  } catch {
+    /* fall through to ?url */
+  }
+
+  const { default: wasmUrl } = await import("./surv_wasm/surv_wasm_bg.wasm?url");
+  return WebAssembly.compile(await readWasmBytes(wasmUrl));
 }
 
 async function loadWasm(): Promise<SurvWasmModule> {
@@ -84,16 +125,20 @@ async function loadWasm(): Promise<SurvWasmModule> {
   if (loading) return loading;
 
   loading = (async () => {
-    const [{ default: wasmUrl }, bg] = await Promise.all([
-      import("./surv_wasm/surv_wasm_bg.wasm?url"),
+    const [wasmModule, bg] = await Promise.all([
+      compileWasmSource(),
       import("./surv_wasm/surv_wasm_bg.js") as Promise<SurvWasmBg>,
     ]);
 
-    const bytes = await readWasmBytes(wasmUrl);
-    const { instance } = await WebAssembly.instantiate(bytes, {
+    // instantiate(Module) → Instance; instantiate(bytes) → { module, instance }.
+    const instantiated = await WebAssembly.instantiate(wasmModule, {
       // Bundler-target import module name from wasm-bindgen.
       "./surv_wasm_bg.js": bg as unknown as WebAssembly.ModuleImports,
     });
+    const instance =
+      instantiated instanceof WebAssembly.Instance
+        ? instantiated
+        : instantiated.instance;
 
     bg.__wbg_set_wasm(instance.exports);
     const start = instance.exports.__wbindgen_start as (() => void) | undefined;

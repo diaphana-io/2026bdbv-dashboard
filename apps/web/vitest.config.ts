@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// surv-engine uses `*.wasm?url` + WebAssembly.instantiate — no wasm/TLA plugins.
+// surv-engine loads wasm via ?module (Workers) or ?url + instantiate (vitest).
 export default defineConfig({
   test: {
     include: ["lib/**/*.test.ts"],
