@@ -5,9 +5,6 @@ import type { MapSnapshot } from "../../lib/data-types";
 import {
   BASEMAPS,
   OCEAN_COLOR,
-  PAPERS_NE_ADMIN_URL,
-  PAPERS_NE_MAX_ZOOM,
-  PAPERS_NE_PHYSICAL_URL,
   SPACE_COLOR,
   buildGraticuleGeoJSON,
   type BasemapEntry,
@@ -22,6 +19,8 @@ import type { CaseLayersHandle } from "./case-layer";
 import type { ExposureLayerHandle } from "./exposure-layer";
 import type { LabelLayersHandle } from "./label-layers";
 import type { TravelLayerHandle } from "./travel-layer";
+import worldBoundariesData from "../../data/world_boundaries.json";
+import oceanData from "../../data/ne_ocean.json";
 
 type Props = {
   initialSnapshot: MapSnapshot;
@@ -165,63 +164,47 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     colors: OutlineBasemapColors,
     attribution: string,
   ) {
-    view.globe.color = new Color().setStyle(colors.globeColor);
+    // Land as ellipsoid base; ocean polygons tint water. Local GeoJSON only —
+    // Papers NE MVT was unreliable (blank white globe when tiles fail).
+    view.globe.color = new Color().setStyle(colors.landColor);
     view.addLayer({ type: "terrain", ellipsoid: {} });
 
-    // Non-draped land: draped (texturized) vectors vanish at Africa / globe
-    // camera heights (~6.8 Mm), same bake-resolution trap as draped polylines.
-    // Lit Lambert — ambient is added before this helper runs.
-    const physical = view.addSource({
-      type: "vector-tile",
-      url: PAPERS_NE_PHYSICAL_URL,
-      maxZoom: PAPERS_NE_MAX_ZOOM,
+    const ocean = view.addSource({
+      type: "geojson",
+      data: oceanData as GeoJSON.FeatureCollection,
     });
     view.addLayer({
       type: "vector",
-      source: physical,
-      sourceLayers: ["land"],
+      source: ocean,
       polygon: {
-        color: new Color().setStyle(colors.landColor),
+        color: new Color().setStyle(colors.globeColor),
         opacity: 1,
         transparent: false,
         clampToGround: false,
-        height: 1_000,
+        height: 500,
         show: true,
       },
     });
-    // Match boundary-layer WORLD_STROKE: opaque, non-draped, world-meter maxWidth.
-    // transparent:true routes through TransparentPass and can miss ambient → black.
-    const stroke = {
-      geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
-      color: new Color().setStyle(colors.strokeColor),
-      width: 2.5,
-      maxWidth: 400_000,
-      opacity: 1,
-      transparent: false,
-      clampToGround: false,
-      height: 5_000,
-      show: true,
-    };
-    view.addLayer({
-      type: "vector",
-      source: physical,
-      sourceLayers: ["coastline"],
-      polyline: { ...stroke },
-    });
 
-    const admin = view.addSource({
-      type: "vector-tile",
-      url: PAPERS_NE_ADMIN_URL,
-      maxZoom: PAPERS_NE_MAX_ZOOM,
+    // WORLD_STROKE pattern: opaque, non-draped, world-meter maxWidth.
+    // Dark strokes on light / light on dark via colors.strokeColor.
+    const borders = view.addSource({
+      type: "geojson",
+      data: worldBoundariesData as GeoJSON.FeatureCollection,
     });
     view.addLayer({
       type: "vector",
-      source: admin,
-      sourceLayers: ["boundary_lines"],
+      source: borders,
       polyline: {
-        ...stroke,
-        width: 1.75,
-        height: 4_000,
+        geometryTypes: ["line", "polygon"],
+        color: new Color().setStyle(colors.strokeColor),
+        width: 2.5,
+        maxWidth: 400_000,
+        opacity: 1,
+        transparent: false,
+        clampToGround: false,
+        height: 5_000,
+        show: true,
       },
     });
 
@@ -339,8 +322,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       return;
     }
 
-    const boundaries = attachBoundaryLayer(view);
-    const labels = await attachLabelLayers(view);
+    const boundaries = attachBoundaryLayer(view, entry.mode);
+    const labels = await attachLabelLayers(view, entry.mode);
     const cases = attachCaseLayers(view, entry.mode);
     const exposures = attachExposureLayer(view);
     const travels = attachTravelLayer(view);

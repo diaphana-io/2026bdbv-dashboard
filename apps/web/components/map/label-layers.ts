@@ -6,6 +6,7 @@ import {
 } from "@navaramap/three";
 import type ThreeView from "@navaramap/three";
 import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
+import type { CaseLayerMode } from "./basemap-style";
 import countryLabelsData from "../../data/country_labels.json";
 import majorCitiesData from "../../data/major_cities.json";
 
@@ -18,6 +19,33 @@ export type LabelLayersHandle = {
 };
 
 const LABEL_FONT = "Noto Sans";
+
+/** Dark fill on light land; bright fill + halo on dark/satellite. */
+function labelColors(mode: CaseLayerMode) {
+  if (mode === "light") {
+    return {
+      country: {
+        color: new Color().setStyle("#18181b"),
+        outlineColor: new Color().setStyle("#fafafa"),
+      },
+      city: {
+        color: new Color().setStyle("#3f3f46"),
+        outlineColor: new Color().setStyle("#fafafa"),
+      },
+    };
+  }
+  return {
+    country: {
+      // Bright fill + dark halo reads on Esri satellite / dark outline.
+      color: new Color().setStyle("#f8fafc"),
+      outlineColor: new Color().setStyle("#0b1220"),
+    },
+    city: {
+      color: new Color().setStyle("#e2e8f0"),
+      outlineColor: new Color().setStyle("#0b1220"),
+    },
+  };
+}
 
 const countryLabels = countryLabelsData as {
   type: "FeatureCollection";
@@ -76,6 +104,7 @@ function wireText(layer: Layer) {
 /** Register font once per view, then attach static country/city labels. */
 export async function attachLabelLayers(
   view: View,
+  mode: CaseLayerMode = "dark",
 ): Promise<LabelLayersHandle> {
   view.addFontFamily(
     await fetchFontFamilyFromCss(
@@ -83,6 +112,11 @@ export async function attachLabelLayers(
       "https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap",
     ),
   );
+
+  const colors = labelColors(mode);
+  // Lift above ellipsoid/raster so labels don't z-fight satellite tiles
+  // (same trap as non-draped boundary strokes without height).
+  const labelHeight = 12_000;
 
   const countrySource = view.addSource({
     type: "geojson",
@@ -93,15 +127,15 @@ export async function attachLabelLayers(
     source: countrySource,
     text: {
       font: LABEL_FONT,
-      // Bright fill + dark halo reads on Esri satellite.
-      color: new Color().setStyle("#f8fafc"),
-      outlineColor: new Color().setStyle("#0b1220"),
+      color: colors.country.color,
+      outlineColor: colors.country.outlineColor,
       outlineWidth: 3,
       size: 16,
       sizeInMeters: false,
       // Non-draped upright billboards stay readable at Africa / globe height;
       // draped text can disappear into tile bake at this camera.
       clampToGround: false,
+      height: labelHeight,
       textFacing: "upright",
       rotateWithCamera: true,
       offsetDepth: true,
@@ -122,12 +156,13 @@ export async function attachLabelLayers(
     source: citySource,
     text: {
       font: LABEL_FONT,
-      color: new Color().setStyle("#e2e8f0"),
-      outlineColor: new Color().setStyle("#0b1220"),
+      color: colors.city.color,
+      outlineColor: colors.city.outlineColor,
       outlineWidth: 2,
       size: 11,
       sizeInMeters: false,
       clampToGround: false,
+      height: labelHeight,
       textFacing: "upright",
       rotateWithCamera: true,
       offsetDepth: true,
@@ -138,18 +173,11 @@ export async function attachLabelLayers(
   });
   wireText(cityLayer);
 
-  let countryVisible = true;
-  let cityVisible = true;
-
   return {
     setCountryNamesVisible(next) {
-      if (countryVisible === next) return;
-      countryVisible = next;
       countryLayer.update({ text: { show: next } });
     },
     setCitiesVisible(next) {
-      if (cityVisible === next) return;
-      cityVisible = next;
       cityLayer.update({ text: { show: next } });
     },
     destroy() {

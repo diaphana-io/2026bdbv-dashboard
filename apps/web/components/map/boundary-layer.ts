@@ -6,6 +6,7 @@ import {
 import type ThreeView from "@navaramap/three";
 import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
+import type { CaseLayerMode } from "./basemap-style";
 import boundariesData from "../../data/country_boundaries.json";
 import worldBoundariesData from "../../data/world_boundaries.json";
 
@@ -40,29 +41,29 @@ function colorForIso(iso: unknown): Color {
   return new Color().setStyle(hex ?? "#64748b");
 }
 
-/** Shared stroke style for globe-scale satellite (non-draped, lit). */
-const WORLD_STROKE = {
-  geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
-  // High-contrast on Esri imagery (brown land / dark ocean).
-  color: new Color().setStyle("#ffffff"),
-  width: 3.5,
-  // World meters — without this, default 1000 m makes strokes sub-pixel
-  // from the Africa / globe camera (1 px ≈ 10+ km).
-  maxWidth: 400_000,
-  opacity: 1,
-  transparent: false,
-  clampToGround: false,
-  // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
-  height: 5_000,
-  show: true,
-};
+/** World outline stroke — dark on light basemap, white on dark/satellite imagery. */
+function worldStrokeColor(mode: CaseLayerMode): string {
+  // Pure white reads on Esri imagery; slate-200 was too soft after mode-aware cutover.
+  return mode === "light" ? "#3f3f46" : "#ffffff";
+}
 
-const TRACKED_STROKE = {
-  ...WORLD_STROKE,
-  width: 4.5,
-  maxWidth: 400_000,
-  height: 8_000,
-};
+/** Shared stroke style for globe-scale views (non-draped, lit). */
+function worldStroke(mode: CaseLayerMode) {
+  return {
+    geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
+    color: new Color().setStyle(worldStrokeColor(mode)),
+    width: 3.5,
+    // World meters — without this, default 1000 m makes strokes sub-pixel
+    // from the Africa / globe camera (1 px ≈ 10+ km).
+    maxWidth: 400_000,
+    opacity: 1,
+    transparent: false,
+    clampToGround: false,
+    // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
+    height: 5_000,
+    show: true,
+  };
+}
 
 /**
  * Static boundary GeoJSON — create once (not time-varying).
@@ -72,7 +73,11 @@ const TRACKED_STROKE = {
  * globe-scale camera heights in Navara. Non-draped strokes are lit; OutbreakMap
  * adds ambient light so they are not black on satellite.
  */
-export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
+export function attachBoundaryLayer(
+  view: View,
+  mode: CaseLayerMode = "dark",
+): BoundaryLayerHandle {
+  const stroke = worldStroke(mode);
   const worldSource = view.addSource({
     type: "geojson",
     data: worldBoundaries as GeoJSON.FeatureCollection,
@@ -80,7 +85,7 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
   const worldLine = view.addLayer({
     type: "vector",
     source: worldSource,
-    polyline: { ...WORLD_STROKE },
+    polyline: { ...stroke },
   });
 
   const trackedSource = view.addSource({
@@ -112,8 +117,10 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
     type: "vector",
     source: trackedSource,
     polyline: {
-      ...TRACKED_STROKE,
-      color: new Color().setStyle("#ffffff"),
+      ...stroke,
+      width: 4.5,
+      height: 8_000,
+      color: new Color().setStyle(worldStrokeColor(mode)),
     },
   });
   outline.on("featureUpdated", ({ evaluator }) => {
@@ -128,12 +135,11 @@ export function attachBoundaryLayer(view: View): BoundaryLayerHandle {
 
   const layers: Layer[] = [worldLine, fill, outline];
   const sources: Source[] = [worldSource, trackedSource];
-  let visible = true;
 
   return {
     setVisible(next) {
-      if (visible === next) return;
-      visible = next;
+      // Always re-assert show — early-return skipped updates when Navara
+      // feature evaluators left material visibility out of sync on satellite.
       for (const layer of layers) {
         layer.update({
           polygon: { show: next },

@@ -1,7 +1,7 @@
 /**
  * Basemap catalog for Navara OutbreakMap.
  * - `native-raster`: XYZ raster tiles (satellite) on ellipsoid terrain.
- * - `outline`: ellipsoid + Papers Natural Earth MVT (coast/borders) + graticule.
+ * - `outline`: ellipsoid + local NE GeoJSON borders/ocean + graticule.
  */
 
 /** Case marker stroke/fill palette keyed off basemap. */
@@ -20,8 +20,8 @@ const SATELLITE_URL =
 const SATELLITE_ATTRIBUTION =
   'Tiles © <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
 
-const PAPERS_ATTRIBUTION =
-  '<a href="https://papers.reearth.land/" target="_blank" rel="noopener">Re:Earth Papers</a> · Natural Earth';
+const OUTLINE_ATTRIBUTION =
+  '<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>';
 
 type BasemapBase = {
   label: string;
@@ -62,14 +62,14 @@ export const BASEMAPS = {
     label: "Light",
     mode: "light",
     colors: {
-      // Near-white globe; land a clear step darker so continents read at a glance.
+      // Ocean tint (ne_ocean); land is the ellipsoid base under it.
       globeColor: "#f4f4f5",
       landColor: "#d4d4d8",
-      // Zinc-700 — contrasts on #f4f4f5 / #d4d4d8 (opaque non-draped strokes).
+      // Zinc-700 — dark strokes on light land/ocean (mode-aware).
       strokeColor: "#3f3f46",
       graticuleColor: "#a1a1aa",
     },
-    attribution: PAPERS_ATTRIBUTION,
+    attribution: OUTLINE_ATTRIBUTION,
   },
   dark: {
     kind: "outline",
@@ -78,11 +78,11 @@ export const BASEMAPS = {
     colors: {
       globeColor: "#0f172a",
       landColor: "#1e293b",
-      // Slate-300 — readable on #0f172a / #1e293b under ambient light.
+      // Slate-300 — light strokes on dark land/ocean (mode-aware).
       strokeColor: "#cbd5e1",
       graticuleColor: "#64748b",
     },
-    attribution: PAPERS_ATTRIBUTION,
+    attribution: OUTLINE_ATTRIBUTION,
   },
 } as const satisfies Record<string, BasemapEntry>;
 
@@ -120,13 +120,6 @@ export function basemapIdForUiTheme(
 ): BasemapId {
   return resolvedTheme === "dark" ? "dark" : "light";
 }
-
-/** Papers Natural Earth MVT endpoints (maxzoom 8). */
-export const PAPERS_NE_PHYSICAL_URL =
-  "https://papers.reearth.land/naturalearth_physical/{z}/{x}/{y}.mvt";
-export const PAPERS_NE_ADMIN_URL =
-  "https://papers.reearth.land/naturalearth_admin/{z}/{x}/{y}.mvt";
-export const PAPERS_NE_MAX_ZOOM = 8;
 
 type GraticuleFeature = {
   type: "Feature";

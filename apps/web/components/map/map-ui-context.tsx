@@ -25,11 +25,11 @@ import {
 } from "@/lib/tracked-countries";
 
 /**
- * v4: force boundaries + countryNames ON after Navara globe cutover
- * (v3 could still hold toggles off from earlier experiments).
+ * v5: force boundaries + countryNames ON so satellite boots with borders/names
+ * (v3/v4 could still hold those toggles off from earlier experiments).
  */
-const STORAGE_KEY = "bdbv-map-ui-v4";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v3";
+const STORAGE_KEY = "bdbv-map-ui-v5";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v4";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -117,11 +117,12 @@ function readPersisted(): PersistedMapUi | null {
   try {
     const raw =
       window.localStorage.getItem(STORAGE_KEY) ??
-      window.localStorage.getItem(PREV_STORAGE_KEY);
+      window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show country borders + names after the Navara migration;
-    // other layer prefs (cities/cases/…) may still migrate from v3.
+    // Always show country borders + names (needed on satellite; outline
+    // basemaps also draw their own strokes). Other prefs may migrate.
     return {
       ...parsed,
       layers: {
