@@ -96,8 +96,8 @@ export async function attachLabelLayers(
       // Bright fill + dark halo reads on Esri satellite.
       color: new Color().setStyle("#f8fafc"),
       outlineColor: new Color().setStyle("#0b1220"),
-      outlineWidth: 2.5,
-      size: 14,
+      outlineWidth: 3,
+      size: 16,
       sizeInMeters: false,
       // Non-draped upright billboards stay readable at Africa / globe height;
       // draped text can disappear into tile bake at this camera.

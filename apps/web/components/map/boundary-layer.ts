@@ -43,24 +43,25 @@ function colorForIso(iso: unknown): Color {
 /** Shared stroke style for globe-scale satellite (non-draped, lit). */
 const WORLD_STROKE = {
   geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
-  color: new Color().setStyle("#f8fafc"),
-  width: 2.25,
+  // High-contrast on Esri imagery (brown land / dark ocean).
+  color: new Color().setStyle("#ffffff"),
+  width: 3.5,
   // World meters — without this, default 1000 m makes strokes sub-pixel
   // from the Africa / globe camera (1 px ≈ 10+ km).
-  maxWidth: 250_000,
+  maxWidth: 400_000,
   opacity: 1,
   transparent: false,
   clampToGround: false,
   // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
-  height: 2_500,
+  height: 5_000,
   show: true,
 };
 
 const TRACKED_STROKE = {
   ...WORLD_STROKE,
-  width: 3,
-  maxWidth: 250_000,
-  height: 4_000,
+  width: 4.5,
+  maxWidth: 400_000,
+  height: 8_000,
 };
 
 /**

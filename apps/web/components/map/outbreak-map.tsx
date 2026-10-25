@@ -5,9 +5,14 @@ import type { MapSnapshot } from "../../lib/data-types";
 import {
   BASEMAPS,
   OCEAN_COLOR,
+  PAPERS_NE_ADMIN_URL,
+  PAPERS_NE_MAX_ZOOM,
+  PAPERS_NE_PHYSICAL_URL,
   SPACE_COLOR,
+  buildGraticuleGeoJSON,
   type BasemapEntry,
   type BasemapId,
+  type OutlineBasemapColors,
 } from "./basemap-style";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi } from "./map-ui-context";
@@ -152,6 +157,92 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     }
   }
 
+  function attachOutlineBasemap(
+    view: import("@navaramap/three").default<
+      import("@navaramap/three-default-plugin").DefaultDescriptions
+    >,
+    Color: typeof import("@navaramap/three").Color,
+    colors: OutlineBasemapColors,
+    attribution: string,
+  ) {
+    view.globe.color = new Color().setStyle(colors.globeColor);
+    view.addLayer({ type: "terrain", ellipsoid: {} });
+
+    const physical = view.addSource({
+      type: "vector-tile",
+      url: PAPERS_NE_PHYSICAL_URL,
+      maxZoom: PAPERS_NE_MAX_ZOOM,
+    });
+    view.addLayer({
+      type: "vector",
+      source: physical,
+      sourceLayers: ["land"],
+      polygon: {
+        color: new Color().setStyle(colors.landColor),
+        opacity: 1,
+        transparent: false,
+        clampToGround: true,
+        show: true,
+      },
+    });
+    // Globe-scale strokes: draped lines vanish at Africa framing; match
+    // boundary-layer (clampToGround:false + maxWidth in world meters).
+    const stroke = {
+      color: new Color().setStyle(colors.strokeColor),
+      width: 1.25,
+      maxWidth: 280_000,
+      opacity: 0.85,
+      transparent: true,
+      clampToGround: false,
+      height: 4_000,
+      show: true,
+    };
+    view.addLayer({
+      type: "vector",
+      source: physical,
+      sourceLayers: ["coastline"],
+      polyline: { ...stroke },
+    });
+
+    const admin = view.addSource({
+      type: "vector-tile",
+      url: PAPERS_NE_ADMIN_URL,
+      maxZoom: PAPERS_NE_MAX_ZOOM,
+    });
+    view.addLayer({
+      type: "vector",
+      source: admin,
+      sourceLayers: ["boundary_lines"],
+      polyline: {
+        ...stroke,
+        width: 1,
+        opacity: 0.55,
+        height: 3_500,
+      },
+    });
+
+    const graticule = view.addSource({
+      type: "geojson",
+      data: buildGraticuleGeoJSON(15),
+    });
+    view.addLayer({
+      type: "vector",
+      source: graticule,
+      polyline: {
+        color: new Color().setStyle(colors.graticuleColor),
+        width: 0.75,
+        maxWidth: 200_000,
+        opacity: 0.45,
+        transparent: true,
+        clampToGround: false,
+        height: 3_000,
+        show: true,
+      },
+    });
+
+    view.attribution?.add([{ attributionHtml: attribution }]);
+  }
+
   async function bootView(bootId: BasemapId, generation: number) {
     const container = containerRef.current;
     if (!container) return;
@@ -160,15 +251,11 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     setMapError(null);
     setMapReady(false);
 
-    const [
-      { default: ThreeView, Color, Plugin },
-      { DefaultPlugin },
-      { MapLibreStylePlugin },
-    ] = await Promise.all([
-      import("@navaramap/three"),
-      import("@navaramap/three-default-plugin"),
-      import("@navaramap/maplibre-style"),
-    ]);
+    const [{ default: ThreeView, Color }, { DefaultPlugin }] =
+      await Promise.all([
+        import("@navaramap/three"),
+        import("@navaramap/three-default-plugin"),
+      ]);
     if (generation !== bootGenerationRef.current || !containerRef.current) {
       return;
     }
@@ -187,21 +274,6 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     const defaultPlugin = new DefaultPlugin();
     view.addPlugin(defaultPlugin);
 
-    if (entry.kind === "maplibre-style") {
-      // Layer paint order = add order. MapLibreStylePlugin adds draped
-      // layers during init (after an async style fetch); this sync plugin
-      // runs earlier in the same Promise.all so the ellipsoid sits under
-      // the style instead of covering it.
-      view.addPlugin(
-        new (class EllipsoidTerrainPlugin extends Plugin {
-          async init(v: import("@navaramap/three").default) {
-            v.addLayer({ type: "terrain", ellipsoid: {} });
-          }
-        })(),
-      );
-      view.addPlugin(new MapLibreStylePlugin(entry.styleUrl));
-    }
-
     await view.init();
     if (generation !== bootGenerationRef.current) {
       view.dispose();
@@ -211,7 +283,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     viewRef.current = view;
 
     if (entry.kind === "native-raster") {
-      // Ocean tint for gaps between satellite / NE tiles.
+      // Ocean tint for gaps between satellite tiles.
       view.globe.color = new Color().setStyle(OCEAN_COLOR);
       view.addLayer({ type: "terrain", ellipsoid: {} });
       const raster = view.addSource({
@@ -225,9 +297,9 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
           attributionHtml: entry.attribution,
         },
       ]);
+    } else {
+      attachOutlineBasemap(view, Color, entry.colors, entry.attribution);
     }
-    // maplibre-style: BackgroundHandler already set globe.color from the
-    // style's background layer — do not overwrite or re-add terrain.
 
     // Non-draped boundary polylines are lit (Lambert); without lights they
     // draw black and vanish on satellite. Ambient alone is enough.
