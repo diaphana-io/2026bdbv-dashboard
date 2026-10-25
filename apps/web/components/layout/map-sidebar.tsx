@@ -6,6 +6,7 @@ import {
   BookOpenIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
+  GlobeIcon,
   LayoutDashboardIcon,
   LayersIcon,
   MapIcon,
@@ -38,9 +39,16 @@ import type { BasemapId } from "../map/basemap-style";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
+const NEO4J_URL = "https://neo4j.com/";
+const NAVARA_URL = "https://navara.world/";
 
-const LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
+const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "boundaries", label: "Country boundary" },
+  { key: "countryNames", label: "Country name" },
+  { key: "cities", label: "Cities" },
+];
+
+const DATA_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "cases", label: "Cases" },
   { key: "exposures", label: "Exposures" },
   { key: "travels", label: "Travel" },
@@ -191,8 +199,23 @@ export function MapSidebar() {
                 </SidebarMenuSubItem>
               </NavSection>
 
-              <NavSection icon={<LayersIcon />} label="Layers" defaultOpen>
-                {LAYER_ITEMS.map(({ key, label }) => (
+              <NavSection icon={<GlobeIcon />} label="Map layers" defaultOpen>
+                {MAP_LAYER_ITEMS.map(({ key, label }) => (
+                  <SidebarMenuSubItem key={key}>
+                    <ToggleRow
+                      id={`layer-${key}`}
+                      label={label}
+                      checked={layers[key]}
+                      onCheckedChange={(checked) =>
+                        setLayerVisible(key, checked)
+                      }
+                    />
+                  </SidebarMenuSubItem>
+                ))}
+              </NavSection>
+
+              <NavSection icon={<LayersIcon />} label="Data layers" defaultOpen>
+                {DATA_LAYER_ITEMS.map(({ key, label }) => (
                   <SidebarMenuSubItem key={key}>
                     <ToggleRow
                       id={`layer-${key}`}
@@ -247,7 +270,7 @@ export function MapSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="gap-2 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between gap-1 px-1">
@@ -277,6 +300,51 @@ export function MapSidebar() {
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="px-2 pb-1">
+          <p className="mb-2 text-[10px] leading-tight text-muted-foreground">
+            This dashboard is powered by:
+          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href={NEO4J_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Neo4j"
+            >
+              <img
+                src="/logos/neo4j.svg"
+                alt="Neo4j"
+                className="h-4 w-auto dark:hidden"
+              />
+              <img
+                src="/logos/neo4j-white.svg"
+                alt=""
+                aria-hidden
+                className="hidden h-4 w-auto dark:block"
+              />
+            </a>
+            <a
+              href={NAVARA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Navara"
+            >
+              <img
+                src="/logos/navara.svg"
+                alt="Navara"
+                className="h-4 w-auto dark:hidden"
+              />
+              <img
+                src="/logos/navara-white.svg"
+                alt=""
+                aria-hidden
+                className="hidden h-4 w-auto dark:block"
+              />
+            </a>
+          </div>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

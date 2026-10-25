@@ -1,10 +1,23 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
+import {
+  Color,
+  type Layer,
+  type Source,
+} from "@navaramap/three";
+import type ThreeView from "@navaramap/three";
+import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import type { MapAggregate, MapCase } from "../../lib/data-types";
+import type { CaseLayerMode } from "./basemap-style";
 
-const CASES_SOURCE = "bdbv-cases";
-const CASES_LAYER = "bdbv-cases-circle";
-const AGG_SOURCE = "bdbv-aggregates";
-const AGG_LAYER = "bdbv-aggregates-circle";
+type View = ThreeView<DefaultDescriptions>;
+
+export type { CaseLayerMode };
+
+export type CaseLayersHandle = {
+  update: (cases: MapCase[], aggregates: MapAggregate[]) => void;
+  setVisible: (visible: boolean) => void;
+  setMode: (mode: CaseLayerMode) => void;
+  destroy: () => void;
+};
 
 function casesGeoJson(cases: MapCase[]) {
   return {
@@ -16,6 +29,7 @@ function casesGeoJson(cases: MapCase[]) {
         visual_id: c.visual_id,
         classification: c.classification,
         admin0_iso: c.admin0_iso,
+        kind: "case",
       },
       geometry: {
         type: "Point" as const,
@@ -36,6 +50,7 @@ function aggregatesGeoJson(aggregates: MapAggregate[]) {
         confirmed: a.confirmed,
         deaths: a.deaths,
         radius: Math.max(10, Math.min(40, Math.sqrt(a.confirmed) * 2.5)),
+        kind: "aggregate",
       },
       geometry: {
         type: "Point" as const,
@@ -45,107 +60,125 @@ function aggregatesGeoJson(aggregates: MapAggregate[]) {
   };
 }
 
-export type CaseLayerMode = "light" | "dark";
-
-function casePaint(mode: CaseLayerMode) {
+function caseColor(classification: unknown, mode: CaseLayerMode): Color {
   const dark = mode === "dark";
-  return {
-    "circle-radius": 6,
-    "circle-color": [
-      "match",
-      ["get", "classification"],
-      "confirmed",
-      dark ? "#f4f4f5" : "#18181b",
-      "suspected",
-      dark ? "#fbbf24" : "#d97706",
-      dark ? "#a1a1aa" : "#71717a",
-    ] as unknown as string,
-    "circle-stroke-width": 1.5,
-    "circle-stroke-color": dark ? "#18181b" : "#fafafa",
-  };
+  if (classification === "confirmed") {
+    return new Color().setStyle(dark ? "#f4f4f5" : "#18181b");
+  }
+  if (classification === "suspected") {
+    return new Color().setStyle(dark ? "#fbbf24" : "#d97706");
+  }
+  return new Color().setStyle(dark ? "#a1a1aa" : "#71717a");
 }
 
-export function ensureCaseLayers(
-  map: MapLibreMap,
+function wireCaseColors(layer: Layer, mode: CaseLayerMode) {
+  layer.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        color: caseColor(properties?.["classification"], mode),
+        show: true,
+      }),
+      { filters: ["classification"] },
+    );
+  });
+}
+
+function wireAggregateSizes(layer: Layer) {
+  layer.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(
+      ({ properties }) => ({
+        size: (properties?.["radius"] as number) ?? 14,
+        show: true,
+      }),
+      { filters: ["radius"] },
+    );
+  });
+}
+
+/**
+ * Declarative case + aggregate point layers.
+ * Dynamic GeoJSON must delete+recreate (skill invariant).
+ */
+export function attachCaseLayers(
+  view: View,
   mode: CaseLayerMode = "light",
-): void {
-  if (!map.getSource(CASES_SOURCE)) {
-    map.addSource(CASES_SOURCE, {
-      type: "geojson",
-      data: casesGeoJson([]),
-    });
-    map.addLayer({
-      id: CASES_LAYER,
-      type: "circle",
-      source: CASES_SOURCE,
-      paint: casePaint(mode),
-    });
+): CaseLayersHandle {
+  let modeState = mode;
+  let visible = true;
+  let casesSource: Source | undefined;
+  let casesLayer: Layer | undefined;
+  let aggSource: Source | undefined;
+  let aggLayer: Layer | undefined;
+
+  function clear() {
+    casesLayer?.delete();
+    casesSource?.delete();
+    aggLayer?.delete();
+    aggSource?.delete();
+    casesLayer = casesSource = aggLayer = aggSource = undefined;
   }
 
-  if (!map.getSource(AGG_SOURCE)) {
-    map.addSource(AGG_SOURCE, {
+  function rebuild(cases: MapCase[], aggregates: MapAggregate[]) {
+    clear();
+    if (!visible) return;
+
+    casesSource = view.addSource({
       type: "geojson",
-      data: aggregatesGeoJson([]),
+      data: casesGeoJson(cases),
     });
-    map.addLayer({
-      id: AGG_LAYER,
-      type: "circle",
-      source: AGG_SOURCE,
-      paint: {
-        "circle-radius": ["get", "radius"],
-        "circle-color": "#b91c1c",
-        "circle-opacity": 0.35,
-        "circle-stroke-width": 1,
-        "circle-stroke-color": "#7f1d1d",
+    casesLayer = view.addLayer({
+      type: "vector",
+      source: casesSource,
+      point: {
+        color: caseColor("confirmed", modeState),
+        size: 6,
+        sizeInMeters: false,
+        clampToGround: true,
+        declutter: false,
       },
     });
-  }
-}
+    wireCaseColors(casesLayer, modeState);
 
-export function updateCaseLayers(
-  map: MapLibreMap,
-  cases: MapCase[],
-  aggregates: MapAggregate[],
-): void {
-  const casesSrc = map.getSource(CASES_SOURCE) as
-    | { setData: (d: unknown) => void }
-    | undefined;
-  const aggSrc = map.getSource(AGG_SOURCE) as
-    | { setData: (d: unknown) => void }
-    | undefined;
-  casesSrc?.setData(casesGeoJson(cases));
-  aggSrc?.setData(aggregatesGeoJson(aggregates));
-}
-
-export function setCaseLayersVisible(
-  map: MapLibreMap,
-  visible: boolean,
-): void {
-  const value = visible ? "visible" : "none";
-  if (map.getLayer(CASES_LAYER)) {
-    map.setLayoutProperty(CASES_LAYER, "visibility", value);
+    aggSource = view.addSource({
+      type: "geojson",
+      data: aggregatesGeoJson(aggregates),
+    });
+    aggLayer = view.addLayer({
+      type: "vector",
+      source: aggSource,
+      point: {
+        color: new Color().setStyle("#b91c1c"),
+        size: 14,
+        sizeInMeters: false,
+        opacity: 0.35,
+        clampToGround: true,
+        declutter: false,
+      },
+    });
+    wireAggregateSizes(aggLayer);
   }
-  if (map.getLayer(AGG_LAYER)) {
-    map.setLayoutProperty(AGG_LAYER, "visibility", value);
-  }
-}
 
-export function onCaseClick(
-  map: MapLibreMap,
-  handler: (caseId: string) => void,
-): () => void {
-  const click = (e: { features?: { properties?: { id?: string } }[] }) => {
-    const id = e.features?.[0]?.properties?.id;
-    if (id) handler(id);
-  };
-  map.on("click", CASES_LAYER, click);
-  map.on("mouseenter", CASES_LAYER, () => {
-    map.getCanvas().style.cursor = "pointer";
-  });
-  map.on("mouseleave", CASES_LAYER, () => {
-    map.getCanvas().style.cursor = "";
-  });
-  return () => {
-    map.off("click", CASES_LAYER, click);
+  let lastCases: MapCase[] = [];
+  let lastAggregates: MapAggregate[] = [];
+
+  return {
+    update(cases, aggregates) {
+      lastCases = cases;
+      lastAggregates = aggregates;
+      rebuild(cases, aggregates);
+    },
+    setVisible(next) {
+      if (visible === next) return;
+      visible = next;
+      rebuild(lastCases, lastAggregates);
+    },
+    setMode(next) {
+      if (modeState === next) return;
+      modeState = next;
+      rebuild(lastCases, lastAggregates);
+    },
+    destroy() {
+      clear();
+    },
   };
 }
