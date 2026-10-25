@@ -1,6 +1,7 @@
 {
   "name": "2026bdbv-dashboard",
   "private": true,
+  "license": "Apache-2.0",
   "workspaces": [
     "apps/*",
     "packages/*"

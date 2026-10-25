@@ -2,6 +2,7 @@
   "name": "@bdbv/web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "packageManager": "npm@10.9.9",
   "dependencies": {
     "@navaramap/three": "^0.2.1",
