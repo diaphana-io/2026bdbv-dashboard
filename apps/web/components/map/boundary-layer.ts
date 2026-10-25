@@ -8,7 +8,6 @@ import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
 import type { CaseLayerMode } from "./basemap-style";
 import boundariesData from "../../data/country_boundaries.json";
-import worldBoundariesData from "../../data/world_boundaries.json";
 
 type View = ThreeView<DefaultDescriptions>;
 
@@ -26,11 +25,6 @@ const boundaries = boundariesData as {
   }>;
 };
 
-const worldBoundaries = worldBoundariesData as {
-  type: "FeatureCollection";
-  features: unknown[];
-};
-
 const COLOR_BY_ISO: Record<string, string> = Object.fromEntries(
   TRACKED_COUNTRIES.map((c) => [c.iso, c.color]),
 );
@@ -41,56 +35,20 @@ function colorForIso(iso: unknown): Color {
   return new Color().setStyle(hex ?? "#64748b");
 }
 
-/** World outline stroke — dark on light basemap, white on dark/satellite imagery. */
-function worldStrokeColor(mode: CaseLayerMode): string {
-  // Pure white reads on Esri imagery; slate-200 was too soft after mode-aware cutover.
-  return mode === "light" ? "#3f3f46" : "#ffffff";
-}
-
-/** Shared stroke style for globe-scale views (non-draped, lit). */
-function worldStroke(mode: CaseLayerMode) {
-  return {
-    geometryTypes: ["line", "polygon"] as Array<"line" | "polygon">,
-    color: new Color().setStyle(worldStrokeColor(mode)),
-    width: 3.5,
-    // World meters — without this, default 1000 m makes strokes sub-pixel
-    // from the Africa / globe camera (1 px ≈ 10+ km).
-    maxWidth: 400_000,
-    opacity: 1,
-    transparent: false,
-    clampToGround: false,
-    // Lift slightly so thin strokes don't z-fight the ellipsoid raster.
-    height: 5_000,
-    show: true,
-  };
-}
-
 /**
- * Static boundary GeoJSON — create once (not time-varying).
- * World outlines + tracked-country fills/strokes.
+ * Tracked-country fill + thin emphasis outline only.
+ * World borders come from Papers NE `boundary_lines` (no local double-stroke).
  *
- * Polylines use clampToGround:false — draped lines vanish at Africa /
- * globe-scale camera heights in Navara. Non-draped strokes are lit; OutbreakMap
- * adds ambient light so they are not black on satellite.
+ * Outline is non-draped: draped polylines vanish at the Africa / globe-scale
+ * camera; non-draped strokes stay visible (lit — OutbreakMap ambient covers it).
  */
 export function attachBoundaryLayer(
   view: View,
-  mode: CaseLayerMode = "dark",
+  _mode: CaseLayerMode = "dark",
 ): BoundaryLayerHandle {
-  const stroke = worldStroke(mode);
-  const worldSource = view.addSource({
-    type: "geojson",
-    data: worldBoundaries as GeoJSON.FeatureCollection,
-  });
-  const worldLine = view.addLayer({
-    type: "vector",
-    source: worldSource,
-    polyline: { ...stroke },
-  });
-
   const trackedSource = view.addSource({
     type: "geojson",
-    data: boundaries as GeoJSON.FeatureCollection,
+    data: boundaries,
   });
   const fill = view.addLayer({
     type: "vector",
@@ -117,10 +75,16 @@ export function attachBoundaryLayer(
     type: "vector",
     source: trackedSource,
     polyline: {
-      ...stroke,
-      width: 4.5,
-      height: 8_000,
-      color: new Color().setStyle(worldStrokeColor(mode)),
+      geometryTypes: ["line", "polygon"],
+      color: new Color().setStyle("#64748b"),
+      // Pax-thin emphasis over Papers world borders.
+      width: 2,
+      maxWidth: 80_000,
+      opacity: 0.9,
+      transparent: true,
+      clampToGround: false,
+      height: 4_000,
+      show: true,
     },
   });
   outline.on("featureUpdated", ({ evaluator }) => {
@@ -133,13 +97,11 @@ export function attachBoundaryLayer(
     );
   });
 
-  const layers: Layer[] = [worldLine, fill, outline];
-  const sources: Source[] = [worldSource, trackedSource];
+  const layers: Layer[] = [fill, outline];
+  const sources: Source[] = [trackedSource];
 
   return {
     setVisible(next) {
-      // Always re-assert show — early-return skipped updates when Navara
-      // feature evaluators left material visibility out of sync on satellite.
       for (const layer of layers) {
         layer.update({
           polygon: { show: next },

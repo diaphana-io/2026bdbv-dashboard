@@ -25,8 +25,8 @@ import {
 } from "@/lib/tracked-countries";
 
 /**
- * v5: force boundaries + countryNames ON so satellite boots with borders/names
- * (v3/v4 could still hold those toggles off from earlier experiments).
+ * v5: force boundaries + countryNames ON (tracked-country emphasis + labels;
+ * v3/v4 could still hold those toggles off from earlier experiments).
  */
 const STORAGE_KEY = "bdbv-map-ui-v5";
 const PREV_STORAGE_KEY = "bdbv-map-ui-v4";
@@ -121,8 +121,8 @@ function readPersisted(): PersistedMapUi | null {
       window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show country borders + names (needed on satellite; outline
-    // basemaps also draw their own strokes). Other prefs may migrate.
+    // Always show country borders + names (tracked fill/outline + labels;
+    // Papers NE already draws world boundary_lines). Other prefs may migrate.
     return {
       ...parsed,
       layers: {
@@ -172,7 +172,7 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
   };
   const countryStatsVisible = mergeCountryStats(persisted?.countryStatsVisible);
   const basemapId = resolveBasemapId(persisted?.basemapId);
-  // Default off so satellite stays selected; theme sync is opt-in via sidebar.
+  // Default off so dark Papers stays selected; theme sync is opt-in via sidebar.
   const syncBasemapToUiTheme = persisted?.syncBasemapToUiTheme ?? false;
   return {
     openPanels,
