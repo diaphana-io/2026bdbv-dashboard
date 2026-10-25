@@ -45,6 +45,7 @@ describe("curated production data", () => {
         ClaimSchema.parse({
           id: row.id,
           claim_type: row.claim_type,
+          claim_category: row.claim_category,
           subject_ref: row.subject_ref,
           object_value: row.object_value,
           as_of_date: row.as_of_date,
@@ -55,6 +56,11 @@ describe("curated production data", () => {
         }),
       ).not.toThrow();
     }
+    expect(
+      claims.every(
+        (c: { claim_category?: string }) => c.claim_category === "aggregate_count",
+      ),
+    ).toBe(true);
     const cdSeries = claims.filter(
       (c: { subject_ref: string; claim_type: string }) =>
         c.subject_ref === "CD" && c.claim_type === "case_count",

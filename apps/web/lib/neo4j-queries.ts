@@ -2,8 +2,13 @@ import type { Integer, Node, Record as Neo4jRecord } from "neo4j-driver";
 import type {
   CaseDetail,
   CaseDetailEvent,
+  CaseDetailSource,
   CaseQueryOpts,
   CaseRow,
+  CatalogAuditSnippet,
+  CatalogClaimRow,
+  CatalogSourceDetail,
+  CatalogSourceRow,
   ClaimRow,
   ConflictView,
   ContactRow,
@@ -20,6 +25,8 @@ import type {
   SourceRow,
 } from "./data-types";
 import { withSession } from "./neo4j";
+
+const CATALOG_STATUSES = ["fetched", "extracted", "in_review", "done"] as const;
 
 function num(v: unknown): number | undefined {
   if (v == null) return undefined;
@@ -74,6 +81,7 @@ function claimFromNode(n: Node): ClaimRow {
   return {
     id: String(p.id),
     claim_type: String(p.claim_type),
+    claim_category: (p.claim_category as string | undefined) ?? undefined,
     subject_ref: String(p.subject_ref),
     object_value,
     as_of_date: String(p.as_of_date),
@@ -81,6 +89,11 @@ function claimFromNode(n: Node): ClaimRow {
     review_status: String(p.review_status),
     source_id: String(p.source_id),
     excerpt: (p.excerpt as string | undefined) ?? undefined,
+    lineage_id: p.lineage_id != null ? String(p.lineage_id) : undefined,
+    version: num(p.version),
+    is_head: p.is_head != null ? Boolean(p.is_head) : undefined,
+    extractor: p.extractor != null ? String(p.extractor) : undefined,
+    reviewed_at: (p.reviewed_at as string | null | undefined) ?? undefined,
   };
 }
 
@@ -94,6 +107,23 @@ function sourceFromNode(n: Node): SourceRow {
     kind: String(p.kind),
     published_at: (p.published_at as string | null) ?? null,
     curation_status: String(p.curation_status),
+    normalized_url: p.normalized_url != null ? String(p.normalized_url) : undefined,
+    evidence_class: p.evidence_class != null ? String(p.evidence_class) : undefined,
+    discovered_at: (p.discovered_at as string | null | undefined) ?? undefined,
+  };
+}
+
+function auditFromProps(p: Record<string, unknown>): CatalogAuditSnippet {
+  return {
+    id: String(p.id),
+    at: String(p.at),
+    actor: String(p.actor),
+    action: String(p.action),
+    lineage_id: p.lineage_id != null ? String(p.lineage_id) : null,
+    claim_id: p.claim_id != null ? String(p.claim_id) : null,
+    from_version: num(p.from_version) ?? null,
+    to_version: num(p.to_version) ?? null,
+    reason: p.reason != null ? String(p.reason) : null,
   };
 }
 
@@ -333,12 +363,23 @@ export async function getInboxCandidatesNeo4j(): Promise<InboxRow[]> {
     );
     return res.records.map((r) => {
       const p = props(r.get("s") as Node);
+      const dup = p.duplicate_level;
       return {
         id: String(p.id),
         url: String(p.url),
         title: (p.title as string | undefined) ?? undefined,
         publisher: (p.publisher as string | undefined) ?? undefined,
         kind: String(p.kind),
+        evidence_class: (p.evidence_class as string | undefined) ?? "other",
+        duplicate_level:
+          dup === "exact_url" ||
+          dup === "content_hash" ||
+          dup === "possible" ||
+          dup === "none"
+            ? dup
+            : "none",
+        duplicate_of_source_id:
+          (p.duplicate_of_source_id as string | undefined) ?? null,
         curation_status: String(p.curation_status),
         discovered_at: (p.discovered_at as string | undefined) ?? undefined,
       };
@@ -639,6 +680,47 @@ export async function getCaseDetailNeo4j(
     }
 
     events.sort((a, b) => a.at.localeCompare(b.at));
+
+    const srcRes = await session.run(
+      `
+      MATCH (c:Case {id: $caseId})
+      OPTIONAL MATCH (c)-[:SOURCED_FROM]->(s:SourceDocument)
+      WITH c, collect(DISTINCT s) AS linked
+      WITH c,
+           CASE
+             WHEN size(linked) > 0 AND linked[0] IS NOT NULL THEN linked
+             ELSE []
+           END AS fromRel,
+           coalesce(c.source_ids, []) AS ids
+      UNWIND
+        CASE
+          WHEN size(fromRel) > 0 THEN [x IN fromRel | x.id]
+          ELSE ids
+        END AS sid
+      MATCH (s:SourceDocument {id: sid})
+      RETURN s, sid
+      ORDER BY sid
+      `,
+      { caseId },
+    );
+    const byId = new Map<string, CaseDetailSource>();
+    for (const r of srcRes.records) {
+      const s = sourceFromNode(r.get("s") as Node);
+      byId.set(s.id, {
+        id: s.id,
+        title: s.title ?? null,
+        publisher: s.publisher ?? null,
+        kind: s.kind,
+        url: s.url,
+        published_at: s.published_at ?? null,
+      });
+    }
+    const sourceIds =
+      (c.source_ids?.length ? c.source_ids : [...byId.keys()]) ?? [];
+    const detailSources = sourceIds
+      .map((id) => byId.get(id))
+      .filter((s): s is CaseDetailSource => Boolean(s));
+
     return {
       id: c.id,
       visual_id: c.visual_id,
@@ -646,6 +728,8 @@ export async function getCaseDetailNeo4j(
       classification: c.classification,
       lat: c.lat,
       lon: c.lon,
+      source_ids: sourceIds,
+      sources: detailSources,
       events,
     };
   });
@@ -656,4 +740,148 @@ export async function getCountryStatsNeo4j(
   _asOf?: string,
 ): Promise<CountryStatRow[]> {
   return [];
+}
+
+export async function getCatalogSourcesNeo4j(opts?: {
+  includeDismissed?: boolean;
+}): Promise<CatalogSourceRow[]> {
+  return withSession(async (session) => {
+    const statuses = opts?.includeDismissed
+      ? [...CATALOG_STATUSES, "dismissed"]
+      : [...CATALOG_STATUSES];
+    const res = await session.run(
+      `
+      MATCH (s:SourceDocument)
+      WHERE s.curation_status IN $statuses
+      OPTIONAL MATCH (c:Claim)-[:FROM]->(s)
+      WITH s,
+           collect(c) AS claims,
+           max(c.reviewed_at) AS latest_reviewed_at
+      RETURN s, claims, latest_reviewed_at
+      ORDER BY coalesce(latest_reviewed_at, s.published_at, s.discovered_at) DESC
+      `,
+      { statuses },
+    );
+    return res.records.map((r) => {
+      const s = sourceFromNode(r.get("s") as Node);
+      const claimNodes = (r.get("claims") as Node[]).filter(Boolean);
+      const claimRows = claimNodes.map(claimFromNode);
+      const extractors = [
+        ...new Set(
+          claimRows
+            .map((c) => c.extractor)
+            .filter((e): e is string => Boolean(e)),
+        ),
+      ];
+      const latest = r.get("latest_reviewed_at");
+      return {
+        id: s.id,
+        url: s.url,
+        normalized_url: s.normalized_url ?? s.url,
+        title: s.title ?? null,
+        publisher: s.publisher ?? null,
+        kind: s.kind,
+        evidence_class: s.evidence_class,
+        curation_status: s.curation_status,
+        published_at: s.published_at ?? null,
+        discovered_at: s.discovered_at ?? null,
+        claim_count: claimRows.length,
+        approved_count: claimRows.filter((c) => c.review_status === "approved")
+          .length,
+        pending_count: claimRows.filter(
+          (c) => c.review_status === "pending_review",
+        ).length,
+        latest_reviewed_at: typeof latest === "string" ? latest : null,
+        extractors,
+      };
+    });
+  });
+}
+
+export async function getSourceCatalogDetailNeo4j(
+  key: string,
+): Promise<CatalogSourceDetail | null> {
+  return withSession(async (session) => {
+    const srcRes = await session.run(
+      `
+      MATCH (s:SourceDocument)
+      WHERE s.id = $key OR s.normalized_url = $key OR s.url = $key
+      RETURN s
+      LIMIT 1
+      `,
+      { key },
+    );
+    if (srcRes.records.length === 0) return null;
+    const sNode = srcRes.records[0].get("s") as Node;
+    const s = sourceFromNode(sNode);
+
+    const claimRes = await session.run(
+      `
+      MATCH (c:Claim)-[:FROM]->(s:SourceDocument {id: $id})
+      OPTIONAL MATCH (a:CurateAuditEvent)
+      WHERE a.lineage_id = c.lineage_id OR a.claim_id = c.id
+      WITH c, a
+      ORDER BY a.at DESC
+      WITH c, collect(a)[0..5] AS audits
+      RETURN c, audits
+      ORDER BY c.lineage_id, c.version
+      `,
+      { id: s.id },
+    );
+
+    const claims: CatalogClaimRow[] = claimRes.records.map((r) => {
+      const row = claimFromNode(r.get("c") as Node);
+      const auditNodes = (r.get("audits") as Node[]).filter(Boolean);
+      const audits = auditNodes.map((n) => auditFromProps(props(n)));
+      return {
+        id: row.id,
+        lineage_id: row.lineage_id ?? row.id,
+        version: row.version ?? 1,
+        is_head: row.is_head ?? row.review_status === "approved",
+        claim_type: row.claim_type,
+        claim_category: row.claim_category,
+        subject_ref: row.subject_ref,
+        object_value: row.object_value,
+        as_of_date: row.as_of_date,
+        confidence: row.confidence,
+        extractor: row.extractor ?? "human",
+        review_status: row.review_status,
+        reviewed_at: row.reviewed_at ?? null,
+        excerpt: row.excerpt ?? null,
+        audits,
+      };
+    });
+
+    const extractors = [
+      ...new Set(claims.map((c) => c.extractor).filter(Boolean)),
+    ];
+    const latest_reviewed_at =
+      claims
+        .map((c) => c.reviewed_at)
+        .filter((x): x is string => Boolean(x))
+        .sort()
+        .at(-1) ?? null;
+
+    const source: CatalogSourceRow = {
+      id: s.id,
+      url: s.url,
+      normalized_url: s.normalized_url ?? s.url,
+      title: s.title ?? null,
+      publisher: s.publisher ?? null,
+      kind: s.kind,
+      evidence_class: s.evidence_class,
+      curation_status: s.curation_status,
+      published_at: s.published_at ?? null,
+      discovered_at: s.discovered_at ?? null,
+      claim_count: claims.length,
+      approved_count: claims.filter((c) => c.review_status === "approved")
+        .length,
+      pending_count: claims.filter((c) => c.review_status === "pending_review")
+        .length,
+      latest_reviewed_at,
+      extractors,
+    };
+
+    return { source, claims };
+  });
 }

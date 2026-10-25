@@ -241,6 +241,20 @@ async function main() {
           outbreak_id: outbreak.id,
         },
       );
+
+      const sourceIds = Array.isArray(c.source_ids) ? c.source_ids : [];
+      await session.run(
+        `
+        MATCH (c:Case {id: $id})
+        OPTIONAL MATCH (c)-[old:SOURCED_FROM]->(:SourceDocument)
+        DELETE old
+        WITH DISTINCT c
+        UNWIND $source_ids AS sid
+        MATCH (s:SourceDocument {id: sid})
+        MERGE (c)-[:SOURCED_FROM]->(s)
+        `,
+        { id: c.id, source_ids: sourceIds },
+      );
     }
 
     for (const claim of claims) {
@@ -248,6 +262,7 @@ async function main() {
         `
         MERGE (cl:Claim {id: $id})
         SET cl.claim_type = $claim_type,
+            cl.claim_category = $claim_category,
             cl.subject_ref = $subject_ref,
             cl.object_value_json = $object_value_json,
             cl.as_of_date = $as_of_date,
@@ -258,7 +273,10 @@ async function main() {
             cl.reviewed_at = $reviewed_at,
             cl.reviewed_by = $reviewed_by,
             cl.excerpt = $excerpt,
-            cl.source_id = $source_id
+            cl.source_id = $source_id,
+            cl.lineage_id = $lineage_id,
+            cl.version = $version,
+            cl.is_head = $is_head
         WITH cl
         MATCH (s:SourceDocument {id: $source_id})
         MERGE (cl)-[:FROM]->(s)
@@ -266,6 +284,7 @@ async function main() {
         {
           id: claim.id,
           claim_type: claim.claim_type,
+          claim_category: claim.claim_category ?? "other",
           subject_ref: claim.subject_ref,
           object_value_json: JSON.stringify(claim.object_value ?? {}),
           as_of_date: claim.as_of_date,
@@ -277,6 +296,10 @@ async function main() {
           reviewed_by: claim.reviewed_by ?? null,
           excerpt: claim.excerpt ?? null,
           source_id: claim.source_id,
+          lineage_id: claim.lineage_id ?? claim.id,
+          version: claim.version ?? 1,
+          is_head:
+            claim.is_head ?? claim.review_status === "approved",
         },
       );
     }
@@ -328,6 +351,7 @@ async function main() {
         MATCH (c:Case {visual_id: $to_case_visual_id})
         MERGE (p)-[e:EXPOSED_TO]->(c)
         SET e.id = $exposure_id,
+            e.date_of_first_contact = $date_of_first_contact,
             e.date_of_last_contact = $date_of_last_contact,
             e.exposure_setting = $exposure_setting,
             e.intensity = $intensity,
@@ -353,6 +377,9 @@ async function main() {
           is_synthetic: Boolean(contact.is_synthetic),
           to_case_visual_id: contact.exposure.to_case_visual_id,
           exposure_id: contact.exposure.id,
+          date_of_first_contact:
+            contact.exposure.date_of_first_contact ??
+            contact.exposure.date_of_last_contact,
           date_of_last_contact: contact.exposure.date_of_last_contact,
           exposure_setting: contact.exposure.exposure_setting,
           intensity: contact.exposure.intensity,

@@ -1,5 +1,5 @@
 use super::{cmd_ping, CommandSpec};
-use crate::curate;
+use crate::{curate, pipeline};
 
 pub static REGISTRY: &[CommandSpec] = &[
     CommandSpec {
@@ -8,9 +8,19 @@ pub static REGISTRY: &[CommandSpec] = &[
         run: cmd_ping,
     },
     CommandSpec {
+        id: "sys.pipelineStatus",
+        mutates: false,
+        run: pipeline::pipeline_status,
+    },
+    CommandSpec {
         id: "curate.checkDuplicate",
         mutates: false,
         run: curate::check_duplicate,
+    },
+    CommandSpec {
+        id: "curate.classifySource",
+        mutates: false,
+        run: curate::classify_source_stub,
     },
     CommandSpec {
         id: "curate.extractClaims",
@@ -31,6 +41,21 @@ pub static REGISTRY: &[CommandSpec] = &[
         id: "curate.rejectClaim",
         mutates: true,
         run: curate::reject_claim,
+    },
+    CommandSpec {
+        id: "curate.reviseClaim",
+        mutates: true,
+        run: curate::revise_claim,
+    },
+    CommandSpec {
+        id: "curate.rollbackClaim",
+        mutates: true,
+        run: curate::rollback_claim,
+    },
+    CommandSpec {
+        id: "curate.appendAudit",
+        mutates: true,
+        run: curate::append_audit,
     },
     CommandSpec {
         id: "curate.detectConflict",

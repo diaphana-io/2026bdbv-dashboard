@@ -3,15 +3,28 @@
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { withBasePath } from "../../lib/base-path";
+import {
+  CLAIM_CATEGORIES,
+  claimCategoryForType,
+  type ClaimCategory,
+} from "../../lib/claim-category";
 
 export function ClaimReviewForm({ sourceUrl }: { sourceUrl: string }) {
   const [claimType, setClaimType] = useState("case_count");
+  const [claimCategory, setClaimCategory] = useState<ClaimCategory>(
+    claimCategoryForType("case_count"),
+  );
   const [subjectRef, setSubjectRef] = useState("KE");
   const [asOfDate, setAsOfDate] = useState("2026-10-20");
   const [objectValue, setObjectValue] = useState('{"confirmed":9,"deaths":1}');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  function onClaimTypeChange(next: string) {
+    setClaimType(next);
+    setClaimCategory(claimCategoryForType(next));
+  }
 
   async function submit(action: "approve" | "reject") {
     setPending(true);
@@ -24,6 +37,7 @@ export function ClaimReviewForm({ sourceUrl }: { sourceUrl: string }) {
         body: JSON.stringify({
           action,
           claim_type: claimType,
+          claim_category: claimCategory,
           subject_ref: subjectRef,
           as_of_date: asOfDate,
           object_value: objectValue,
@@ -58,8 +72,20 @@ export function ClaimReviewForm({ sourceUrl }: { sourceUrl: string }) {
       <input
         className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
         value={claimType}
-        onChange={(e) => setClaimType(e.target.value)}
+        onChange={(e) => onClaimTypeChange(e.target.value)}
       />
+      <label className="text-xs font-medium text-zinc-600">claim_category</label>
+      <select
+        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+        value={claimCategory}
+        onChange={(e) => setClaimCategory(e.target.value as ClaimCategory)}
+      >
+        {CLAIM_CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
       <label className="text-xs font-medium text-zinc-600">subject_ref</label>
       <input
         className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"

@@ -6,6 +6,7 @@ use thiserror::Error;
 
 pub mod commands;
 pub mod curate;
+pub mod pipeline;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -142,6 +143,31 @@ mod tests {
         let mut s = Session::new("test");
         let v = s.run("sys.ping", &json!({})).unwrap();
         assert_eq!(v["ok"], true);
+    }
+
+    #[test]
+    fn curate_commands_registered() {
+        let mut s = Session::new("test");
+        assert_eq!(
+            s.run("curate.classifySource", &json!({})).unwrap()["evidence_class"],
+            "other"
+        );
+        assert_eq!(
+            s.run(
+                "curate.checkDuplicate",
+                &json!({ "url": "https://a.example/", "existing_normalized_urls": [] })
+            )
+            .unwrap()["duplicate_level"],
+            "none"
+        );
+        assert!(s
+            .run(
+                "curate.appendAudit",
+                &json!({ "action": "approve", "actor": "t@example.com" })
+            )
+            .unwrap()["appended"]
+            .as_bool()
+            .unwrap_or(false));
     }
 
     #[test]

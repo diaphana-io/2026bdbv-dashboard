@@ -25,6 +25,7 @@ export type CaseRow = {
 export type ClaimRow = {
   id: string;
   claim_type: string;
+  claim_category?: string;
   subject_ref: string;
   object_value: Record<string, unknown>;
   as_of_date: string;
@@ -32,6 +33,11 @@ export type ClaimRow = {
   review_status: string;
   source_id: string;
   excerpt?: string;
+  lineage_id?: string;
+  version?: number;
+  is_head?: boolean;
+  extractor?: string;
+  reviewed_at?: string | null;
 };
 
 /** Options for approved incidence claim series reads. */
@@ -65,6 +71,62 @@ export type SourceRow = {
   kind: string;
   published_at?: string | null;
   curation_status: string;
+  normalized_url?: string;
+  evidence_class?: string;
+  discovered_at?: string | null;
+};
+
+export type CatalogAuditSnippet = {
+  id: string;
+  at: string;
+  actor: string;
+  action: string;
+  lineage_id?: string | null;
+  claim_id?: string | null;
+  from_version?: number | null;
+  to_version?: number | null;
+  reason?: string | null;
+};
+
+export type CatalogClaimRow = {
+  id: string;
+  lineage_id: string;
+  version: number;
+  is_head: boolean;
+  claim_type: string;
+  claim_category?: string;
+  subject_ref: string;
+  object_value: Record<string, unknown>;
+  as_of_date: string;
+  confidence: string;
+  extractor: string;
+  review_status: string;
+  reviewed_at?: string | null;
+  excerpt?: string | null;
+  audits: CatalogAuditSnippet[];
+};
+
+export type CatalogSourceRow = {
+  id: string;
+  url: string;
+  normalized_url: string;
+  title?: string | null;
+  publisher?: string | null;
+  kind: string;
+  evidence_class?: string;
+  curation_status: string;
+  published_at?: string | null;
+  discovered_at?: string | null;
+  claim_count: number;
+  approved_count: number;
+  pending_count: number;
+  latest_reviewed_at?: string | null;
+  extractors: string[];
+};
+
+export type CatalogSourceDetail = {
+  source: CatalogSourceRow;
+  claims: CatalogClaimRow[];
 };
 
 export type ContactRow = {
@@ -113,12 +175,21 @@ export type ConflictRow = {
   detected_at: string;
 };
 
+export type DuplicateLevel =
+  | "none"
+  | "exact_url"
+  | "content_hash"
+  | "possible";
+
 export type InboxRow = {
   id: string;
   url: string;
   title?: string;
   publisher?: string;
   kind: string;
+  evidence_class?: string;
+  duplicate_level?: DuplicateLevel;
+  duplicate_of_source_id?: string | null;
   curation_status: string;
   discovered_at?: string;
 };
@@ -201,6 +272,16 @@ export type CaseDetailEvent = {
   meta?: Record<string, unknown>;
 };
 
+/** Source cited by a case — keyed by internal SourceDocument id. */
+export type CaseDetailSource = {
+  id: string;
+  title: string | null;
+  publisher: string | null;
+  kind: string;
+  url: string;
+  published_at: string | null;
+};
+
 export type CaseDetail = {
   id: string;
   visual_id: string;
@@ -208,6 +289,9 @@ export type CaseDetail = {
   classification: string;
   lat?: number;
   lon?: number;
+  /** Ordered by Case.source_ids (internal UUIDs). */
+  source_ids: string[];
+  sources: CaseDetailSource[];
   events: CaseDetailEvent[];
 };
 

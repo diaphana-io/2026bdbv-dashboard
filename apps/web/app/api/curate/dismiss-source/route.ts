@@ -1,6 +1,6 @@
 import { normalizeUrl } from "../../../../lib/curate-api";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { isNeo4jConfigured } from "../../../../lib/neo4j";
+import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
 import { persistDismissSource } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
   const normalized = normalizeUrl(url);
   let persisted = false;
-  if (isNeo4jConfigured()) {
+  if (await shouldUseNeo4j()) {
     try {
       await persistDismissSource(normalized);
       invalidateGraphReadCache();

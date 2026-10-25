@@ -22,6 +22,18 @@ run_rust() {
   fi
 }
 
+run_wasm() {
+  if [[ -f crates/surv_wasm/Cargo.toml ]]; then
+    if command -v node >/dev/null 2>&1; then
+      node scripts/build-surv-wasm.mjs
+    else
+      bash scripts/build-surv-wasm.sh
+    fi
+  else
+    echo "surv_wasm not ready; skip"
+  fi
+}
+
 run_lint() {
   if [[ -f Cargo.toml ]]; then
     cargo fmt --all -- --check
@@ -55,7 +67,10 @@ case "$UNIT" in
     echo "schema OK"
     ;;
   engine)
-    cargo test -p surv_geom -p surv_data -p surv_analysis -p surv_epi -p surv_engine
+    cargo test -p surv_geom -p surv_data -p surv_analysis -p surv_epi -p surv_engine -p surv_wasm
+    if command -v node >/dev/null 2>&1; then
+      node scripts/build-surv-wasm.mjs || echo "wasm build skipped/failed (optional for engine unit)"
+    fi
     echo "engine OK"
     ;;
   curation)
@@ -83,6 +98,7 @@ case "$UNIT" in
     run_lint
     run_schema
     run_rust
+    run_wasm
     run_web_build
     echo "all OK"
     ;;
