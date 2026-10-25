@@ -8,9 +8,14 @@ export default defineConfig({
 	base: '/docs',
 	integrations: [
 		starlight({
-			title: '2026 BDBV outbreak',
+			title: '2026 Ebola Outbreak Dashboard',
 			description:
 				'Background and references for the 2026 Bundibugyo virus disease (BDBV) outbreak in Africa.',
+			logo: {
+				src: './src/assets/bdbv-favicon.svg',
+				alt: '2026 Ebola Outbreak Dashboard',
+			},
+			favicon: '/favicon.svg',
 			customCss: ['./src/styles/custom.css'],
 			social: [
 				{

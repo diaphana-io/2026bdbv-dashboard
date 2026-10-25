@@ -4,6 +4,7 @@ import { isAccessEnforced, isAccessProtectedPath } from "./access";
 describe("isAccessProtectedPath", () => {
   it("protects curate UI and API", () => {
     expect(isAccessProtectedPath("/curate")).toBe(true);
+    expect(isAccessProtectedPath("/curate/overview")).toBe(true);
     expect(isAccessProtectedPath("/curate/review")).toBe(true);
     expect(isAccessProtectedPath("/api/curate/resolve-conflict")).toBe(true);
     expect(isAccessProtectedPath("/api/curate")).toBe(true);

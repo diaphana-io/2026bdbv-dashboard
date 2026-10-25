@@ -2,7 +2,7 @@
 
 **GitHub:** [diaphana-io/2026bdbv-dashboard#7](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7) → Linear [MATT-314](https://linear.app/diaphana/issue/MATT-314/bdbv-curate-graph-serving-design-workers-neo4j-avoid-1101)
 
-Separate from Extract backend choice ([#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / [MATT-310](https://linear.app/diaphana/issue/MATT-310/bdbv-extract-backend-specification-blocks-production-extract)). Production Extract stays `EXTRACT_ENABLED=false` until that issue closes. This doc unblocks **human curation** on Workers today.
+Separate from Extract / Curate IA design ([#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) / [MATT-310](https://linear.app/diaphana/issue/MATT-310/bdbv-extract-backend-specification-blocks-production-extract) — approved pipeline, Neo4j/R2/D1 split, and `surv_engine` contracts in [extract-issue.md](./extract-issue.md)). Production Extract stays `EXTRACT_ENABLED=false` until that issue’s implementation follow-ups land. This doc unblocks **human curation** on Workers today.
 
 Related: Aura cutover [docs/neo4j-aura.md](./neo4j-aura.md) / [MATT-311](https://linear.app/diaphana/issue/MATT-311/bdbv-neo4j-aura-free-cutover-graph-backed-dashboard-curate-persist). Access: [docs/cloudflare-access-curate.md](./cloudflare-access-curate.md).
 
@@ -23,6 +23,8 @@ Curate SSR waited on live Neo4j (`Promise.all([getInboxCandidates(), getConflict
 | **Future R2 snapshot** | Cron / post-mutation export of curated read models to R2; SSR reads snapshot first | Background only |
 
 Target shape: **snapshot-first reads, mutation-only writes.** Today the “snapshot” is the repo JSON seed (and isolate cache of a successful Bolt read). R2 remains deferred with discovery cron ([remaining-tasks](./remaining-tasks.md)).
+
+**R2 / D1 vs Neo4j (Extract pipeline):** Neo4j remains the graph SoT for sources, claims, conflicts, and Curate mutations; R2 holds blobs and derived read snapshots; D1 holds short-lived job/run rows only — full split and rules are in [extract-issue.md §3](./extract-issue.md#3-storage-split-neo4j--r2--d1). Binding and writers stay follow-up.
 
 ```text
   Browser / Access

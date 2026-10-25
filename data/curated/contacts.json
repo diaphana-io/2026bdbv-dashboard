@@ -16,7 +16,8 @@
       "exposure_setting": "household",
       "intensity": "high",
       "certainty": "confirmed",
-      "relationship": "family"
+      "relationship": "family",
+      "date_of_first_contact": "2026-10-03"
     },
     "followup": {
       "id": "a3333333-0000-4000-8000-000000000001",
@@ -43,7 +44,8 @@
       "exposure_setting": "health_facility",
       "intensity": "high",
       "certainty": "confirmed",
-      "relationship": "healthcare_worker"
+      "relationship": "healthcare_worker",
+      "date_of_first_contact": "2026-10-03"
     },
     "followup": {
       "id": "a3333333-0000-4000-8000-000000000002",
@@ -70,7 +72,8 @@
       "exposure_setting": "health_facility",
       "intensity": "medium",
       "certainty": "probable",
-      "relationship": "healthcare_setting"
+      "relationship": "healthcare_setting",
+      "date_of_first_contact": "2026-10-11"
     },
     "followup": {
       "id": "a3333333-0000-4000-8000-000000000010",

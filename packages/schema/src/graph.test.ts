@@ -13,6 +13,7 @@ describe("graph-related schemas", () => {
       from_person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
       to_ref_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
       to_ref_type: "case",
+      date_of_first_contact: "2026-10-03",
       date_of_last_contact: "2026-10-05",
       exposure_setting: "household",
       intensity: "high",
@@ -28,6 +29,23 @@ describe("graph-related schemas", () => {
       status: "active",
     });
     expect(w.status).toBe("active");
+    expect(exp.date_of_first_contact).toBe("2026-10-03");
+  });
+
+  it("rejects exposure when first contact is after last", () => {
+    expect(() =>
+      ExposureSchema.parse({
+        id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        from_person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        to_ref_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        to_ref_type: "case",
+        date_of_first_contact: "2026-10-06",
+        date_of_last_contact: "2026-10-05",
+        exposure_setting: "household",
+        intensity: "high",
+        certainty: "confirmed",
+      }),
+    ).toThrow();
   });
 
   it("conflict pair keeps both claims visible", () => {

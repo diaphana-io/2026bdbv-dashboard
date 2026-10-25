@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { CurationStatusSchema, SourceKindSchema } from "./enums";
+import {
+  CurationStatusSchema,
+  DuplicateLevelSchema,
+  EvidenceClassSchema,
+  EvidenceRoleSchema,
+  SourceKindSchema,
+} from "./enums";
 
 export const SourceDocumentSchema = z.object({
   id: z.string().uuid(),
@@ -9,6 +15,10 @@ export const SourceDocumentSchema = z.object({
   title: z.string().nullable().optional(),
   publisher: z.string().nullable().optional(),
   kind: SourceKindSchema,
+  evidence_class: EvidenceClassSchema.optional().default("other"),
+  evidence_role: EvidenceRoleSchema.nullable().optional(),
+  duplicate_level: DuplicateLevelSchema.optional().default("none"),
+  duplicate_of_source_id: z.string().uuid().nullable().optional(),
   published_at: z.string().datetime().nullable().optional(),
   retrieved_at: z.string().datetime().nullable().optional(),
   discovered_at: z.string().datetime().nullable().optional(),

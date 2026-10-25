@@ -12,4 +12,7 @@ apps/web/.wrangler/
 .wrangler/
 coverage/
 *.wasm
+!apps/web/lib/surv_wasm/*.wasm
 /tmp/
+apps/web/lib/surv_wasm/.gitignore
+

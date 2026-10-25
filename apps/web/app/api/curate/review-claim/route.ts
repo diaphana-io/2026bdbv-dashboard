@@ -1,5 +1,9 @@
+import {
+  claimCategoryForType,
+  isClaimCategory,
+} from "../../../../lib/claim-category";
+import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
 import { invalidateGraphReadCache } from "../../../../lib/data";
-import { isNeo4jConfigured } from "../../../../lib/neo4j";
 import { persistReviewClaim } from "../../../../lib/neo4j-curate";
 
 export async function POST(request: Request) {
@@ -33,7 +37,7 @@ export async function POST(request: Request) {
     let persisted = false;
     let claimId: string | undefined =
       typeof record.claim_id === "string" ? record.claim_id : undefined;
-    if (isNeo4jConfigured()) {
+    if (await shouldUseNeo4j()) {
       try {
         const out = await persistReviewClaim({
           action: "reject",
@@ -69,6 +73,11 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  const categoryRaw =
+    typeof record.claim_category === "string" ? record.claim_category : "";
+  const claimCategory = isClaimCategory(categoryRaw)
+    ? categoryRaw
+    : claimCategoryForType(claimType);
 
   let objectValue = record.object_value;
   if (typeof objectValue === "string") {
@@ -93,12 +102,13 @@ export async function POST(request: Request) {
 
   let persisted = false;
   let claimId = claimIdIn;
-  if (isNeo4jConfigured()) {
+  if (await shouldUseNeo4j()) {
     try {
       const out = await persistReviewClaim({
         action: "approve",
         claimId: claimIdIn,
         claimType,
+        claimCategory,
         subjectRef,
         asOfDate,
         objectValue: objectValue as Record<string, unknown>,
@@ -124,6 +134,7 @@ export async function POST(request: Request) {
     claim_id: claimId ?? null,
     claim: {
       claim_type: claimType,
+      claim_category: claimCategory,
       subject_ref: subjectRef,
       as_of_date: asOfDate,
       object_value: objectValue,

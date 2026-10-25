@@ -9,6 +9,7 @@
     "@navaramap/three-default-descs": "^0.2.1",
     "@navaramap/three-default-plugin": "^0.2.1",
     "@navaramap/three-plugins": "^0.2.1",
+    "@tanstack/react-table": "^9.3.1",
     "@vinext/cloudflare": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",

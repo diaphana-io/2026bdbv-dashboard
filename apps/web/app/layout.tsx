@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "2026 BDBV Dashboard",
+  title: "2026 Ebola Outbreak Dashboard",
   description: "Bundibugyo virus disease surveillance — map-first",
 };
 

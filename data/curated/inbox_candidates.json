@@ -6,8 +6,38 @@
     "title": "WHO AFRO Week 41 Situation Report",
     "publisher": "WHO AFRO",
     "kind": "sitrep",
+    "evidence_class": "intl_org",
+    "duplicate_level": "none",
     "curation_status": "candidate",
     "discovered_at": "2026-10-23T18:00:00.000Z",
     "discovery_query": "Bundibugyo sitrep 2026"
+  },
+  {
+    "id": "c1111111-0000-4000-8000-000000000002",
+    "url": "https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON622",
+    "normalized_url": "https://www.who.int/emergencies/disease-outbreak-news/item/2026-don622",
+    "title": "WHO DON 2026-DON622 (mirror URL)",
+    "publisher": "WHO",
+    "kind": "official_don",
+    "evidence_class": "intl_org",
+    "duplicate_level": "exact_url",
+    "duplicate_of_source_id": "bbbbbbbb-0000-4000-8000-000000000001",
+    "curation_status": "candidate",
+    "discovered_at": "2026-10-24T09:00:00.000Z",
+    "discovery_query": "Bundibugyo DON"
+  },
+  {
+    "id": "c1111111-0000-4000-8000-000000000003",
+    "url": "https://news.example.com/bundibugyo-wire-copy",
+    "normalized_url": "https://news.example.com/bundibugyo-wire-copy",
+    "title": "Wire copy of MoH briefing",
+    "publisher": "Example Wire",
+    "kind": "news",
+    "evidence_class": "news",
+    "duplicate_level": "possible",
+    "duplicate_of_source_id": "bbbbbbbb-0000-4000-8000-000000000002",
+    "curation_status": "candidate",
+    "discovered_at": "2026-10-24T10:30:00.000Z",
+    "discovery_query": "Bundibugyo news"
   }
 ]

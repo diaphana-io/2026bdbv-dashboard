@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   getCasesJson,
+  getCatalogSourcesJson,
   getConflictViewsJson,
   getInboxCandidatesJson,
+  getSourceCatalogDetailJson,
   overviewKpisJson,
 } from "./data-json";
 
@@ -23,6 +25,20 @@ describe("data-json facade", () => {
     expect(k.confirmed).toBeGreaterThan(0);
     expect(k.asOf).toBe("2026-10-23");
     expect(getInboxCandidatesJson().every((i) => i.curation_status === "candidate")).toBe(
+      true,
+    );
+  });
+
+  it("builds catalog sources and detail from seed JSON", () => {
+    const sources = getCatalogSourcesJson();
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.every((s) => s.curation_status !== "candidate")).toBe(true);
+    expect(sources[0].claim_count).toBeGreaterThan(0);
+    expect(sources[0].extractors.length).toBeGreaterThan(0);
+
+    const detail = getSourceCatalogDetailJson(sources[0].id);
+    expect(detail).not.toBeNull();
+    expect(detail!.claims.every((c) => c.lineage_id && c.version >= 1)).toBe(
       true,
     );
   });
