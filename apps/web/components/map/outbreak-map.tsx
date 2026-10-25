@@ -4,23 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import type { MapSnapshot } from "../../lib/data-types";
 import {
   BASEMAPS,
-  OCEAN_COLOR,
+  PAPERS_NE_TILEJSON_URL,
+  REEARTH_TERRAIN_URL,
   SPACE_COLOR,
-  buildGraticuleGeoJSON,
   type BasemapEntry,
   type BasemapId,
-  type OutlineBasemapColors,
+  type PapersBasemapColors,
 } from "./basemap-style";
+import { isTrackedCountryIso } from "@/lib/tracked-countries";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
-import type { BoundaryLayerHandle } from "./boundary-layer";
+import type { CdAdminLayerHandle } from "./cd-admin-layer";
 import type { CaseLayersHandle } from "./case-layer";
 import type { ExposureLayerHandle } from "./exposure-layer";
 import type { LabelLayersHandle } from "./label-layers";
-import type { TravelLayerHandle } from "./travel-layer";
-import worldBoundariesData from "../../data/world_boundaries.json";
-import oceanData from "../../data/ne_ocean.json";
+import type { TravelLayerHandle } from "./arc-layer";
 
 type Props = {
   initialSnapshot: MapSnapshot;
@@ -29,7 +28,7 @@ type Props = {
 };
 
 type LayerBundle = {
-  boundaries: BoundaryLayerHandle;
+  boundaries: CdAdminLayerHandle;
   labels: LabelLayersHandle;
   cases: CaseLayersHandle;
   exposures: ExposureLayerHandle;
@@ -59,6 +58,11 @@ const DEFAULT_CAMERA: ViewCamera = {
   roll: 0,
 };
 
+const TERRAIN_ATTRIBUTION = {
+  attribution: "© Re:Earth Terrain",
+  attributionUrl: "https://terrain.reearth.land/",
+};
+
 export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<import("@navaramap/three").default | null>(null);
@@ -77,9 +81,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const cameraRef = useRef<ViewCamera>(DEFAULT_CAMERA);
   const bootGenerationRef = useRef(0);
 
-  const { basemapId, layers, openCaseDetail, selectedCaseId } = useMapUi();
+  const { basemapId, layers, openCaseDetail, openCountryStats, selectedCaseId } =
+    useMapUi();
   const openCaseDetailRef = useRef(openCaseDetail);
   openCaseDetailRef.current = openCaseDetail;
+  const openCountryStatsRef = useRef(openCountryStats);
+  openCountryStatsRef.current = openCountryStats;
 
   const [asOf, setAsOf] = useState(initialSnapshot.asOf);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -101,7 +108,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.travels.setVisible(vis.travels);
   }
 
-  function wireCaseClick(
+  function wireFeatureClick(
     view: import("@navaramap/three").default,
   ): () => void {
     const onClick = (
@@ -110,11 +117,19 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         | null
         | undefined,
     ) => {
-      const kind = info?.properties?.["kind"];
-      const id = info?.properties?.["id"];
-      if (kind !== "case" || typeof id !== "string") return;
-      layersRef.current?.travels.setHighlightCaseId(id);
-      openCaseDetailRef.current(id);
+      const props = info?.properties;
+      if (!props) return;
+      const kind = props["kind"];
+      const id = props["id"];
+      if (kind === "case" && typeof id === "string") {
+        layersRef.current?.travels.setHighlightCaseId(id);
+        openCaseDetailRef.current(id);
+        return;
+      }
+      const rawIso = props["admin0_iso"] ?? props["iso"];
+      if (typeof rawIso === "string" && isTrackedCountryIso(rawIso)) {
+        openCountryStatsRef.current(rawIso);
+      }
     };
     view.on("featureClick", onClick);
     return () => {
@@ -156,78 +171,65 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     }
   }
 
-  function attachOutlineBasemap(
+  async function attachPapersBasemap(
     view: import("@navaramap/three").default<
       import("@navaramap/three-default-plugin").DefaultDescriptions
     >,
+    tileJsonPlugin: import("@navaramap/three-plugins").TileJsonPlugin,
     Color: typeof import("@navaramap/three").Color,
-    colors: OutlineBasemapColors,
-    attribution: string,
+    colors: PapersBasemapColors,
   ) {
-    // Land as ellipsoid base; ocean polygons tint water. Local GeoJSON only —
-    // Papers NE MVT was unreliable (blank white globe when tiles fail).
-    view.globe.color = new Color().setStyle(colors.landColor);
-    view.addLayer({ type: "terrain", ellipsoid: {} });
-
-    const ocean = view.addSource({
-      type: "geojson",
-      data: oceanData as GeoJSON.FeatureCollection,
+    // Terrain first (render order = add order), then Papers land/borders draped.
+    const terrain = view.addSource({
+      type: "quantized-mesh",
+      url: REEARTH_TERRAIN_URL,
+      maxZoom: 18,
+      requestVertexNormals: true,
+      requestWaterMask: true,
     });
     view.addLayer({
+      type: "terrain",
+      source: terrain,
+      terrain: {},
+    });
+
+    // globe.color is the ocean: Papers draws land polygons only.
+    view.globe.color = new Color().setStyle(colors.ocean);
+
+    const basemapSource = await tileJsonPlugin.addSource({
+      type: "vector-tile",
+      url: PAPERS_NE_TILEJSON_URL,
+    });
+
+    view.addLayer({
       type: "vector",
-      source: ocean,
+      source: basemapSource,
+      sourceLayers: ["countries"],
       polygon: {
-        color: new Color().setStyle(colors.globeColor),
-        opacity: 1,
-        transparent: false,
-        clampToGround: false,
-        height: 500,
+        color: new Color().setStyle(colors.land),
+        opacity: colors.landOpacity,
+        transparent: colors.landOpacity < 1,
+        clampToGround: true,
         show: true,
       },
     });
 
-    // WORLD_STROKE pattern: opaque, non-draped, world-meter maxWidth.
-    // Dark strokes on light / light on dark via colors.strokeColor.
-    const borders = view.addSource({
-      type: "geojson",
-      data: worldBoundariesData as GeoJSON.FeatureCollection,
-    });
     view.addLayer({
       type: "vector",
-      source: borders,
+      source: basemapSource,
+      sourceLayers: ["boundary_lines"],
       polyline: {
-        geometryTypes: ["line", "polygon"],
-        color: new Color().setStyle(colors.strokeColor),
-        width: 2.5,
-        maxWidth: 400_000,
-        opacity: 1,
-        transparent: false,
-        clampToGround: false,
-        height: 5_000,
+        color: new Color().setStyle(colors.border),
+        opacity: colors.borderOpacity,
+        transparent: colors.borderOpacity < 1,
+        width: colors.borderWidth,
+        clampToGround: true,
         show: true,
       },
     });
 
-    const graticule = view.addSource({
-      type: "geojson",
-      data: buildGraticuleGeoJSON(15),
-    });
-    view.addLayer({
-      type: "vector",
-      source: graticule,
-      polyline: {
-        color: new Color().setStyle(colors.graticuleColor),
-        width: 1,
-        maxWidth: 280_000,
-        opacity: 1,
-        transparent: false,
-        clampToGround: false,
-        height: 3_000,
-        show: true,
-      },
-    });
-
-    view.attribution?.add([{ attributionHtml: attribution }]);
+    // Papers credit arrives via TileJsonPlugin; only terrain is hand-written.
+    view.attribution?.add([TERRAIN_ATTRIBUTION]);
   }
 
   async function bootView(bootId: BasemapId, generation: number) {
@@ -238,11 +240,15 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     setMapError(null);
     setMapReady(false);
 
-    const [{ default: ThreeView, Color }, { DefaultPlugin }] =
-      await Promise.all([
-        import("@navaramap/three"),
-        import("@navaramap/three-default-plugin"),
-      ]);
+    const [
+      { default: ThreeView, Color },
+      { DefaultPlugin },
+      { TileJsonPlugin },
+    ] = await Promise.all([
+      import("@navaramap/three"),
+      import("@navaramap/three-default-plugin"),
+      import("@navaramap/three-plugins"),
+    ]);
     if (generation !== bootGenerationRef.current || !containerRef.current) {
       return;
     }
@@ -258,8 +264,12 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       animation: true,
     });
 
+    // All plugins before init (TileJsonPlugin resolves TileJSON during addSource
+    // after init, but must be registered before init or addPlugin throws).
     const defaultPlugin = new DefaultPlugin();
+    const tileJsonPlugin = new TileJsonPlugin();
     view.addPlugin(defaultPlugin);
+    view.addPlugin(tileJsonPlugin);
 
     await view.init();
     if (generation !== bootGenerationRef.current) {
@@ -269,52 +279,39 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     viewRef.current = view;
 
-    // Non-draped polylines/polygons are lit (Lambert); without lights they
-    // draw black. Add ambient before outline strokes so the main (and any
-    // transparent) pass already has a light when meshes mount.
+    // Pax Atlas stack: photoreal sky/sun + strong ambient + Papers NE.
+    defaultPlugin.addDefaultPhotorealScene();
     view.addLight({
       ambient: {
-        intensity: 1.25,
+        intensity: 20,
         color: new Color().setStyle("#ffffff"),
       },
     });
+    view.toneMappingExposure = entry.toneMappingExposure;
 
-    if (entry.kind === "native-raster") {
-      // Ocean tint for gaps between satellite tiles.
-      view.globe.color = new Color().setStyle(OCEAN_COLOR);
-      view.addLayer({ type: "terrain", ellipsoid: {} });
-      const raster = view.addSource({
-        type: "raster-tile",
-        url: entry.url,
-        maxZoom: entry.maxZoom,
-      });
-      view.addLayer({ type: "raster", source: raster });
-      view.attribution?.add([
-        {
-          attributionHtml: entry.attribution,
-        },
-      ]);
-    } else {
-      attachOutlineBasemap(view, Color, entry.colors, entry.attribution);
+    await attachPapersBasemap(view, tileJsonPlugin, Color, entry.colors);
+    if (generation !== bootGenerationRef.current) {
+      view.dispose();
+      viewRef.current = null;
+      return;
     }
-
 
     const cam = cameraRef.current;
     view.setCamera(cam);
 
     setLoading("layers");
     const [
-      { attachBoundaryLayer },
+      { attachCdAdminLayer },
       { attachLabelLayers },
       { attachCaseLayers },
       { attachExposureLayer },
       { attachTravelLayer },
     ] = await Promise.all([
-      import("./boundary-layer"),
+      import("./cd-admin-layer"),
       import("./label-layers"),
       import("./case-layer"),
       import("./exposure-layer"),
-      import("./travel-layer"),
+      import("./arc-layer"),
     ]);
     if (generation !== bootGenerationRef.current) {
       view.dispose();
@@ -322,13 +319,14 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       return;
     }
 
-    const boundaries = attachBoundaryLayer(view, entry.mode);
+    const boundaries = attachCdAdminLayer(view);
     const labels = await attachLabelLayers(view, entry.mode);
     const cases = attachCaseLayers(view, entry.mode);
     const exposures = attachExposureLayer(view);
     const travels = attachTravelLayer(view);
 
     const snap = snapshotRef.current;
+    boundaries.setAggregates(snap.aggregates);
     cases.update(snap.cases, snap.aggregates);
     exposures.update(snap.exposures);
     travels.setTravels(snap.travels, asOfRef.current);
@@ -342,7 +340,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     };
     layersRef.current = bundle;
     applyLayerVisibility(bundle);
-    removeClickRef.current = wireCaseClick(view);
+    removeClickRef.current = wireFeatureClick(view);
 
     setLoading(null);
     setMapReady(true);
@@ -410,6 +408,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       setSnapshot(next);
       const bundle = layersRef.current;
       if (bundle) {
+        bundle.boundaries.setAggregates(next.aggregates);
         bundle.cases.update(next.cases, next.aggregates);
         bundle.exposures.update(next.exposures);
         bundle.travels.setTravels(next.travels, asOf);

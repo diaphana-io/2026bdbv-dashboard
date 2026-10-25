@@ -1,6 +1,7 @@
 {
   "name": "2026bdbv-dashboard",
   "private": true,
+  "license": "Apache-2.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -19,6 +20,7 @@
     "verify:engine": "bash scripts/verify.sh engine",
     "verify:curation": "bash scripts/verify.sh curation",
     "lint": "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings",
-    "seed:neo4j": "node scripts/seed-neo4j.mjs"
+    "seed:neo4j": "node scripts/seed-neo4j.mjs",
+    "fetch:cod-ab": "node scripts/fetch-cod-ab-cd.mjs"
   }
 }
