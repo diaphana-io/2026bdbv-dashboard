@@ -90,12 +90,21 @@ export type ConflictRow = {
   detected_at: string;
 };
 
+export type DuplicateLevel =
+  | "none"
+  | "exact_url"
+  | "content_hash"
+  | "possible";
+
 export type InboxRow = {
   id: string;
   url: string;
   title?: string;
   publisher?: string;
   kind: string;
+  evidence_class?: string;
+  duplicate_level?: DuplicateLevel;
+  duplicate_of_source_id?: string | null;
   curation_status: string;
   discovered_at?: string;
 };

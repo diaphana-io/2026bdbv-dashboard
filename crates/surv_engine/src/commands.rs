@@ -13,6 +13,11 @@ pub static REGISTRY: &[CommandSpec] = &[
         run: curate::check_duplicate,
     },
     CommandSpec {
+        id: "curate.classifySource",
+        mutates: false,
+        run: curate::classify_source_stub,
+    },
+    CommandSpec {
         id: "curate.extractClaims",
         mutates: false,
         run: curate::extract_claims_stub,
@@ -31,6 +36,21 @@ pub static REGISTRY: &[CommandSpec] = &[
         id: "curate.rejectClaim",
         mutates: true,
         run: curate::reject_claim,
+    },
+    CommandSpec {
+        id: "curate.reviseClaim",
+        mutates: true,
+        run: curate::revise_claim,
+    },
+    CommandSpec {
+        id: "curate.rollbackClaim",
+        mutates: true,
+        run: curate::rollback_claim,
+    },
+    CommandSpec {
+        id: "curate.appendAudit",
+        mutates: true,
+        run: curate::append_audit,
     },
     CommandSpec {
         id: "curate.detectConflict",

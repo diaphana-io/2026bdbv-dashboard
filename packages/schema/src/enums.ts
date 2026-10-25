@@ -33,6 +33,29 @@ export const SourceKindSchema = z.enum([
   "travel_advisory",
   "other",
 ]);
+/** Jev-like evidence category for a source document (classify output). */
+export const EvidenceClassSchema = z.enum([
+  "intl_org",
+  "national_official",
+  "academic",
+  "news",
+  "travel_advisory",
+  "ngo_grey",
+  "other",
+]);
+/** How a source relates to this outbreak (optional; distinct from confidence). */
+export const EvidenceRoleSchema = z.enum([
+  "primary_count",
+  "corroboration",
+  "background",
+]);
+/** Inbox / discover duplicate flag (deterministic first; possible = soft match). */
+export const DuplicateLevelSchema = z.enum([
+  "none",
+  "exact_url",
+  "content_hash",
+  "possible",
+]);
 export const CurationStatusSchema = z.enum([
   "candidate",
   "dismissed",
@@ -40,4 +63,14 @@ export const CurationStatusSchema = z.enum([
   "extracted",
   "in_review",
   "done",
+]);
+export const CurateAuditActionSchema = z.enum([
+  "approve",
+  "reject",
+  "revise",
+  "approve_revision",
+  "reject_revision",
+  "rollback",
+  "resolve_conflict",
+  "dismiss_source",
 ]);

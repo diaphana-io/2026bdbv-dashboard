@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import {
@@ -8,26 +9,62 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { getConflictViews, getInboxCandidates } from "../../lib/data";
-import { ConflictPair } from "../../components/conflicts/conflict-pair";
-import { ResolveConflictActions } from "../../components/conflicts/resolve-conflict-actions";
-import { InboxActions } from "../../components/curate/inbox-actions";
+import { InboxTable } from "../../components/curate/inbox-table";
+import { getClaims, getConflictViews, getInboxCandidates } from "../../lib/data";
 
 /**
- * Inbox/conflicts come from lib/data (cache → Bolt with hard timeout → JSON).
- * Do not call Neo4j directly here — hung Aura must not block first HTML (MATT-314).
+ * Overview command center. Graph reads via lib/data (cache → Bolt timeout → JSON).
+ * Do not call Neo4j directly — hung Aura must not block first HTML (MATT-314).
  */
-export default async function CuratePage() {
-  const [inbox, conflicts] = await Promise.all([
+export default async function CurateOverviewPage() {
+  const [inbox, conflicts, claims] = await Promise.all([
     getInboxCandidates(),
     getConflictViews(),
+    getClaims(),
   ]);
   const extractEnabled = process.env.EXTRACT_ENABLED === "true";
+  const pendingReview = claims.filter((c) => c.review_status === "pending_review");
+  const dupFlagged = inbox.filter(
+    (i) => i.duplicate_level && i.duplicate_level !== "none",
+  );
+  const openConflicts = conflicts.filter((c) => c.conflict.status === "open");
+
+  const pipelineRows = [
+    {
+      stage: "Inbox",
+      href: "/curate/inbox",
+      count: inbox.length,
+      note: `${dupFlagged.length} with duplicate flag`,
+    },
+    {
+      stage: "Extract",
+      href: "/curate/extract",
+      count: extractEnabled ? "—" : 0,
+      note: extractEnabled ? "Gate open (staging)" : "Stub / not configured",
+    },
+    {
+      stage: "Review",
+      href: "/curate/review",
+      count: pendingReview.length,
+      note: "Approvals: 1 of 1 (policy)",
+    },
+    {
+      stage: "Conflicts",
+      href: "/curate/conflicts",
+      count: openConflicts.length,
+      note: "Both claims visible until resolve",
+    },
+  ];
 
   return (
     <main className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Curate</h1>
+        <div>
+          <h1 className="text-lg font-semibold">Overview</h1>
+          <p className="text-sm text-muted-foreground">
+            Pipeline command center — work each stage in order.
+          </p>
+        </div>
         <div className="flex gap-2">
           <Badge variant="secondary">CF Access</Badge>
           <Badge variant={extractEnabled ? "warning" : "outline"}>
@@ -37,40 +74,89 @@ export default async function CuratePage() {
       </div>
 
       <Card>
+        <CardHeader className="text-sm font-semibold">Pipeline counts</CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Stage</TableHead>
+                <TableHead>Count</TableHead>
+                <TableHead>Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pipelineRows.map((row) => (
+                <TableRow key={row.stage}>
+                  <TableCell>
+                    <Link
+                      href={row.href}
+                      className="font-medium text-blue-700 hover:underline dark:text-blue-400"
+                    >
+                      {row.stage}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="tabular-nums">{row.count}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.note}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Inbox candidates</span>
-          <Badge>{inbox.length}</Badge>
+          <span className="text-sm font-semibold">Recent inbox</span>
+          <Link
+            href="/curate/inbox"
+            className="text-xs text-blue-700 hover:underline dark:text-blue-400"
+          >
+            Open Inbox
+          </Link>
+        </CardHeader>
+        <CardContent className="p-0">
+          <InboxTable rows={inbox} limit={5} showActions={false} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <span className="text-sm font-semibold">Open conflicts</span>
+          <Badge variant="warning">{openConflicts.length}</Badge>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Publisher</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Detected</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {inbox.map((i) => (
-                <TableRow key={i.id}>
-                  <TableCell>
-                    <a href={i.url} className="text-blue-700 hover:underline" target="_blank" rel="noreferrer">
-                      {i.title ?? i.url}
-                    </a>
+              {openConflicts.slice(0, 5).map((c) => (
+                <TableRow key={c.conflict.id}>
+                  <TableCell>{c.conflict.subject_ref}</TableCell>
+                  <TableCell>{c.conflict.claim_type}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.conflict.detected_at.slice(0, 10)}
                   </TableCell>
-                  <TableCell>{i.publisher ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{i.kind}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <InboxActions url={i.url} />
+                  <TableCell className="text-right">
+                    <Link
+                      href="/curate/conflicts"
+                      className="text-xs text-blue-700 hover:underline dark:text-blue-400"
+                    >
+                      Resolve
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}
-              {inbox.length === 0 && (
+              {openConflicts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4}>No candidates</TableCell>
+                  <TableCell colSpan={4} className="text-muted-foreground">
+                    No open conflicts
+                  </TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -78,45 +164,35 @@ export default async function CuratePage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="text-sm font-semibold">Extract</CardHeader>
-        <CardContent className="text-sm text-zinc-700">
-          {extractEnabled
-            ? "Extract backend enabled"
-            : "Extract backend not configured — add claims manually in Review"}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Open conflicts</span>
-          <Badge variant="warning">{conflicts.length}</Badge>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {conflicts.map((c) => (
-            <div key={c.conflict.id} className="flex flex-col gap-2">
-              <ConflictPair
-                claimA={{
-                  id: c.claim_a.id,
-                  source_label: c.source_a?.publisher ?? "A",
-                  as_of_date: c.claim_a.as_of_date,
-                  summary: JSON.stringify(c.claim_a.object_value),
-                  confidence: c.claim_a.confidence,
-                }}
-                claimB={{
-                  id: c.claim_b.id,
-                  source_label: c.source_b?.publisher ?? "B",
-                  as_of_date: c.claim_b.as_of_date,
-                  summary: JSON.stringify(c.claim_b.object_value),
-                  confidence: c.claim_b.confidence,
-                }}
-              />
-              <ResolveConflictActions conflictId={c.conflict.id} />
-            </div>
-          ))}
-          {conflicts.length === 0 && <div className="text-sm text-zinc-600">No open conflicts</div>}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="text-sm font-semibold">Last discovery run</CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Not configured — discovery cron / D1 job table is a follow-up. Seed inbox
+            JSON stands in for R2 read-model until then.
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="text-sm font-semibold">Extract gate</CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              <code className="text-xs">EXTRACT_ENABLED</code>={" "}
+              <Badge variant={extractEnabled ? "warning" : "outline"}>
+                {extractEnabled ? "true" : "false"}
+              </Badge>
+            </p>
+            <p>
+              Backend: <Badge variant="outline">not_configured</Badge> (Jev stub)
+            </p>
+            <Link
+              href="/curate/extract"
+              className="inline-block text-xs text-blue-700 hover:underline dark:text-blue-400"
+            >
+              Open Extract stage
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

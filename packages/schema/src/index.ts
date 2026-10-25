@@ -2,6 +2,7 @@ export * from "./enums";
 export * from "./claim";
 export * from "./case";
 export * from "./source";
+export * from "./audit";
 export * from "./border";
 export * from "./conflict";
 export * from "./person";

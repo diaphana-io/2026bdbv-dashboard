@@ -270,12 +270,23 @@ export async function getInboxCandidatesNeo4j(): Promise<InboxRow[]> {
     );
     return res.records.map((r) => {
       const p = props(r.get("s") as Node);
+      const dup = p.duplicate_level;
       return {
         id: String(p.id),
         url: String(p.url),
         title: (p.title as string | undefined) ?? undefined,
         publisher: (p.publisher as string | undefined) ?? undefined,
         kind: String(p.kind),
+        evidence_class: (p.evidence_class as string | undefined) ?? "other",
+        duplicate_level:
+          dup === "exact_url" ||
+          dup === "content_hash" ||
+          dup === "possible" ||
+          dup === "none"
+            ? dup
+            : "none",
+        duplicate_of_source_id:
+          (p.duplicate_of_source_id as string | undefined) ?? null,
         curation_status: String(p.curation_status),
         discovered_at: (p.discovered_at as string | undefined) ?? undefined,
       };

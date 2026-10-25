@@ -170,6 +170,7 @@ export async function getCaseDetail(caseId: string) {
 /** Country-level stats seam — stubs return [] until real records exist. */
 export async function getCountryStats(asOf?: string) {
   return fromNeo4jOrJson(
+    `countryStats:${asOf ?? "latest"}`,
     () => getCountryStatsNeo4j(asOf),
     () => getCountryStatsJson(asOf),
   );

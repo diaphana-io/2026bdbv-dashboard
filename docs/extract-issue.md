@@ -1,66 +1,158 @@
 # Extract / Curate workflow & Extract backend specification
 
-**GitHub:** [diaphana-io/2026bdbv-dashboard#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) → Linear [MATT-310](https://linear.app/diaphana/issue/MATT-310/bdbv-extract-backend-specification-blocks-production-extract) (one-way sync; supersedes MATT-309)
+**Status:** Approved design for [MATT-310](https://linear.app/diaphana/issue/MATT-310/bdbv-extract-backend-specification-blocks-production-extract) / [GitHub #2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) (one-way sync; supersedes MATT-309).
+
+**Production gate:** `EXTRACT_ENABLED=false` until this design is closed as implemented for staging evaluation. Jev / R2 / D1 bindings are **follow-up** — this issue ships contracts, stubs, and Curate IA only.
 
 ## Summary
 
-Define the semi-automatic Extract pipeline for curation (`curate.extractClaims`) **and** the Extract / Curate human workflow + Curate shell so Extract plugs into curator IA as a gated path. Until the backend design is decided, production stays on human claim entry + approve/reject only.
+Semi-automatic Extract (`curate.extractClaims`) plugs into a human Curate pipeline. **Business logic and pipeline decisions live in Rust (`surv_engine`)**; Next / Workers stay thin (Access, HTTP, Neo4j/R2 I/O, UI). Until Extract is wired, production uses human claim entry + approve/reject only.
 
-Staging / production target must keep `EXTRACT_ENABLED=false` until [#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) is closed with an approved design.
+## Architecture: Rust is the source of truth
 
-## Candidates
+```text
+Curate UI → thin Next API → (Neo4j / R2 params) → surv_wasm → surv_engine → result JSON
+```
 
-1. **Jev** ([jevcli](https://jevcli.vectorz.app/)) — extract field candidates + claim verification against source spans
-2. jextract-style locate → pick over document chunks
-3. Rule-based regex/heuristic extractors for sitrep tables
-4. General LLM JSON generation (last resort; higher hallucination risk)
+| Layer | Owns |
+|-------|------|
+| **`surv_engine` (`curate.*`)** | Normalize URL/hash, classify/dedupe/extract/approve/reject/conflict, revise/rollback/audit contracts |
+| **Web / Workers** | Cloudflare Access, page shell, tables; read snapshots into command params; persist normalized records to Neo4j |
+| **Jev adapter (follow-up)** | Rust traits (`Classifier` / `Extractor`); Workers: async job + R2; CLI/cron: native `surv_engine` |
 
-## Shared Workers constraint (Curate / graph SSR)
+Commands (contract + stubs in this issue):
 
-**Workers must not hold responses hostage to Bolt** — see [Curate graph serving](./curate-graph-serving.md) ([MATT-314](https://linear.app/diaphana/issue/MATT-314/bdbv-curate-graph-serving-design-workers-neo4j-avoid-1101) / [GitHub #7](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7)). Extract backends that need Neo4j must use async jobs or snapshot I/O; never await an unbounded Bolt connect on the request path.
+| Command | Role |
+|---------|------|
+| `curate.discoverSources` | Enqueue candidates; **exact URL match skips enqueue** |
+| `curate.classifySource` | Jev-like classify; unset → `status: not_configured`, `evidence_class: other` |
+| `curate.checkDuplicate` | `duplicate_level`: `none \| exact_url \| content_hash \| possible` + ref ids |
+| `curate.extractClaims` | Stub → later Jev extract/verify; always `pending_review` |
+| `curate.approveClaim` / `rejectClaim` | Existing; future `min_approvers` here |
+| `curate.detectConflict` / `resolveConflict` | Existing; both claims visible until human resolve |
+| `curate.reviseClaim` / `rollbackClaim` / `appendAudit` | Append-only versioning + audit stubs |
 
-## Requirements (Extract backend)
+**Discover enqueue vs Inbox flag:** exact URL → do not enqueue. Near match (content hash / possible) → enqueue **with** `duplicate_level` for curator review. Never auto-discard flagged rows.
 
-- Output must match `@bdbv/schema` Claim fields including `excerpt` span
-- All outputs enter `pending_review` — never auto-approve
-- Conflict detection keeps both claims visible until human resolve
-- Workers-compatible or async job with R2 snapshot input
-- Cost/latency budget and fallback when backend unset (`status: not_configured`)
-- Honor the shared Bolt constraint above (no unbounded Neo4j on the Worker response path)
+## Storage: Neo4j / R2 / D1
 
-## Extract / Curate workflow (human path + shell)
+Extends [Curate graph serving](./curate-graph-serving.md) (MATT-314): snapshot-first reads, mutation-only Bolt writes. **Workers must not hold responses hostage to Bolt.**
 
-### Context
+| Store | Source of truth | Not for |
+|-------|-----------------|---------|
+| **Neo4j** | Graph: `SourceDocument`, `Claim`, `ClaimConflict`, `CurateAuditEvent`, relationships. Sole persist for Curate mutations | Raw HTML/PDF, job queues, first SSR read |
+| **R2** | Blobs + read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** | Approval SoT (always Neo4j; snapshots are derived) |
+| **D1** | Ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs`, optional audit copies | Claim/conflict graph, source bodies |
 
-The public Map drops the shared top `AppNav` for a map-only sidebar. Curate must own its own shell, navigation, and theme controls. Cloudflare Access remains on `/curate` + `/api/curate` — see [`docs/cloudflare-access-curate.md`](cloudflare-access-curate.md).
+Rules:
 
-### In scope
+1. SSR / Overview / Inbox: R2 read-model (future) → isolate TTL → Bolt (hard timeout) → bundled JSON. D1 may feed job badges only.
+2. Curate mutation → Neo4j only; then invalidate cache; later async R2 snapshot refresh.
+3. Discover / classify / extract jobs → D1 row + R2 body; Rust decides on params; MERGE results into Neo4j.
+4. Duplicate inputs: normalized URL / content_hash lists from Neo4j (or R2 snapshot) as params — no URL master in D1.
+5. No KV for this path.
 
-- Curate layout / chrome (independent of the public Map shell)
-- Human path: inbox → (manual claim entry **or** Extract) → review → conflict resolve
-- Stub Extract UX until an Extract backend design is accepted
-- Staging toggle UX after backend design approval (`EXTRACT_ENABLED`)
+Bindings and writers are **follow-up**. Until then, “R2-equivalent” is `apps/web/data/*.json` + schema `r2_snapshot_key`.
 
-### Related
+## Extract candidate: Jev-style
 
-- [#7 / MATT-314](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7) (**closed**) — Workers + Neo4j graph serving (timeouts, snapshots, mutation-only writes); cite as a graph-serving constraint only — do not reopen
-- Access setup: [`docs/cloudflare-access-curate.md`](cloudflare-access-curate.md)
+Primary candidate: [Jev](https://jevcli.vectorz.app/) (`classify` / `extract` / `verify` / `match`).
 
-### Still out of scope for this issue
+| Stage | Jev-like | Role |
+|-------|----------|------|
+| Discover → Inbox | `classify` (+ optional `screen`) | Map source → `evidence_class`; low confidence → `other` / human |
+| Inbox duplicate | Rules + optional `match` | Deterministic URL / content_hash first |
+| Extract (follow-up) | `extract` + `verify` | Claim fields + excerpt span; always `pending_review` |
+| Claim dedupe | fingerprint + optional `match` | Corroboration vs conflict |
 
-- Implementing the chosen Extract backend end-to-end (follow-up after design approval)
-- Public Map panels / basemap / layers (separate Map work)
-- Reopening #7
-- Full Extract product implementation beyond stub + gated plug-in design
+Other candidates (fallback): jextract-style locate/pick, sitrep regex, general LLM JSON (last resort).
+
+## Evidence class × confidence (three layers)
+
+Do not conflate:
+
+| Layer | Field | Meaning |
+|-------|-------|---------|
+| What document | Source `evidence_class` (+ existing `kind`) | intl org / government / academic / news / … |
+| What assertion | Claim fingerprint (`claim_type`, `subject_ref`, `object_value`, `as_of_date`) | Map fact unit |
+| How much to trust | Claim `confidence` | Dashboard label; **set on human approve** (Extract may only suggest) |
+
+### `evidence_class`
+
+`intl_org` | `national_official` | `academic` | `news` | `travel_advisory` | `ngo_grey` | `other`
+
+Optional later: `evidence_role` = `primary_count | corroboration | background`.
+
+### Confidence (`ConfidenceSchema`)
+
+- `official` — primary official (intl/national) support
+- `news_single` — single unofficial / news
+- `news_corroborated` — ≥2 **independent** sources, same fingerprint
+- `inferred` — derived; not Map primary by default
+
+Same fingerprint across sources = **corroboration**, not conflict. Differing `object_value` for same type/subject/as_of → `CONFLICTS_WITH`, both visible until resolve. Exact URL / content_hash → inbox duplicate flag; do not grow claims. Wire-service copies → `possible` dup; exclude from corroboration counts.
+
+**No auto-promote confidence.** Extract/classify return `suggested_confidence` only. Review UI proposes defaults from independent source counts; human approves. Auto-approve stays off in staging and production.
+
+| evidence_class | Typical suggested_confidence | Review priority |
+|----------------|------------------------------|-----------------|
+| intl_org / national_official | official | High |
+| academic | official or inferred | Medium |
+| news | news_single → news_corroborated | Medium |
+| travel_advisory | official if MoH/WHO else news_single | Border layer |
+| ngo_grey / other | news_single or inferred | Low |
+
+## Versioning, audit, rollback (append-only)
+
+Claims are **not overwritten**. Use `review_status: superseded` and `(Claim)-[:SUPERSEDES]->(Claim)`.
+
+| Concept | Meaning |
+|---------|---------|
+| `lineage_id` | Stable logical claim chain (Map tracks this) |
+| Claim node | One immutable version (`version` 1..N) |
+| Head | Approved latest for lineage (or `is_head=true`); prior head → `superseded` |
+| Public Map | **Approved head only** |
+
+| Operation | Behavior |
+|-----------|----------|
+| Approve | pending → approved; audit `approve` |
+| `reviseClaim` | New pending version; approve supersedes old head |
+| `rollbackClaim` | Copy prior payload as new pending version (never delete history); reason required |
+| Reject revision | pending → rejected; head unchanged |
+| Extract hits existing lineage | No overwrite; enqueue revision / `needs_revision` (follow-up wiring) |
+
+### `CurateAuditEvent` (Neo4j SoT)
+
+`id`, `at`, `actor`, `action` (`approve` \| `reject` \| `revise` \| `rollback` \| `approve_revision` \| `reject_revision` \| `resolve_conflict` \| `dismiss_source` \| …), `lineage_id`, `claim_id`, `from_version`, `to_version`, `reason`, `payload_digest`. No delete / in-place UPDATE APIs.
+
+Forward-compat: `review_policy.min_approvers` default `1`; multi-approver enforcement is follow-up. Access remains Cloudflare Access email allowlist.
+
+## Curate IA (this issue)
+
+Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts**. Overview is the table command center; stage pages own detail work. Review shows a **History (stub)** panel for lineage/audit. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
+
+## Navara / Map boundary (out of scope)
+
+MapLibre → [Navara](https://github.com/maplibre/navara) is a **separate Map track**. Curate / Extract / storage / versioning do **not** depend on Navara.
+
+1. Navara completion is **not** an acceptance criterion for MATT-310.
+2. Curate → Map contract is approved claim heads → MapSnapshot / GeoJSON (future R2). No Navara-specific APIs from Curate or `surv_engine`.
+3. Rust `export.geojson` stays generic GIS; Navara adapters live under `apps/web/components/map/*`.
+
+Do not confuse `surv_engine` with Navara’s WASM GIS core — different crates and duties.
+
+## Shared Workers constraint
+
+See [curate-graph-serving.md](./curate-graph-serving.md). Extract backends that need Neo4j use async jobs or snapshot I/O — never unbounded Bolt on the request path.
 
 ## Acceptance
 
-- Staging can toggle `EXTRACT_ENABLED=true` for evaluation
-- Production remains `EXTRACT_ENABLED=false` until [#2](https://github.com/diaphana-io/2026bdbv-dashboard/issues/2) is closed with an approved design
-- Chosen candidate documented (or explicit decision to stay human-only for longer)
-- Curate shell is independent of the public Map (no shared top-bar dependency)
-- Documented human workflow with Extract as a gated plug-in (stub until backend design accepted)
+- [x] Approved pipeline, storage, Jev candidate, evidence×confidence, versioning documented (this file)
+- [x] Schema + `surv_engine` stubs/contracts for classify, duplicate levels, revise/rollback/audit
+- [x] Curate shell: flow sidebar, Overview tables, split stage routes, Inbox dup UI, Review History stub
+- [ ] Staging may set `EXTRACT_ENABLED=true` for evaluation after backend plug-in lands
+- [ ] Production remains `EXTRACT_ENABLED=false` until Extract implementation follow-up
 
-## Workers + Neo4j (shared constraint)
+## Out of scope (follow-up)
 
-Curate graph serving (timeouts, snapshots, mutation-only writes) was tracked in [#7](https://github.com/diaphana-io/2026bdbv-dashboard/issues/7) (Linear [MATT-314](https://linear.app/diaphana/issue/MATT-314)) and is **closed**. Extract backends on Workers must still not hold job/UI responses hostage to an unresolved Bolt promise; treat #7 as the graph-serving constraint, not open work on this issue.
+Jev live wiring, discovery cron, R2/D1 bindings, Extract→`needs_revision` automation, `min_approvers > 1`, full version browser UI, MapLibre→Navara migration.
