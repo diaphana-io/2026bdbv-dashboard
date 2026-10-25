@@ -100,6 +100,103 @@ export async function persistDismissSource(normalizedUrl: string): Promise<void>
   });
 }
 
+export type SubmitSourceInput = {
+  id: string;
+  url: string;
+  normalizedUrl: string;
+  title?: string | null;
+  publisher?: string | null;
+  kind: string;
+  evidenceClass: string;
+};
+
+/** Enqueue a manual Inbox candidate. Exact normalized URL match → conflict. */
+export async function persistSubmitSource(
+  input: SubmitSourceInput,
+): Promise<{ created: boolean; existingId?: string }> {
+  return withSession(async (session) => {
+    const existing = await session.run(
+      `
+      MATCH (s:SourceDocument {normalized_url: $normalized_url})
+      RETURN s.id AS id
+      LIMIT 1
+      `,
+      { normalized_url: input.normalizedUrl },
+    );
+    if (existing.records.length > 0) {
+      return {
+        created: false,
+        existingId: String(existing.records[0]!.get("id")),
+      };
+    }
+
+    const discoveredAt = new Date().toISOString();
+    await session.run(
+      `
+      CREATE (s:SourceDocument {
+        id: $id,
+        url: $url,
+        normalized_url: $normalized_url,
+        title: $title,
+        publisher: $publisher,
+        kind: $kind,
+        evidence_class: $evidence_class,
+        duplicate_level: 'none',
+        curation_status: 'candidate',
+        discovered_at: $discovered_at
+      })
+      `,
+      {
+        id: input.id,
+        url: input.url,
+        normalized_url: input.normalizedUrl,
+        title: input.title ?? null,
+        publisher: input.publisher ?? null,
+        kind: input.kind,
+        evidence_class: input.evidenceClass,
+        discovered_at: discoveredAt,
+      },
+    );
+    return { created: true };
+  });
+}
+
+export type UpdateSourceInput = {
+  id: string;
+  title?: string | null;
+  publisher?: string | null;
+  kind: string;
+  evidenceClass: string;
+};
+
+export async function persistUpdateSource(
+  input: UpdateSourceInput,
+): Promise<void> {
+  await withSession(async (session) => {
+    const res = await session.run(
+      `
+      MATCH (s:SourceDocument {id: $id})
+      WHERE s.curation_status = 'candidate'
+      SET s.title = $title,
+          s.publisher = $publisher,
+          s.kind = $kind,
+          s.evidence_class = $evidence_class
+      RETURN s.id AS id
+      `,
+      {
+        id: input.id,
+        title: input.title ?? null,
+        publisher: input.publisher ?? null,
+        kind: input.kind,
+        evidence_class: input.evidenceClass,
+      },
+    );
+    if (res.records.length === 0) {
+      throw new Error(`source_not_found:${input.id}`);
+    }
+  });
+}
+
 export type ClaimGraphRow = {
   id: string;
   lineage_id: string | null;

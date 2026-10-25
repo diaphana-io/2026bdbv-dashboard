@@ -2,9 +2,14 @@
 
 import {
   flexRender,
+  rowSelectionFeature,
+  tableFeatures,
   useTable,
   type ColumnDef,
+  type RowSelectionState,
+  type Updater,
 } from "@tanstack/react-table";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -15,11 +20,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InboxRow } from "@/lib/data-types";
-import { curateTableFeatures } from "./curate-table-features";
 import { DuplicateLevelBadge } from "./duplicate-level-badge";
 import { InboxActions } from "./inbox-actions";
 
-const baseColumns: Array<ColumnDef<typeof curateTableFeatures, InboxRow>> = [
+const inboxTableFeatures = tableFeatures({ rowSelectionFeature });
+
+const baseColumns: Array<ColumnDef<typeof inboxTableFeatures, InboxRow>> = [
   {
     id: "title",
     accessorFn: (row) => row.title ?? row.url,
@@ -33,6 +39,7 @@ const baseColumns: Array<ColumnDef<typeof curateTableFeatures, InboxRow>> = [
             className="text-blue-700 hover:underline dark:text-blue-400"
             target="_blank"
             rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
           >
             {i.title ?? i.url}
           </a>
@@ -75,7 +82,7 @@ const baseColumns: Array<ColumnDef<typeof curateTableFeatures, InboxRow>> = [
   },
 ];
 
-const actionsColumn: ColumnDef<typeof curateTableFeatures, InboxRow> = {
+const actionsColumn: ColumnDef<typeof inboxTableFeatures, InboxRow> = {
   id: "actions",
   header: "Actions",
   cell: ({ row }) => (
@@ -86,25 +93,60 @@ const actionsColumn: ColumnDef<typeof curateTableFeatures, InboxRow> = {
   ),
 };
 
+function selectionFromId(id: string | null | undefined): RowSelectionState {
+  return id ? { [id]: true } : {};
+}
+
 export function InboxTable({
   rows,
   limit,
   showActions = true,
+  selectedId = null,
+  onSelect,
 }: {
   rows: InboxRow[];
   limit?: number;
   showActions?: boolean;
+  selectedId?: string | null;
+  onSelect?: (row: InboxRow | null) => void;
 }) {
   const data = typeof limit === "number" ? rows.slice(0, limit) : rows;
   const columns = showActions
     ? [...baseColumns, actionsColumn]
     : baseColumns;
+  const selectable = typeof onSelect === "function";
+
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>(() =>
+    selectionFromId(selectedId),
+  );
+
+  useEffect(() => {
+    setRowSelection(selectionFromId(selectedId));
+  }, [selectedId]);
+
+  function handleSelectionChange(updater: Updater<RowSelectionState>) {
+    const next =
+      typeof updater === "function" ? updater(rowSelection) : updater;
+    setRowSelection(next);
+    if (!onSelect) return;
+    const id = Object.keys(next).find((key) => next[key]);
+    if (!id) {
+      onSelect(null);
+      return;
+    }
+    const row = data.find((r) => r.id === id) ?? null;
+    onSelect(row);
+  }
 
   const table = useTable({
-    features: curateTableFeatures,
+    features: inboxTableFeatures,
     columns,
     data,
     getRowId: (row) => row.id,
+    enableRowSelection: selectable,
+    enableMultiRowSelection: false,
+    state: { rowSelection },
+    onRowSelectionChange: handleSelectionChange,
   });
   const modelRows = table.getRowModel().rows;
   const colCount = table.getAllColumns().length;
@@ -136,7 +178,18 @@ export function InboxTable({
           </TableRow>
         ) : (
           modelRows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              data-state={row.getIsSelected() ? "selected" : undefined}
+              className={selectable ? "cursor-pointer" : undefined}
+              onClick={
+                selectable
+                  ? () => {
+                      row.toggleSelected(true);
+                    }
+                  : undefined
+              }
+            >
               {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
