@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { MapUiProvider } from "./map-ui-context";
+import { MapLegend } from "./map-legend";
 import { PanelHost } from "./panels/panel-host";
 import { AppShell } from "../shared/app-shell";
 import { MapSidebar } from "./map-sidebar";
@@ -35,7 +36,12 @@ export function MapShell({ children }: { children: ReactNode }) {
       <AppShell
         variant="map"
         sidebar={<MapSidebar />}
-        insetOverlay={<PanelHost />}
+        insetOverlay={
+          <>
+            <MapLegend />
+            <PanelHost />
+          </>
+        }
       >
         {children}
       </AppShell>
