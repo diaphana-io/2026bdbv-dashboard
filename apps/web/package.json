@@ -21,6 +21,7 @@
     "radix-ui": "^1.8.1",
     "react": "latest",
     "react-dom": "latest",
+    "react-rnd": "^10.5.3",
     "react-server-dom-webpack": "^19.3.1",
     "shadcn": "^4.22.1",
     "three": "^0.186.1",
