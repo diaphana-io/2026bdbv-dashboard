@@ -11,7 +11,7 @@ import { SourceDocumentSchema } from "./source";
 describe("schema smoke", () => {
   it("parses a confirmed BDBV case", () => {
     const c = CaseSchema.parse({
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       visual_id: "KE-2026-001",
       dataset: "production",
       classification: "confirmed",
@@ -30,7 +30,7 @@ describe("schema smoke", () => {
   it("requires claim fingerprint", () => {
     expect(() =>
       ClaimSchema.parse({
-        id: "22222222-2222-2222-2222-222222222222",
+        id: "22222222-2222-4222-8222-222222222222",
         claim_type: "case_count",
         subject_ref: "KE",
         object_value: { confirmed: 9 },
@@ -44,8 +44,8 @@ describe("schema smoke", () => {
 
   it("parses claim lineage and version hooks", () => {
     const c = ClaimSchema.parse({
-      id: "22222222-2222-2222-2222-222222222222",
-      lineage_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      id: "22222222-2222-4222-8222-222222222222",
+      lineage_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       version: 2,
       is_head: false,
       needs_revision: true,
@@ -58,7 +58,7 @@ describe("schema smoke", () => {
       extractor: "human",
       review_status: "pending_review",
     });
-    expect(c.lineage_id).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    expect(c.lineage_id).toBe("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     expect(c.version).toBe(2);
     expect(c.needs_revision).toBe(true);
     expect(c.claim_category).toBe("aggregate_count");
@@ -66,7 +66,7 @@ describe("schema smoke", () => {
 
   it("defaults claim_category from claim_type", () => {
     const travel = ClaimSchema.parse({
-      id: "22222222-2222-2222-2222-222222222223",
+      id: "22222222-2222-4222-8222-222222222223",
       claim_type: "case_travel",
       subject_ref: "KE-2026-001",
       object_value: { from: "CD", to: "KE" },
@@ -81,7 +81,7 @@ describe("schema smoke", () => {
 
   it("parses source document with evidence and duplicate defaults", () => {
     const s = SourceDocumentSchema.parse({
-      id: "33333333-3333-3333-3333-333333333333",
+      id: "33333333-3333-4333-8333-333333333333",
       url: "https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON622",
       normalized_url:
         "https://www.who.int/emergencies/disease-outbreak-news/item/2026-don622",
@@ -97,28 +97,28 @@ describe("schema smoke", () => {
     expect(EvidenceClassSchema.parse("intl_org")).toBe("intl_org");
     expect(DuplicateLevelSchema.parse("exact_url")).toBe("exact_url");
     const s = SourceDocumentSchema.parse({
-      id: "33333333-3333-3333-3333-333333333334",
+      id: "33333333-3333-4333-8333-333333333334",
       url: "https://example.com/a",
       normalized_url: "https://example.com/a",
       kind: "news",
       evidence_class: "news",
       curation_status: "candidate",
       duplicate_level: "content_hash",
-      duplicate_of_source_id: "33333333-3333-3333-3333-333333333333",
+      duplicate_of_source_id: "33333333-3333-4333-8333-333333333333",
     });
     expect(s.duplicate_of_source_id).toBe(
-      "33333333-3333-3333-3333-333333333333",
+      "33333333-3333-4333-8333-333333333333",
     );
   });
 
   it("parses curate audit event", () => {
     const e = CurateAuditEventSchema.parse({
-      id: "44444444-4444-4444-4444-444444444444",
+      id: "44444444-4444-4444-8444-444444444444",
       at: "2026-10-24T12:00:00.000Z",
       actor: "curator@example.com",
       action: "revise",
-      lineage_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-      claim_id: "22222222-2222-2222-2222-222222222222",
+      lineage_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      claim_id: "22222222-2222-4222-8222-222222222222",
       from_version: 1,
       to_version: 2,
       reason: "official correction",

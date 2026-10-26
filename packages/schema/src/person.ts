@@ -2,7 +2,7 @@ import { z } from "zod";
 import { DatasetSchema } from "./enums";
 
 export const PersonSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   visual_id: z.string().min(1),
   dataset: DatasetSchema,
   role: z.enum(["case", "contact", "contact_of_contact", "both"]),

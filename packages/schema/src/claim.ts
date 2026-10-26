@@ -51,7 +51,7 @@ export const IncidenceObjectSchema = z
 
 export const ClaimSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     claim_type: z.string().min(1),
     /** Coarse bucket; persisted on Neo4j Claim nodes. Defaults from claim_type. */
     claim_category: ClaimCategorySchema.optional(),
@@ -59,9 +59,9 @@ export const ClaimSchema = z
     object_value: z.unknown(),
     as_of_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     claim_fingerprint: z.string().min(1),
-    duplicate_of_id: z.string().uuid().nullable().optional(),
+    duplicate_of_id: z.uuid().nullable().optional(),
     /** Stable logical claim chain; Map tracks the approved head of this lineage. */
-    lineage_id: z.string().uuid().optional(),
+    lineage_id: z.uuid().optional(),
     /** Immutable version within lineage (1..N). */
     version: z.number().int().min(1).optional().default(1),
     is_head: z.boolean().optional(),
