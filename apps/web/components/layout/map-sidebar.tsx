@@ -26,7 +26,7 @@ import {
 import { isBasemapSelectable, type BasemapId } from "../map/basemap-style";
 
 const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "countryNames", label: "Country name" },
+  { key: "countryNames", label: "Country / city label" },
   { key: "cities", label: "Cities" },
 ];
 

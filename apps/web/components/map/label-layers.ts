@@ -2,7 +2,6 @@ import {
   Color,
   fetchFontFamilyFromCss,
   type Layer,
-  type Source,
 } from "@navaramap/three";
 import type ThreeView from "@navaramap/three";
 import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
@@ -88,6 +87,15 @@ function filterCities() {
   };
 }
 
+function filterCapitals() {
+  return {
+    type: "FeatureCollection" as const,
+    features: majorCities.features.filter(
+      (f) => f.properties?.["capital"] === true,
+    ),
+  };
+}
+
 function wireText(layer: Layer, getVisible: () => boolean) {
   layer.on("featureUpdated", ({ evaluator }) => {
     evaluator.evaluate(
@@ -98,6 +106,12 @@ function wireText(layer: Layer, getVisible: () => boolean) {
       },
       { filters: ["name"] },
     );
+  });
+}
+
+function wirePointShow(layer: Layer, getVisible: () => boolean) {
+  layer.on("featureUpdated", ({ evaluator }) => {
+    evaluator.evaluate(() => ({ show: getVisible() }));
   });
 }
 
@@ -173,24 +187,47 @@ export async function attachLabelLayers(
       show: true,
     },
   });
-  wireText(cityLayer, () => citiesVisible);
+  // City text shares the country-name toggle with country labels.
+  wireText(cityLayer, () => countryNamesVisible);
+
+  const capitalSource = view.addSource({
+    type: "geojson",
+    data: filterCapitals(),
+  });
+  const capitalLayer = view.addLayer({
+    type: "vector",
+    source: capitalSource,
+    point: {
+      color: colors.city.color,
+      size: 5,
+      sizeInMeters: false,
+      clampToGround: true,
+      declutter: false,
+      show: true,
+    },
+  });
+  // Cities flag only toggles capital points (not city text).
+  wirePointShow(capitalLayer, () => citiesVisible);
 
   return {
     setCountryNamesVisible(next) {
       if (next === countryNamesVisible) return;
       countryNamesVisible = next;
       countryLayer.forceUpdate();
+      cityLayer.forceUpdate();
     },
     setCitiesVisible(next) {
       if (next === citiesVisible) return;
       citiesVisible = next;
-      cityLayer.forceUpdate();
+      capitalLayer.forceUpdate();
     },
     destroy() {
       countryLayer.delete();
       cityLayer.delete();
+      capitalLayer.delete();
       countrySource.delete();
       citySource.delete();
+      capitalSource.delete();
     },
   };
 }
