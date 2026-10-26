@@ -92,7 +92,7 @@ function wireStatsDotColors(layer: Layer) {
 }
 
 /**
- * Case points + Case Stats 1px dots (replaces aggregate bubbles).
+ * Case points + Case Stats dots (replaces aggregate bubbles).
  * Dynamic GeoJSON must delete+recreate (skill invariant).
  */
 export function attachCaseLayers(
@@ -150,7 +150,7 @@ export function attachCaseLayers(
         source: dotsSource,
         point: {
           color: new Color().setStyle(STATS_DOT_COLORS.confirmed),
-          size: 1,
+          size: 4,
           sizeInMeters: false,
           opacity: 0.95,
           clampToGround: true,

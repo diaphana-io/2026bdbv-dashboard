@@ -13,11 +13,12 @@ export type StatsDot = {
   status: StatsDotStatus;
 };
 
+/** High-contrast on Papers light land (not near-white). */
 export const STATS_DOT_COLORS: Record<StatsDotStatus, string> = {
-  confirmed: "#f4f4f5",
-  suspected: "#fbbf24",
-  recovered: "#34d399",
-  deceased: "#f87171",
+  confirmed: "#18181b",
+  suspected: "#d97706",
+  recovered: "#059669",
+  deceased: "#dc2626",
 };
 
 type LonLat = [number, number];
