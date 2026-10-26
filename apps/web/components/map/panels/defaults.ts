@@ -19,7 +19,7 @@ function buildDefaults(): Record<PanelId, PanelLayoutDefault> {
   const out = {
     "case-detail": {
       defaultOpen: false,
-      defaultPosition: { x: 10_000, y: 12 },
+      defaultPosition: { x: 340, y: 12 },
       defaultSize: { width: 320, height: 360 },
     },
   } as Record<PanelId, PanelLayoutDefault>;
