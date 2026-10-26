@@ -28,19 +28,20 @@ function labelColors(mode: CaseLayerMode) {
         outlineColor: new Color().setStyle("#fafafa"),
       },
       city: {
-        color: new Color().setStyle("#3f3f46"),
+        color: new Color().setStyle("#0284c7"),
         outlineColor: new Color().setStyle("#fafafa"),
       },
     };
   }
   return {
     country: {
-      // Bright fill + dark halo reads on dark Papers land.
+      // Bright near-white + dark halo on dark Papers land.
       color: new Color().setStyle("#f8fafc"),
       outlineColor: new Color().setStyle("#0b1220"),
     },
     city: {
-      color: new Color().setStyle("#e2e8f0"),
+      // Cool accent so cities read distinct from country names.
+      color: new Color().setStyle("#7dd3fc"),
       outlineColor: new Color().setStyle("#0b1220"),
     },
   };

@@ -18,11 +18,15 @@ import {
   resolveBasemapId,
 } from "./basemap-style";
 import {
+  allStatsPanelIds,
   PANEL_DEFAULTS,
   PANEL_IDS,
 } from "./panels/defaults";
 import type { PanelId, PanelPosition, PanelSize } from "./panels/types";
-import type { TrackedCountryIso } from "@/lib/tracked-countries";
+import {
+  statsPanelId,
+  type TrackedCountryIso,
+} from "@/lib/tracked-countries";
 
 /**
  * v9: persistPanelLayout opt-in; panel sizes; react-rnd layout.
@@ -100,7 +104,6 @@ type MapUiContextValue = {
   boundaryLevel: BoundaryLevel;
   uiFontSize: UiFontSize;
   selectedCaseId: string | null;
-  selectedCountryIso: TrackedCountryIso | null;
   focusedPanelId: PanelId | null;
   setPanelOpen: (id: PanelId, open: boolean) => void;
   togglePanel: (id: PanelId) => void;
@@ -120,8 +123,9 @@ type MapUiContextValue = {
   setUiFontSize: (size: UiFontSize) => void;
   openCaseDetail: (caseId: string) => void;
   closeCaseDetail: () => void;
-  /** Open country-stats; pass iso to focus one country, omit for all tracked. */
-  openCountryStats: (iso?: TrackedCountryIso) => void;
+  /** Open one country's stats panel (activates Case Stats group). */
+  openCountryStats: (iso: TrackedCountryIso) => void;
+  setStatsPanelOpen: (iso: TrackedCountryIso, open: boolean) => void;
   /** Enable Case Tracking group; turns off Case Stats panels + Claims. */
   activateCaseTracking: () => void;
   /** Enable Case Stats group; turns off Case Tracking panels + case layers. */
@@ -265,8 +269,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     useState<BoundaryLevel>("auto");
   const [uiFontSize, setUiFontSizeState] = useState<UiFontSize>("md");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const [selectedCountryIso, setSelectedCountryIso] =
-    useState<TrackedCountryIso | null>(null);
   const [focusedPanelId, setFocusedPanelId] = useState<PanelId | null>(null);
 
   useEffect(() => {
@@ -327,23 +329,15 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
 
   const setPanelOpen = useCallback((id: PanelId, open: boolean) => {
     setOpenPanels((prev) => ({ ...prev, [id]: open }));
-    if (open) {
-      setFocusedPanelId(id);
-      if (id === "country-stats") setSelectedCountryIso(null);
-    }
+    if (open) setFocusedPanelId(id);
     if (!open && id === "case-detail") setSelectedCaseId(null);
-    if (!open && id === "country-stats") setSelectedCountryIso(null);
   }, []);
 
   const togglePanel = useCallback((id: PanelId) => {
     setOpenPanels((prev) => {
       const next = !prev[id];
-      if (next) {
-        setFocusedPanelId(id);
-        if (id === "country-stats") setSelectedCountryIso(null);
-      }
+      if (next) setFocusedPanelId(id);
       if (!next && id === "case-detail") setSelectedCaseId(null);
-      if (!next && id === "country-stats") setSelectedCountryIso(null);
       return { ...prev, [id]: next };
     });
   }, []);
@@ -404,8 +398,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const activateCaseTracking = useCallback(() => {
-    setOpenPanels((prev) => ({ ...prev, "country-stats": false }));
-    setSelectedCountryIso(null);
+    setOpenPanels((prev) => {
+      const next = { ...prev };
+      for (const id of allStatsPanelIds()) next[id] = false;
+      return next;
+    });
     setLayers((prev) => ({ ...prev, claims: false }));
   }, []);
 
@@ -432,12 +429,22 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setOpenPanels((prev) => ({ ...prev, "case-detail": false }));
   }, []);
 
-  const openCountryStats = useCallback((iso?: TrackedCountryIso) => {
+  const openCountryStats = useCallback((iso: TrackedCountryIso) => {
     activateCaseStats();
-    setSelectedCountryIso(iso ?? null);
-    setOpenPanels((prev) => ({ ...prev, "country-stats": true }));
-    setFocusedPanelId("country-stats");
+    const id = statsPanelId(iso);
+    setOpenPanels((prev) => ({ ...prev, [id]: true }));
+    setFocusedPanelId(id);
   }, [activateCaseStats]);
+
+  const setStatsPanelOpen = useCallback(
+    (iso: TrackedCountryIso, open: boolean) => {
+      if (open) activateCaseStats();
+      const id = statsPanelId(iso);
+      setOpenPanels((prev) => ({ ...prev, [id]: open }));
+      if (open) setFocusedPanelId(id);
+    },
+    [activateCaseStats],
+  );
 
   const focusPanel = useCallback((id: PanelId) => {
     setFocusedPanelId(id);
@@ -455,7 +462,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       boundaryLevel,
       uiFontSize,
       selectedCaseId,
-      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
@@ -471,6 +477,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
+      setStatsPanelOpen,
       activateCaseTracking,
       activateCaseStats,
       focusPanel,
@@ -487,7 +494,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       boundaryLevel,
       uiFontSize,
       selectedCaseId,
-      selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
@@ -503,6 +509,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
+      setStatsPanelOpen,
       activateCaseTracking,
       activateCaseStats,
       focusPanel,

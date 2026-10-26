@@ -123,6 +123,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.labels.setCitiesVisible(vis.cities);
     bundle.cases.setCasesVisible(vis.cases);
     bundle.cases.setClaimsVisible(vis.claims);
+    bundle.cases.setBoundaryLevel(vis.boundaryLevel);
+    bundle.cases.setAsOf(asOfRef.current);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
   }
