@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import discoveryQueries from "../../../../data/discovery/queries.json";
 import { getClaims, getConflictViews, getInboxCandidates } from "../../../../lib/data";
 import { runCommand } from "../../../../lib/surv-engine";
 import {
@@ -41,37 +40,17 @@ async function probeNeo4j(): Promise<{
   }
 }
 
-async function discoveryMeta(): Promise<{
+function discoveryMeta(): {
   query_count: number;
   cron_configured: boolean;
-}> {
-  try {
-    const file = path.join(process.cwd(), "..", "..", "data", "discovery", "queries.json");
-    // Prefer repo-root data/; fall back to apps/web-relative walks.
-    const candidates = [
-      file,
-      path.join(process.cwd(), "data", "discovery", "queries.json"),
-      path.resolve(process.cwd(), "../../data/discovery/queries.json"),
-    ];
-    for (const p of candidates) {
-      try {
-        const raw = await readFile(p, "utf8");
-        const parsed = JSON.parse(raw) as {
-          queries?: unknown[];
-          schedule_cron?: string;
-        };
-        return {
-          query_count: Array.isArray(parsed.queries) ? parsed.queries.length : 0,
-          cron_configured: Boolean(parsed.schedule_cron),
-        };
-      } catch {
-        /* try next */
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return { query_count: 0, cron_configured: false };
+} {
+  const queries = Array.isArray(discoveryQueries.queries)
+    ? discoveryQueries.queries
+    : [];
+  return {
+    query_count: queries.length,
+    cron_configured: Boolean(discoveryQueries.schedule_cron),
+  };
 }
 
 export async function GET() {
