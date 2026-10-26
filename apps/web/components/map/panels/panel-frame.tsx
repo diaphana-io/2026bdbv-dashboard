@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { useMapUi } from "../map/map-ui-context";
+import { useMapUi } from "../map-ui-context";
 import type { PanelId } from "./types";
 import { usePanelDrag } from "./use-panel-drag";
 

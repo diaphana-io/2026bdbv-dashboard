@@ -8,7 +8,7 @@ import {
 } from "@/lib/tracked-countries";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
-import { useMapUi } from "../map/map-ui-context";
+import { useMapUi } from "../map-ui-context";
 import { PanelFrame } from "./panel-frame";
 
 function emptyRow(iso: TrackedCountryIso, name: string): CountryStatRow {

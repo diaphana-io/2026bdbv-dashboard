@@ -17,7 +17,7 @@ import {
   basemapIdForUiTheme,
   resolveBasemapId,
 } from "./basemap-style";
-import type { PanelId, PanelPosition } from "../panels/types";
+import type { PanelId, PanelPosition } from "./panels/types";
 import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
