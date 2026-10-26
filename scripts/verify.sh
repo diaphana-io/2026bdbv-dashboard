@@ -79,7 +79,7 @@ case "$UNIT" in
     echo "curation OK"
     ;;
   data)
-    test -d data/curated
+    test -d data/seed/curated
     test -d seed
     run_schema
     echo "data OK"

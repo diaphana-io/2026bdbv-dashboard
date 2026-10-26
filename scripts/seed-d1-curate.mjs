@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Seed data/curated Claim Curate rows into D1.
+ * Seed data/seed/curated Claim Curate rows into D1.
  *
  * Default: preview DB only (bdbv-curate-preview), local + remote.
  * Production (bdbv-curate) requires explicit --production opt-in.
@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const curatedDir = join(root, "data", "curated");
+const curatedDir = join(root, "data", "seed", "curated");
 const webDir = join(root, "apps", "web");
 const config = "wrangler.d1.jsonc";
 const PREVIEW_DB = "bdbv-curate-preview";

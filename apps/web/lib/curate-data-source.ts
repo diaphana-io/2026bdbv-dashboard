@@ -1,6 +1,6 @@
 /**
  * Curate UI data-source preference.
- * - `fixture` — bundled seed under `apps/web/data` (from repo `data/curated`)
+ * - `fixture` — bundled seed under `apps/web/data` (from repo `data/seed/curated`)
  * - `live` — Neo4j when configured (falls back to fixture on Bolt errors)
  */
 

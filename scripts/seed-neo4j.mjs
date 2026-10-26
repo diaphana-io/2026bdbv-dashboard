@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Apply constraints + seed data/curated into Neo4j (Aura or local).
+ * Apply constraints + seed data/seed/curated into Neo4j (Aura or local).
  * Env: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD (or apps/web/.env).
  *
  * Usage: npm run seed:neo4j
@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import neo4j from "neo4j-driver";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const curatedDir = join(root, "data", "curated");
+const curatedDir = join(root, "data", "seed", "curated");
 const constraintsPath = join(root, "infra", "neo4j", "constraints.cypher");
 
 function loadDotEnv(path) {
