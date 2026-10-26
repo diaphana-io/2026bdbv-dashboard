@@ -40,13 +40,6 @@ const CATALOG_STATUSES = new Set([
   "done",
 ]);
 
-const CATALOG_STATUSES = new Set([
-  "fetched",
-  "extracted",
-  "in_review",
-  "done",
-]);
-
 type AdminUnitRow = {
   id: string;
   iso: string;
