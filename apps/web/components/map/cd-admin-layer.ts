@@ -12,8 +12,11 @@ import healthZonesData from "../../data/cd_health_zones.json";
 
 type View = ThreeView<DefaultDescriptions>;
 
+export type BoundaryLevelMode = "auto" | "admin1" | "admin2" | "admin3";
+
 export type CdAdminLayerHandle = {
   setVisible: (visible: boolean) => void;
+  setLevelMode: (mode: BoundaryLevelMode) => void;
   setAggregates: (aggregates: MapAggregate[]) => void;
   destroy: () => void;
 };
@@ -182,6 +185,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
 
   let maxConfirmed = 0;
   let visible = true;
+  let levelMode: BoundaryLevelMode = "auto";
   let band: LodBand = "far";
   let hasHzClaims = false;
 
@@ -206,8 +210,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
   }
   wireHzFillColors(hzFill);
 
-  function applyLod(next: LodBand) {
-    band = next;
+  function applyVisibility() {
     if (!visible) {
       provinceOutline.update({ polyline: { show: false } });
       territoryOutline.update({ polyline: { show: false } });
@@ -215,7 +218,8 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       hzFill.update({ polygon: { show: false } });
       return;
     }
-    if (next === "far") {
+
+    if (levelMode === "admin1") {
       provinceOutline.update({
         polyline: { show: true, width: LINE.province.width },
       });
@@ -224,7 +228,36 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       hzFill.update({ polygon: { show: false } });
       return;
     }
-    if (next === "mid") {
+
+    if (levelMode === "admin2") {
+      provinceOutline.update({ polyline: { show: false } });
+      territoryOutline.update({
+        polyline: { show: true, width: LINE.territory.width },
+      });
+      hzOutline.update({ polyline: { show: false } });
+      hzFill.update({ polygon: { show: false } });
+      return;
+    }
+
+    if (levelMode === "admin3") {
+      provinceOutline.update({ polyline: { show: false } });
+      territoryOutline.update({ polyline: { show: false } });
+      hzOutline.update({ polyline: { show: true } });
+      hzFill.update({ polygon: { show: hasHzClaims } });
+      return;
+    }
+
+    // auto → camera-height LOD bands
+    if (band === "far") {
+      provinceOutline.update({
+        polyline: { show: true, width: LINE.province.width },
+      });
+      territoryOutline.update({ polyline: { show: false } });
+      hzOutline.update({ polyline: { show: false } });
+      hzFill.update({ polygon: { show: false } });
+      return;
+    }
+    if (band === "mid") {
       provinceOutline.update({
         polyline: { show: true, width: LINE.province.width + 0.5 },
       });
@@ -242,23 +275,39 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
   }
 
   function syncFromCamera() {
+    if (levelMode !== "auto") return;
     try {
       const height = view.camera.positionGeographic.height;
       const next = bandForHeight(height);
-      if (next !== band) applyLod(next);
+      if (next !== band) {
+        band = next;
+        applyVisibility();
+      }
     } catch {
       /* camera may be disposed during teardown */
     }
   }
 
-  applyLod(bandForHeight(view.camera.positionGeographic.height));
+  band = bandForHeight(view.camera.positionGeographic.height);
+  applyVisibility();
   const onMove = () => syncFromCamera();
   view.camera.on("move", onMove);
 
   return {
     setVisible(next) {
       visible = next;
-      applyLod(band);
+      applyVisibility();
+    },
+    setLevelMode(mode) {
+      levelMode = mode;
+      if (mode === "auto") {
+        try {
+          band = bandForHeight(view.camera.positionGeographic.height);
+        } catch {
+          /* camera may be disposed during teardown */
+        }
+      }
+      applyVisibility();
     },
     setAggregates(aggregates) {
       const confirmedByPcode = new Map<string, number>();
@@ -313,7 +362,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
         false,
       );
       hzOutline = outlineLayer(view, hzOutlineSource, LINE.healthZone, false);
-      applyLod(band);
+      applyVisibility();
     },
     destroy() {
       view.camera.off("move", onMove);

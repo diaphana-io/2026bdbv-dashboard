@@ -21,12 +21,32 @@ import type { PanelId, PanelPosition } from "../panels/types";
 import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
+ * v8: boundaryLevel pin (auto / admin1–3) for DRC COD-AB outlines.
  * v7: Independent Claims toggle (MapAggregate bubbles) separate from Cases points.
  * v6: Dark basemap only; boundaries = DRC COD-AB LOD outlines (not tracked fills).
  * v5 could still hold light basemap / theme-sync prefs.
  */
-const STORAGE_KEY = "bdbv-map-ui-v7";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v6";
+const STORAGE_KEY = "bdbv-map-ui-v8";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v7";
+
+export type BoundaryLevel = "auto" | "admin1" | "admin2" | "admin3";
+
+const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
+  "auto",
+  "admin1",
+  "admin2",
+  "admin3",
+];
+
+function resolveBoundaryLevel(value: unknown): BoundaryLevel {
+  if (
+    typeof value === "string" &&
+    (BOUNDARY_LEVELS as readonly string[]).includes(value)
+  ) {
+    return value as BoundaryLevel;
+  }
+  return "auto";
+}
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -57,6 +77,7 @@ type PersistedMapUi = {
   layers?: Partial<LayerVisibility>;
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
+  boundaryLevel?: BoundaryLevel;
 };
 
 type MapUiContextValue = {
@@ -65,6 +86,7 @@ type MapUiContextValue = {
   layers: LayerVisibility;
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
+  boundaryLevel: BoundaryLevel;
   selectedCaseId: string | null;
   selectedCountryIso: TrackedCountryIso | null;
   focusedPanelId: PanelId | null;
@@ -74,6 +96,7 @@ type MapUiContextValue = {
   setLayerVisible: (layer: keyof LayerVisibility, visible: boolean) => void;
   setBasemapId: (id: BasemapId) => void;
   setSyncBasemapToUiTheme: (sync: boolean) => void;
+  setBoundaryLevel: (level: BoundaryLevel) => void;
   openCaseDetail: (caseId: string) => void;
   closeCaseDetail: () => void;
   /** Open country-stats; pass iso to focus one country, omit for all tracked. */
@@ -116,6 +139,7 @@ function readPersisted(): PersistedMapUi | null {
     const raw =
       window.localStorage.getItem(STORAGE_KEY) ??
       window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v6") ??
       window.localStorage.getItem("bdbv-map-ui-v5") ??
       window.localStorage.getItem("bdbv-map-ui-v4") ??
       window.localStorage.getItem("bdbv-map-ui-v3");
@@ -128,6 +152,7 @@ function readPersisted(): PersistedMapUi | null {
       ...parsed,
       basemapId: resolveBasemapId(parsed.basemapId),
       syncBasemapToUiTheme: false,
+      boundaryLevel: resolveBoundaryLevel(parsed.boundaryLevel),
       layers: {
         ...parsed.layers,
         boundaries: true,
@@ -161,6 +186,7 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     ...persisted?.layers,
   };
   const basemapId = resolveBasemapId(persisted?.basemapId);
+  const boundaryLevel = resolveBoundaryLevel(persisted?.boundaryLevel);
   // Dark-only: theme sync is permanently off (Light radio is disabled).
   return {
     openPanels,
@@ -168,6 +194,7 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
     layers,
     basemapId,
     syncBasemapToUiTheme: false,
+    boundaryLevel,
   };
 }
 
@@ -179,6 +206,8 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
   const [basemapId, setBasemapIdState] = useState<BasemapId>(DEFAULT_BASEMAP_ID);
   const [syncBasemapToUiTheme, setSyncState] = useState(false);
+  const [boundaryLevel, setBoundaryLevelState] =
+    useState<BoundaryLevel>("auto");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [selectedCountryIso, setSelectedCountryIso] =
     useState<TrackedCountryIso | null>(null);
@@ -191,6 +220,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setLayers(merged.layers);
     setBasemapIdState(merged.basemapId);
     setSyncState(merged.syncBasemapToUiTheme);
+    setBoundaryLevelState(merged.boundaryLevel);
     setHydrated(true);
   }, []);
 
@@ -202,6 +232,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       layers,
       basemapId,
       syncBasemapToUiTheme,
+      boundaryLevel,
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -215,6 +246,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     layers,
     basemapId,
     syncBasemapToUiTheme,
+    boundaryLevel,
   ]);
 
   // Theme → basemap sync disabled (Dark-only catalog).
@@ -273,6 +305,10 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const setBoundaryLevel = useCallback((level: BoundaryLevel) => {
+    setBoundaryLevelState(resolveBoundaryLevel(level));
+  }, []);
+
   const openCaseDetail = useCallback((caseId: string) => {
     setSelectedCaseId(caseId);
     setOpenPanels((prev) => ({ ...prev, "case-detail": true }));
@@ -301,6 +337,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       layers,
       basemapId,
       syncBasemapToUiTheme,
+      boundaryLevel,
       selectedCaseId,
       selectedCountryIso,
       focusedPanelId,
@@ -310,6 +347,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       setLayerVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
+      setBoundaryLevel,
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
@@ -322,6 +360,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       layers,
       basemapId,
       syncBasemapToUiTheme,
+      boundaryLevel,
       selectedCaseId,
       selectedCountryIso,
       focusedPanelId,
@@ -331,6 +370,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       setLayerVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
+      setBoundaryLevel,
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
