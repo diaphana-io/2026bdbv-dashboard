@@ -35,6 +35,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'index' },
 						{ label: 'About', slug: 'about' },
+						{ label: 'Privacy Policy', slug: 'privacy' },
 					],
 				},
 				{

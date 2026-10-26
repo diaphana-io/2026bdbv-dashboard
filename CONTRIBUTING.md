@@ -50,15 +50,16 @@ Every open GitHub Issue should carry **exactly one** area label so triage can fi
 | --- | --- |
 | `curate` | Curate UI/API, Extract, claim SoT (D1), Inbox/Catalog/Review/Conflicts, Cloudflare Access for `/curate` |
 | `map` | Public Map / dashboard surface: basemap, layers, incidence series, Rt/Cori, country-stats, map-facing snapshots |
-| `other` | Neither Curate nor Map primary: infra, docs-only, CI, cross-cutting work with no clear product surface |
+| `docs` | Starlight / public docs site, Privacy Policy, CONTRIBUTING sync, docs-only copy |
+| `other` | Neither Curate, Map, nor Docs primary: infra, CI, cross-cutting work with no clear product surface |
 
 Pick by **primary surface**, not by every phase that touches another system (e.g. a Claim→D1 migration stays `curate` even if a later phase feeds the Map). Combine with type labels when useful (`enhancement`, `bug`, `discussion`, `duplicate`, …). Do not invent parallel area names; add a row here if a new area is needed.
 
 ## How to contribute
 
-1. Work on a **feature branch** (do not commit directly to `main`).
+1. Work on a **feature branch** named `<issue-number>-<short-slug>` (for example `45-privacy-policy`). Do not commit directly to `main`.
 2. Open a **pull request** targeting `main`.
-3. When a change relates to tracked work, **link the relevant issue** in the PR description (see [Issue tracking](#issue-tracking)).
+3. When a change relates to tracked work, **link the relevant issue** in the PR description (for example `Closes #45`; see [Issue tracking](#issue-tracking)).
 
 ## Checks
 
