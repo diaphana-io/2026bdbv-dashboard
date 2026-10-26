@@ -3,9 +3,9 @@ import { ClaimSchema } from "./claim";
 
 /** Two approved or pending claims that disagree; both remain visible until a human resolves. */
 export const ClaimConflictSchema = z.object({
-  id: z.string().uuid(),
-  claim_a_id: z.string().uuid(),
-  claim_b_id: z.string().uuid(),
+  id: z.uuid(),
+  claim_a_id: z.uuid(),
+  claim_b_id: z.uuid(),
   subject_ref: z.string().min(1),
   claim_type: z.string().min(1),
   status: z.enum(["open", "resolved_a", "resolved_b", "resolved_neither"]),
