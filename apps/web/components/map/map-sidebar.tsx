@@ -29,6 +29,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { withBasePath } from "@/lib/base-path";
@@ -166,13 +167,16 @@ export function MapSidebar() {
     <Sidebar collapsible="offcanvas" variant="floating">
       <SidebarHeader className="gap-2 border-b border-sidebar-border px-3 py-3">
         <div className="flex items-start justify-between gap-2">
-          <BrandLink className="flex-1" />
-          <Button variant="outline" size="xs" asChild>
-            <Link href="/curate" target="_blank" rel="noopener noreferrer">
-              Curate
-              <ExternalLinkIcon data-icon="inline-end" />
-            </Link>
-          </Button>
+          <BrandLink className="min-w-0 flex-1" />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="outline" size="xs" asChild>
+              <Link href="/curate" target="_blank" rel="noopener noreferrer">
+                Curate
+                <ExternalLinkIcon data-icon="inline-end" />
+              </Link>
+            </Button>
+            <SidebarTrigger />
+          </div>
         </div>
       </SidebarHeader>
 
