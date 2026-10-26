@@ -39,21 +39,21 @@ const MID_MIN_HEIGHT = 1_200_000;
 const LINE = {
   province: {
     color: "#94a3b8",
-    width: 2.5,
+    width: 1.25,
     maxWidth: 120_000,
     height: 5_000,
     opacity: 0.95,
   },
   territory: {
     color: "#64748b",
-    width: 1.5,
+    width: 0.9,
     maxWidth: 80_000,
     height: 4_000,
     opacity: 0.85,
   },
   healthZone: {
     color: "#475569",
-    width: 1,
+    width: 0.7,
     maxWidth: 40_000,
     height: 3_000,
     opacity: 0.8,
