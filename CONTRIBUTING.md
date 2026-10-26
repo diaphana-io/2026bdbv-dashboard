@@ -40,6 +40,18 @@ GitHub Issues on this repository may be used for public discussion. They are int
 
 To enable sync (Linear workspace admin): **Settings → Features → Integrations → GitHub → GitHub Issues → +**, map `diaphana-io/2026bdbv-dashboard` → team **MATT**, choose **One-way**. See [Linear GitHub Issues sync](https://linear.app/docs/github-to-linear).
 
+### Issue labels (area)
+
+Every open GitHub Issue should carry **exactly one** area label so triage can filter Curate vs Map vs everything else:
+
+| Label | Use for |
+| --- | --- |
+| `curate` | Curate UI/API, Extract, claim SoT (D1), Inbox/Catalog/Review/Conflicts, Cloudflare Access for `/curate` |
+| `map` | Public Map / dashboard surface: basemap, layers, incidence series, Rt/Cori, country-stats, map-facing snapshots |
+| `other` | Neither Curate nor Map primary: infra, docs-only, CI, cross-cutting work with no clear product surface |
+
+Pick by **primary surface**, not by every phase that touches another system (e.g. a Claim→D1 migration stays `curate` even if a later phase feeds the Map). Combine with type labels when useful (`enhancement`, `bug`, `discussion`, `duplicate`, …). Do not invent parallel area names; add a row here if a new area is needed.
+
 ## How to contribute
 
 1. Work on a **feature branch** (do not commit directly to `main`).
