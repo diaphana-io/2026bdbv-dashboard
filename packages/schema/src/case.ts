@@ -7,7 +7,7 @@ import {
 } from "./enums";
 
 export const CaseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   visual_id: z.string().min(1),
   dataset: DatasetSchema,
   classification: ClassificationSchema,
@@ -24,7 +24,7 @@ export const CaseSchema = z.object({
   confidence: ConfidenceSchema,
   is_synthetic: z.boolean().default(false),
   /** Internal SourceDocument ids backing this case (UUID). */
-  source_ids: z.array(z.string().uuid()).optional().default([]),
+  source_ids: z.array(z.uuid()).optional().default([]),
 });
 
 export type Case = z.infer<typeof CaseSchema>;

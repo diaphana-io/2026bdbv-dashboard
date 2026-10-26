@@ -9,6 +9,11 @@ vi.mock("./d1", () => ({
   getDb: vi.fn(() => null),
 }));
 
+// data.ts imports the server module; vitest has no vinext next/headers alias.
+vi.mock("./curate-data-source.server", () => ({
+  preferFixtureData: async () => false,
+}));
+
 describe("graph read cache facade", () => {
   beforeEach(() => {
     vi.resetModules();

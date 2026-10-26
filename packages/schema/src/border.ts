@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ConfidenceSchema } from "./enums";
 
 export const BorderMeasureSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   title: z.string().min(1),
   measure_type: z.enum([
     "entry_screening",
@@ -25,7 +25,7 @@ export const BorderMeasureSchema = z.object({
     .optional(),
   applies_to_countries: z.array(z.string()).default([]),
   confidence: ConfidenceSchema,
-  supersedes_id: z.string().uuid().nullable().optional(),
+  supersedes_id: z.uuid().nullable().optional(),
 });
 
 export type BorderMeasure = z.infer<typeof BorderMeasureSchema>;

@@ -15,9 +15,9 @@ const DateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
  */
 export const ExposureSchema = z
   .object({
-    id: z.string().uuid(),
-    from_person_id: z.string().uuid(),
-    to_ref_id: z.string().uuid(),
+    id: z.uuid(),
+    from_person_id: z.uuid(),
+    to_ref_id: z.uuid(),
     to_ref_type: z.enum(["case", "person", "event"]),
     /** Day contact possibility began (inclusive). */
     date_of_first_contact: DateSchema,
@@ -50,9 +50,9 @@ export const ExposureSchema = z
 export type Exposure = z.infer<typeof ExposureSchema>;
 
 export const FollowUpWindowSchema = z.object({
-  id: z.string().uuid(),
-  person_id: z.string().uuid(),
-  source_exposure_id: z.string().uuid(),
+  id: z.uuid(),
+  person_id: z.uuid(),
+  source_exposure_id: z.uuid(),
   /** Typically = exposure date_of_last_contact (possibility ended). */
   window_start: DateSchema,
   /** Typically window_start + incubation_max_days. */
