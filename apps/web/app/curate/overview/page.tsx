@@ -34,31 +34,31 @@ export default async function CurateOverviewPage() {
       stage: "Inbox",
       href: "/curate/inbox",
       count: inbox.length,
-      note: `${dupFlagged.length} with duplicate flag`,
+      note: `${dupFlagged.length} with duplicate flag · Adopt → Catalog`,
     },
     {
-      stage: "Extract",
+      stage: "Catalog",
+      href: "/curate/catalog",
+      count: catalog.length,
+      note: "Post-Adopt Claim home",
+    },
+    {
+      stage: "Claim Extract",
       href: "/curate/extract",
       count: extractEnabled ? "—" : 0,
       note: extractEnabled ? "Gate open (staging)" : "Stub / not configured",
     },
     {
-      stage: "Review",
+      stage: "Claim Review",
       href: "/curate/review",
       count: pendingReview.length,
-      note: "Approvals: 1 of 1 (policy)",
+      note: "Approve / Reject claims only",
     },
     {
       stage: "Conflicts",
       href: "/curate/conflicts",
       count: openConflicts.length,
       note: "Both claims visible until resolve",
-    },
-    {
-      stage: "Catalog",
-      href: "/curate/catalog",
-      count: catalog.length,
-      note: "Sources + claim rollback",
     },
   ];
 
@@ -68,7 +68,8 @@ export default async function CurateOverviewPage() {
         <div>
           <h1 className="text-lg font-semibold">Overview</h1>
           <p className="text-sm text-muted-foreground">
-            Pipeline command center — work each stage in order.
+            Claim-track command center — Adopt → Catalog → Claim Extract /
+            Review. Case work uses a separate sidebar section.
           </p>
         </div>
         <div className="flex gap-2">

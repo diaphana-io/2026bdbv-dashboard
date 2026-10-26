@@ -46,18 +46,15 @@ export function CatalogClaimsTable({
     ColumnDef<typeof curateTableFeatures, CatalogClaimRow>
   > = [
     {
-      id: "claim",
-      accessorFn: (row) => `${row.claim_type}:${row.subject_ref}`,
-      header: "Claim",
+      accessorKey: "claim_type",
+      header: "Type",
       cell: ({ row }) => {
         const c = row.original;
         return (
           <div className="text-sm">
-            <div className="font-medium">
-              {c.claim_type} · {c.subject_ref}
-            </div>
+            <div className="font-medium">{c.claim_type}</div>
             <div className="text-[11px] text-muted-foreground">
-              as_of {c.as_of_date} · v{c.version}
+              v{c.version}
               {c.is_head ? " · head" : ""}
             </div>
           </div>
@@ -65,20 +62,27 @@ export function CatalogClaimsTable({
       },
     },
     {
-      id: "value",
+      accessorKey: "subject_ref",
+      header: "Zone",
+      cell: ({ getValue }) => (
+        <code className="text-xs">{getValue<string>()}</code>
+      ),
+    },
+    {
+      accessorKey: "as_of_date",
+      header: "as_of",
+      cell: ({ getValue }) => (
+        <span className="text-xs tabular-nums">{getValue<string>()}</span>
+      ),
+    },
+    {
+      id: "object",
       accessorFn: (row) => objectPreview(row.object_value),
       header: "Object",
       cell: ({ getValue }) => (
         <code className="max-w-[14rem] truncate text-[11px]">
           {getValue<string>()}
         </code>
-      ),
-    },
-    {
-      accessorKey: "extractor",
-      header: "How",
-      cell: ({ getValue }) => (
-        <Badge variant="outline">{getValue<string>()}</Badge>
       ),
     },
     {
@@ -122,7 +126,7 @@ export function CatalogClaimsTable({
               <Link
                 href={`/curate/review?url=${encodeURIComponent(sourceUrl)}&claim=${encodeURIComponent(c.id)}`}
               >
-                Open in Review
+                Open Claim Review
               </Link>
             </Button>
             {isApprovedHead && (
@@ -169,7 +173,7 @@ export function CatalogClaimsTable({
         ) : (
           table.getRowModel().rows.map((row) => (
             <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
+              {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>

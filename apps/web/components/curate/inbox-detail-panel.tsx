@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,17 +25,21 @@ export function InboxDetailPanel({
   row,
   onUpdated,
   onDismissed,
+  onAdopted,
 }: {
   row: InboxRow | null;
   onUpdated: (row: InboxRow) => void;
   onDismissed: (id: string) => void;
+  onAdopted: (id: string) => void;
 }) {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [publisher, setPublisher] = useState("");
   const [kind, setKind] = useState<SourceKind>("other");
   const [evidenceClass, setEvidenceClass] = useState<EvidenceClass>("other");
   const [pending, setPending] = useState(false);
   const [dismissPending, setDismissPending] = useState(false);
+  const [adoptPending, setAdoptPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -74,7 +78,7 @@ export function InboxDetailPanel({
 
   const level = (row.duplicate_level ?? "none") as DuplicateLevel;
   const exactDup = level === "exact_url" || level === "content_hash";
-  const reviewHref = `/curate/review?url=${encodeURIComponent(row.url)}`;
+  const catalogHref = `/curate/catalog?source=${encodeURIComponent(row.url)}`;
 
   async function save() {
     setPending(true);
@@ -114,13 +118,44 @@ export function InboxDetailPanel({
       setMessage(
         data.persisted
           ? "Metadata saved."
-          : "Saved locally (Neo4j not writing on this request).",
+          : "Saved locally (D1 not writing on this request).",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "request failed");
     } finally {
       setPending(false);
     }
+  }
+
+  async function adopt() {
+    setAdoptPending(true);
+    setError(null);
+    try {
+      const res = await fetch(withBasePath("/api/curate/adopt-source"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: row!.url }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      onAdopted(row!.id);
+      router.push(catalogHref);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "request failed");
+    } finally {
+      setAdoptPending(false);
+    }
+  }
+
+  function adoptExactDup() {
+    const ok = window.confirm(
+      "This source looks like an exact duplicate (same URL or content hash). Adopt anyway into Catalog?",
+    );
+    if (ok) void adopt();
   }
 
   async function dismiss() {
@@ -232,12 +267,22 @@ export function InboxDetailPanel({
           {pending ? "Saving…" : "Save metadata"}
         </Button>
         {exactDup ? (
-          <Button variant="ghost" size="default" asChild>
-            <Link href={reviewHref}>Accept anyway</Link>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={adoptPending}
+            onClick={adoptExactDup}
+          >
+            {adoptPending ? "Adopting…" : "Adopt anyway"}
           </Button>
         ) : (
-          <Button variant="outline" asChild>
-            <Link href={reviewHref}>Accept → Review</Link>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={adoptPending}
+            onClick={() => void adopt()}
+          >
+            {adoptPending ? "Adopting…" : "Adopt → Catalog"}
           </Button>
         )}
         <Button
@@ -252,7 +297,7 @@ export function InboxDetailPanel({
 
       {exactDup && (
         <p className="text-[11px] text-amber-800 dark:text-amber-200">
-          Flagged duplicate — review before accepting.
+          Flagged duplicate — review before adopting.
         </p>
       )}
       {message && (

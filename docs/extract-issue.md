@@ -38,18 +38,20 @@ Commands (contract + stubs in this issue):
 
 Extends [Curate graph serving](./curate-graph-serving.md) (MATT-314): snapshot-first reads, mutation-only Bolt writes. **Workers must not hold responses hostage to Bolt.**
 
+> **Claim SoT (post #19 Phase 5):** Curate tabular SoT for curated `SourceDocument` / `Claim` / `ClaimConflict` / `CurateAuditEvent` is **Cloudflare D1** (reads D1 → JSON; writes D1-only). Extract persist for claims is **D1 INSERT** (not Neo4j MERGE). Neo4j remains SoT for the Case graph; keep minimal `SourceDocument` nodes for Case `SOURCED_FROM`. Policy: [`docs/claim-d1-migration.md`](./claim-d1-migration.md) / [GitHub #19](https://github.com/diaphana-io/2026bdbv-dashboard/issues/19).
+
 | Store | Source of truth | Not for |
 |-------|-----------------|---------|
-| **Neo4j** | Graph: `SourceDocument`, `Claim`, `ClaimConflict`, `CurateAuditEvent`, relationships. Sole persist for Curate mutations | Raw HTML/PDF, job queues, first SSR read |
-| **R2** | Blobs + read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** | Approval SoT (always Neo4j; snapshots are derived) |
-| **D1** | Ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs`, optional audit copies | Claim/conflict graph, source bodies |
+| **Neo4j** | Case graph (`Person`, `Case`, Travel, Exposure, …) + `SourceDocument` for Case citation | Claim / ClaimConflict / CurateAuditEvent; Claim `FROM` edges |
+| **R2** | Blobs + derived read snapshots (`r2_snapshot_key`, curated inbox/conflicts/map JSON). SSR and Extract jobs **read R2 first** when wired | Approval SoT (D1 for Claims; snapshots are derived) |
+| **D1** | Claim Curate SoT + ops/jobs: `discovery_runs`, `extract_jobs` / `classify_jobs` | Source bodies / Case graph |
 
 Rules:
 
-1. SSR / Overview / Inbox: R2 read-model (future) → isolate TTL → Bolt (hard timeout) → bundled JSON. D1 may feed job badges only.
-2. Curate mutation → Neo4j only; then invalidate cache; later async R2 snapshot refresh.
-3. Discover / classify / extract jobs → D1 row + R2 body; Rust decides on params; MERGE results into Neo4j.
-4. Duplicate inputs: normalized URL / content_hash lists from Neo4j (or R2 snapshot) as params — no URL master in D1.
+1. SSR Curate Claim reads: D1 → bundled JSON (no Neo4j Claim). Case graph: R2 read-model (future) → isolate TTL → Bolt (hard timeout) → JSON.
+2. Curate Claim mutation → D1 only; invalidate cache; later async R2 snapshot refresh.
+3. Discover / classify / extract jobs → D1 row + R2 body; Rust decides on params; **INSERT claims into D1**; Case graph MERGE stays Neo4j.
+4. Duplicate inputs: normalized URL / content_hash lists from D1 sources (or R2 snapshot) as params.
 5. No KV for this path.
 
 Bindings and writers are **follow-up**. Until then, “R2-equivalent” is `apps/web/data/*.json` + schema `r2_snapshot_key`.
@@ -130,7 +132,11 @@ Forward-compat: `review_policy.min_approvers` default `1`; multi-approver enforc
 
 ## Curate IA (this issue)
 
-Pipeline sidebar (English): **Overview** → **Inbox** → **Extract** → **Review** → **Conflicts** → **Catalog** → **Status**. Overview is the table command center; stage pages own detail work. **Catalog** browses ingested sources and claim lineages (rollback withdraws Map heads). Review **History** links into Catalog. Extract page is a gated stub; production `EXTRACT_ENABLED` stays false.
+**Two tracks:** Claim (D1) and Case (Neo4j) each have their own Extract→Review→Approve screens — do not share forms. Full IA: [curate-ui.md](./curate-ui.md).
+
+**Claim sidebar (English):** **Overview** → **Inbox** → **Catalog** → **Extract** → **Review** → **Conflicts** → **Status**. Inbox **Adopt** / **Adopt anyway** moves a source into Catalog (`fetched`); **Approve / Reject** apply to claims only (no “Accept”). Overview is the Claim command center; stage pages own detail work. **Catalog** is the post-Adopt home (sources + claim lineages; rollback withdraws Map heads). Review **History** links into Catalog. One-source Claim work: `/curate/source?url=`. Claim Extract is a gated stub; production `EXTRACT_ENABLED` stays false.
+
+**Case sidebar (shell):** **Cases** → **Extract** → **Review** under `/curate/cases/*` — placeholders only in this slice.
 
 Ops **Status** (`/curate/status`) sits below Conflicts. Pipeline stage list and health for that page are owned by `surv_engine` `PIPELINE_SPEC` / `sys.pipelineStatus` — Next only gathers open param bags and renders `stages[]` / `llm[]` / `infra[]`.
 

@@ -67,6 +67,13 @@ export default async function CurateCatalogPage({
             {source.evidence_class && (
               <Badge variant="secondary">{source.evidence_class}</Badge>
             )}
+            <Button variant="outline" size="sm" asChild>
+              <Link
+                href={`/curate/source?url=${encodeURIComponent(source.url)}`}
+              >
+                Open Claim workspace
+              </Link>
+            </Button>
           </div>
         </div>
 
@@ -145,9 +152,9 @@ export default async function CurateCatalogPage({
         <div>
           <h1 className="text-lg font-semibold">Catalog</h1>
           <p className="text-sm text-muted-foreground">
-            Ingested sources after Inbox — when reviewed, how extracted, and
-            resulting claims. Rollback withdraws a claim lineage from the Map
-            and re-queues it for Review.
+            Claim-track home after Inbox Adopt. Open a source workspace for
+            Claim Extract / Review / Approve. Rollback withdraws a claim
+            lineage from the Map and re-queues it for Claim Review.
           </p>
         </div>
         <Badge variant="secondary">{sources.length} sources</Badge>

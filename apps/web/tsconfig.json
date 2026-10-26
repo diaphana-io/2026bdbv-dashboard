@@ -19,6 +19,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".cloudflare/types"],
+  "include": ["next-env.d.ts", "env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".cloudflare/types"],
   "exclude": ["node_modules"]
 }

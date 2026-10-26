@@ -4,22 +4,25 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 
 /**
- * Gated Extract stage. Production keeps EXTRACT_ENABLED=false; backend is stub only.
+ * Claim Extract stage (Claim track only). Production keeps EXTRACT_ENABLED=false.
+ * Case Extract lives under /curate/cases/extract — do not reuse this page.
  */
-export default async function CurateExtractPage() {
+export default async function CurateClaimExtractPage() {
   const extractEnabled = process.env.EXTRACT_ENABLED === "true";
 
   return (
     <main className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg font-semibold">Extract</h1>
+          <h1 className="text-lg font-semibold">Claim Extract</h1>
           <p className="text-sm text-muted-foreground">
-            Jev-style classify → extract → verify plug-in. Outputs always enter
-            pending review — never auto-approve.
+            Raise table claim rows from Catalog sources. Outputs always enter
+            Claim Review — never auto-approve. Case Extract is a separate
+            track.
           </p>
         </div>
         <div className="flex gap-2">
+          <Badge variant="outline">Claim track</Badge>
           <Badge variant={extractEnabled ? "warning" : "outline"}>
             Gate {extractEnabled ? "open" : "closed"}
           </Badge>
@@ -42,23 +45,31 @@ export default async function CurateExtractPage() {
               rel="noreferrer"
             >
               extract-issue.md
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="https://github.com/diaphana-io/2026bdbv-dashboard/blob/main/docs/curate-ui.md"
+              className="text-blue-700 hover:underline dark:text-blue-400"
+              target="_blank"
+              rel="noreferrer"
+            >
+              curate-ui.md
             </Link>
             .
           </p>
           <p>
             Production must keep{" "}
-            <code className="text-xs">EXTRACT_ENABLED=false</code>. Staging may
-            evaluate with the gate open after the backend plug-in lands.
+            <code className="text-xs">EXTRACT_ENABLED=false</code>. Open an
+            adopted Catalog source to work claims in the source workspace.
           </p>
-          {!extractEnabled && (
-            <p>
-              Add claims manually in{" "}
-              <Button variant="link" size="xs" className="h-auto p-0" asChild>
-                <Link href="/curate/review">Review</Link>
-              </Button>
-              .
-            </p>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/curate/catalog">Open Catalog</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/curate/review">Claim Review</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </main>

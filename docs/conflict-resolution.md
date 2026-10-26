@@ -8,7 +8,7 @@
 
 | Layer | What | Curator actions today |
 |-------|------|------------------------|
-| **Source duplicate** | Inbox `duplicate_level`: `none` \| `exact_url` \| `content_hash` \| `possible` | Accept / Accept anyway / Dismiss |
+| **Source duplicate** | Inbox `duplicate_level`: `none` \| `exact_url` \| `content_hash` \| `possible` | Adopt / Adopt anyway / Dismiss (→ Catalog; not claim Approve) |
 | **Claim conflict** | Same `subject_ref` + `claim_type` + **same claim `as_of_date`**, different `object_value` | Leave open (both visible) or `resolved_a` / `resolved_b` / `resolved_neither` |
 | **Corroboration** | Same claim fingerprint across **independent** sources | Raise confidence on approve; not a conflict |
 | **Versioning** | Same lineage, later claim `as_of_date` or revise | `SUPERSEDES` / approved head; not a conflict |
@@ -72,7 +72,7 @@ Graph already allows this: many `(Claim)-[:FROM]->(SourceDocument)` edges from o
 Rules:
 
 1. **Extract / human entry emits N claims per source** (`curate.extractClaims` is plural on purpose). Review and conflict run **per claim**, not per article.
-2. Accepting a source in Inbox means “this document may yield claims” — it does **not** approve every number in the body in one click.
+2. Adopting a source in Inbox moves it to Catalog (“this document may yield claims”) — it does **not** approve every number in the body in one click.
 3. Conflicts are between **claims**, so two numbers in the *same* article that disagree (e.g. prose vs table) can open a conflict with both sides `FROM` the same source; more often they are different subjects/types/`as_of_date` and must not be merged.
 4. Wire / possible-dup policy still applies at **source** level; corroboration counting still uses **claim fingerprints** (exclude wire copies).
 5. Case-level detail (travel legs, contacts, facility) is not a substitute for aggregate `case_count` claims — both may be curated from the same article when present.
@@ -90,7 +90,7 @@ Rules:
 | ID | Pair | `published_at` (article) | Claim `as_of_date` | Figures | Classification | Curator decision |
 |----|------|--------------------------|--------------------|---------|----------------|------------------|
 | **A** | Seed KE `case_count` (WHO DON vs news) | WHO ~23 Oct; AJ seed 22 Oct | **20 Oct** vs **21 Oct** | confirmed **9** vs **11** | Near cuts, incompatible values (seed treats as conflict) | Prefer reconcile via cuts: if news truly means a **21 Oct** cut → versioning vs 20 Oct official; if both intend the **same** cut → `open_leave` / `keep_official`. **Not** `keep_both_wanted`. Do not use article dates as the conflict key |
-| **B** | Inbox possible dup — wire of MoH briefing | (candidate URL) | Inherit briefing’s in-body cut | Same briefing, different publisher | Wire / near-copy source | `not_conflict`: Accept allowed; **exclude from corroboration counts** |
+| **B** | Inbox possible dup — wire of MoH briefing | (candidate URL) | Inherit briefing’s in-body cut | Same briefing, different publisher | Wire / near-copy source | `not_conflict`: Adopt allowed; **exclude from corroboration counts** |
 | **C1** | WHO Sitrep #2 alone (one PDF) | Sitrep publish week | Shared cut **24 May 2026** | Same doc: DRC **906 suspected**, **105 confirmed**, UG **7** confirmed | Multi-claim + definition split | `not_conflict`: **≥3 claims from one source** (CD suspected, CD confirmed, UG confirmed); not one mashed row |
 | **C2** | DON-605 → Sitrep #3 | DON / sitrep publish dates | **~29 May** → **31 May** | DRC confirmed **134** → **321** | Later cut + reclassification | `not_conflict`: lineage by **`as_of_date`**, not by when WHO posted |
 | **D** | Media “9552–9704” vs WHO | Media ~22–24 Oct | Align to cited cut (DON-622 body: **20 Oct**) | WHO **9704** / **4687** | Media echo of official cut | `not_conflict` if same `as_of_date` + same values. Real disagreement on the **same as_of** → like **A** |
@@ -140,7 +140,7 @@ One SourceDocument
   ├─ same fingerprint (value + as_of_date)  → corroboration (independent sources only)
   ├─ different case definition              → not_conflict (split fields / types)
   ├─ different subject or as_of_date        → separate claims / versioning (not one conflict)
-  ├─ possible / wire source dup             → Inbox Accept; exclude from corroboration
+  ├─ possible / wire source dup             → Inbox Adopt; exclude from corroboration
   └─ same type+subject+as_of_date, values differ
         ├─ still reconciling                → open_leave (both visible)
         ├─ trust A or B                     → resolved_a | resolved_b

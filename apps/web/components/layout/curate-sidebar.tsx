@@ -8,6 +8,7 @@ import {
   BookOpenIcon,
   ExternalLinkIcon,
   FilePenLineIcon,
+  FolderKanbanIcon,
   InboxIcon,
   LayoutDashboardIcon,
   SparklesIcon,
@@ -22,42 +23,106 @@ import {
 import type { CurateDataSource } from "@/lib/curate-data-source";
 import { AppSidebar } from "./app-sidebar";
 
-const PIPELINE: {
+type NavItem = {
   href: string;
   label: string;
-  step: number;
   icon: typeof InboxIcon;
   exact?: boolean;
-}[] = [
+};
+
+const CLAIM_NAV: NavItem[] = [
   {
     href: "/curate/overview",
     label: "Overview",
-    step: 1,
     icon: LayoutDashboardIcon,
     exact: true,
   },
-  { href: "/curate/inbox", label: "Inbox", step: 2, icon: InboxIcon },
-  { href: "/curate/extract", label: "Extract", step: 3, icon: SparklesIcon },
-  { href: "/curate/review", label: "Review", step: 4, icon: FilePenLineIcon },
+  { href: "/curate/inbox", label: "Inbox", icon: InboxIcon },
+  { href: "/curate/catalog", label: "Catalog", icon: BookOpenIcon },
+  { href: "/curate/extract", label: "Extract", icon: SparklesIcon },
+  { href: "/curate/review", label: "Review", icon: FilePenLineIcon },
   {
     href: "/curate/conflicts",
     label: "Conflicts",
-    step: 5,
     icon: AlertTriangleIcon,
-  },
-  {
-    href: "/curate/catalog",
-    label: "Catalog",
-    step: 6,
-    icon: BookOpenIcon,
   },
   {
     href: "/curate/status",
     label: "Status",
-    step: 7,
     icon: ActivityIcon,
   },
 ];
+
+const CASE_NAV: NavItem[] = [
+  {
+    href: "/curate/cases",
+    label: "Cases",
+    icon: FolderKanbanIcon,
+    exact: true,
+  },
+  {
+    href: "/curate/cases/extract",
+    label: "Extract",
+    icon: SparklesIcon,
+  },
+  {
+    href: "/curate/cases/review",
+    label: "Review",
+    icon: FilePenLineIcon,
+  },
+];
+
+function isActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavSection({
+  title,
+  items,
+  pathname,
+  inboxCount,
+  conflictCount,
+}: {
+  title: string;
+  items: NavItem[];
+  pathname: string;
+  inboxCount?: number;
+  conflictCount?: number;
+}) {
+  return (
+    <>
+      <SidebarMenuItem>
+        <p className="px-2 pb-1 pt-2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          {title}
+        </p>
+      </SidebarMenuItem>
+      {items.map(({ href, label, icon: Icon, exact }) => {
+        const active = isActive(pathname, href, exact);
+        const count =
+          href === "/curate/inbox"
+            ? inboxCount
+            : href === "/curate/conflicts"
+              ? conflictCount
+              : undefined;
+
+        return (
+          <SidebarMenuItem key={href}>
+            <SidebarMenuButton asChild isActive={active} tooltip={label}>
+              <Link href={href}>
+                <Icon />
+                <span>{label}</span>
+              </Link>
+            </SidebarMenuButton>
+            {typeof count === "number" && count > 0 && (
+              <SidebarMenuBadge>{count}</SidebarMenuBadge>
+            )}
+          </SidebarMenuItem>
+        );
+      })}
+    </>
+  );
+}
 
 export function CurateSidebar({
   inboxCount,
@@ -89,41 +154,14 @@ export function CurateSidebar({
         />
       }
     >
-      <SidebarMenuItem>
-        <p className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          Curation pipeline
-        </p>
-      </SidebarMenuItem>
-      {PIPELINE.map(({ href, label, step, icon: Icon, exact }) => {
-        const active = exact
-          ? pathname === href
-          : pathname === href || pathname.startsWith(`${href}/`);
-        const count =
-          href === "/curate/inbox"
-            ? inboxCount
-            : href === "/curate/conflicts"
-              ? conflictCount
-              : undefined;
-
-        return (
-          <SidebarMenuItem key={href}>
-            <SidebarMenuButton asChild isActive={active} tooltip={`${step}. ${label}`}>
-              <Link href={href}>
-                <Icon />
-                <span>
-                  <span className="mr-1.5 tabular-nums text-muted-foreground">
-                    {step}.
-                  </span>
-                  {label}
-                </span>
-              </Link>
-            </SidebarMenuButton>
-            {typeof count === "number" && count > 0 && (
-              <SidebarMenuBadge>{count}</SidebarMenuBadge>
-            )}
-          </SidebarMenuItem>
-        );
-      })}
+      <NavSection
+        title="Claim"
+        items={CLAIM_NAV}
+        pathname={pathname}
+        inboxCount={inboxCount}
+        conflictCount={conflictCount}
+      />
+      <NavSection title="Case" items={CASE_NAV} pathname={pathname} />
     </AppSidebar>
   );
 }
