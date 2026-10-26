@@ -18,17 +18,28 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
 import { AppSidebar, NavSection } from "./app-sidebar";
-import { useMapUi, type LayerVisibility } from "../map/map-ui-context";
+import {
+  useMapUi,
+  type BoundaryLevel,
+  type LayerVisibility,
+} from "../map/map-ui-context";
 import { isBasemapSelectable, type BasemapId } from "../map/basemap-style";
 
 const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "boundaries", label: "DRC boundaries" },
-  { key: "countryNames", label: "Country name" },
+  { key: "countryNames", label: "Country / city label" },
   { key: "cities", label: "Cities" },
+];
+
+const BOUNDARY_LEVEL_OPTIONS: { value: BoundaryLevel; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "admin1", label: "Admin1 (Provinces)" },
+  { value: "admin2", label: "Admin2 (Territories)" },
+  { value: "admin3", label: "Admin3 (Health zones)" },
 ];
 
 const DATA_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "cases", label: "Cases" },
+  { key: "claims", label: "Claims" },
   { key: "exposures", label: "Exposures" },
   { key: "travels", label: "Travel" },
 ];
@@ -67,6 +78,8 @@ export function MapSidebar() {
     selectedCountryIso,
     layers,
     setLayerVisible,
+    boundaryLevel,
+    setBoundaryLevel,
     basemapId,
     setBasemapId,
     basemapOptions,
@@ -127,6 +140,44 @@ export function MapSidebar() {
       </NavSection>
 
       <NavSection icon={<GlobeIcon />} label="Map layers" defaultOpen>
+        <SidebarMenuSubItem>
+          <ToggleRow
+            id="layer-boundaries"
+            label="DRC boundaries"
+            checked={layers.boundaries}
+            onCheckedChange={(checked) =>
+              setLayerVisible("boundaries", checked)
+            }
+          />
+        </SidebarMenuSubItem>
+        {layers.boundaries ? (
+          <SidebarMenuSubItem>
+            <div className="space-y-2 px-2 pb-1.5 pt-0.5">
+              <RadioGroup
+                value={boundaryLevel}
+                onValueChange={(value) =>
+                  setBoundaryLevel(value as BoundaryLevel)
+                }
+                className="gap-2"
+              >
+                {BOUNDARY_LEVEL_OPTIONS.map(({ value, label }) => (
+                  <div key={value} className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value={value}
+                      id={`boundary-level-${value}`}
+                    />
+                    <Label
+                      htmlFor={`boundary-level-${value}`}
+                      className="text-sm font-normal"
+                    >
+                      {label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </SidebarMenuSubItem>
+        ) : null}
         {MAP_LAYER_ITEMS.map(({ key, label }) => (
           <SidebarMenuSubItem key={key}>
             <ToggleRow

@@ -13,7 +13,7 @@ import {
 } from "./basemap-style";
 import { isTrackedCountryIso } from "@/lib/tracked-countries";
 import { MapBootStatus } from "./map-boot-status";
-import { useMapUi } from "./map-ui-context";
+import { useMapUi, type BoundaryLevel } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
 import type { CdAdminLayerHandle } from "./cd-admin-layer";
 import type { CaseLayersHandle } from "./case-layer";
@@ -70,19 +70,36 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
-  const visibilityRef = useRef({
+  const visibilityRef = useRef<{
+    boundaries: boolean;
+    countryNames: boolean;
+    cities: boolean;
+    cases: boolean;
+    claims: boolean;
+    exposures: boolean;
+    travels: boolean;
+    boundaryLevel: BoundaryLevel;
+  }>({
     boundaries: true,
     countryNames: true,
     cities: true,
     cases: true,
+    claims: true,
     exposures: true,
     travels: true,
+    boundaryLevel: "auto",
   });
   const cameraRef = useRef<ViewCamera>(DEFAULT_CAMERA);
   const bootGenerationRef = useRef(0);
 
-  const { basemapId, layers, openCaseDetail, openCountryStats, selectedCaseId } =
-    useMapUi();
+  const {
+    basemapId,
+    layers,
+    boundaryLevel,
+    openCaseDetail,
+    openCountryStats,
+    selectedCaseId,
+  } = useMapUi();
   const openCaseDetailRef = useRef(openCaseDetail);
   openCaseDetailRef.current = openCaseDetail;
   const openCountryStatsRef = useRef(openCountryStats);
@@ -96,14 +113,16 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
   snapshotRef.current = snapshot;
   asOfRef.current = asOf;
-  visibilityRef.current = layers;
+  visibilityRef.current = { ...layers, boundaryLevel };
 
   function applyLayerVisibility(bundle: LayerBundle) {
     const vis = visibilityRef.current;
     bundle.boundaries.setVisible(vis.boundaries);
+    bundle.boundaries.setLevelMode(vis.boundaryLevel);
     bundle.labels.setCountryNamesVisible(vis.countryNames);
     bundle.labels.setCitiesVisible(vis.cities);
-    bundle.cases.setVisible(vis.cases);
+    bundle.cases.setCasesVisible(vis.cases);
+    bundle.cases.setClaimsVisible(vis.claims);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
   }
@@ -383,7 +402,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     const bundle = layersRef.current;
     if (!bundle || !mapReady) return;
     applyLayerVisibility(bundle);
-  }, [layers, mapReady]);
+  }, [layers, boundaryLevel, mapReady]);
 
   useEffect(() => {
     if (selectedCaseId) return;

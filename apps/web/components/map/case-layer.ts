@@ -14,7 +14,8 @@ export type { CaseLayerMode };
 
 export type CaseLayersHandle = {
   update: (cases: MapCase[], aggregates: MapAggregate[]) => void;
-  setVisible: (visible: boolean) => void;
+  setCasesVisible: (visible: boolean) => void;
+  setClaimsVisible: (visible: boolean) => void;
   setMode: (mode: CaseLayerMode) => void;
   destroy: () => void;
 };
@@ -104,7 +105,8 @@ export function attachCaseLayers(
   mode: CaseLayerMode = "light",
 ): CaseLayersHandle {
   let modeState = mode;
-  let visible = true;
+  let casesVisible = true;
+  let claimsVisible = true;
   let casesSource: Source | undefined;
   let casesLayer: Layer | undefined;
   let aggSource: Source | undefined;
@@ -120,42 +122,45 @@ export function attachCaseLayers(
 
   function rebuild(cases: MapCase[], aggregates: MapAggregate[]) {
     clear();
-    if (!visible) return;
 
-    casesSource = view.addSource({
-      type: "geojson",
-      data: casesGeoJson(cases),
-    });
-    casesLayer = view.addLayer({
-      type: "vector",
-      source: casesSource,
-      point: {
-        color: caseColor("confirmed", modeState),
-        size: 6,
-        sizeInMeters: false,
-        clampToGround: true,
-        declutter: false,
-      },
-    });
-    wireCaseColors(casesLayer, modeState);
+    if (casesVisible) {
+      casesSource = view.addSource({
+        type: "geojson",
+        data: casesGeoJson(cases),
+      });
+      casesLayer = view.addLayer({
+        type: "vector",
+        source: casesSource,
+        point: {
+          color: caseColor("confirmed", modeState),
+          size: 6,
+          sizeInMeters: false,
+          clampToGround: true,
+          declutter: false,
+        },
+      });
+      wireCaseColors(casesLayer, modeState);
+    }
 
-    aggSource = view.addSource({
-      type: "geojson",
-      data: aggregatesGeoJson(aggregates),
-    });
-    aggLayer = view.addLayer({
-      type: "vector",
-      source: aggSource,
-      point: {
-        color: new Color().setStyle("#b91c1c"),
-        size: 14,
-        sizeInMeters: false,
-        opacity: 0.35,
-        clampToGround: true,
-        declutter: false,
-      },
-    });
-    wireAggregateSizes(aggLayer);
+    if (claimsVisible) {
+      aggSource = view.addSource({
+        type: "geojson",
+        data: aggregatesGeoJson(aggregates),
+      });
+      aggLayer = view.addLayer({
+        type: "vector",
+        source: aggSource,
+        point: {
+          color: new Color().setStyle("#b91c1c"),
+          size: 14,
+          sizeInMeters: false,
+          opacity: 0.35,
+          clampToGround: true,
+          declutter: false,
+        },
+      });
+      wireAggregateSizes(aggLayer);
+    }
   }
 
   let lastCases: MapCase[] = [];
@@ -167,9 +172,14 @@ export function attachCaseLayers(
       lastAggregates = aggregates;
       rebuild(cases, aggregates);
     },
-    setVisible(next) {
-      if (visible === next) return;
-      visible = next;
+    setCasesVisible(next) {
+      if (casesVisible === next) return;
+      casesVisible = next;
+      rebuild(lastCases, lastAggregates);
+    },
+    setClaimsVisible(next) {
+      if (claimsVisible === next) return;
+      claimsVisible = next;
       rebuild(lastCases, lastAggregates);
     },
     setMode(next) {
