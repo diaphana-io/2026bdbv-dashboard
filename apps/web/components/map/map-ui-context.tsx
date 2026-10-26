@@ -121,8 +121,9 @@ function readPersisted(): PersistedMapUi | null {
       window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show DRC admin boundaries + country names. Dark-only: drop theme
-    // sync and normalize any persisted light basemap. Missing claims → true.
+    // Always show DRC admin boundaries. Dark-only: drop theme sync and
+    // normalize any persisted light basemap. Missing claims → true.
+    // countryNames / cities respect persisted values (DEFAULT_LAYERS otherwise).
     return {
       ...parsed,
       basemapId: resolveBasemapId(parsed.basemapId),
@@ -130,7 +131,6 @@ function readPersisted(): PersistedMapUi | null {
       layers: {
         ...parsed.layers,
         boundaries: true,
-        countryNames: true,
         claims: parsed.layers?.claims ?? true,
       },
     };

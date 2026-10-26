@@ -88,13 +88,13 @@ function filterCities() {
   };
 }
 
-function wireText(layer: Layer) {
+function wireText(layer: Layer, getVisible: () => boolean) {
   layer.on("featureUpdated", ({ evaluator }) => {
     evaluator.evaluate(
       ({ properties }) => {
         const text = (properties?.["name"] as string) ?? "";
-        // Evaluator must return show:true or every label stays hidden.
-        return { text, show: Boolean(text) };
+        // Per-feature show wins over material text.show; gate on visibility flag.
+        return { text, show: getVisible() && Boolean(text) };
       },
       { filters: ["name"] },
     );
@@ -116,6 +116,9 @@ export async function attachLabelLayers(
   const colors = labelColors(mode);
   // Lift above terrain so upright labels don't z-fight draped Papers land.
   const labelHeight = 12_000;
+  // Evaluator owns text.show; toggles flip these flags then forceUpdate.
+  let countryNamesVisible = true;
+  let citiesVisible = true;
 
   const countrySource = view.addSource({
     type: "geojson",
@@ -144,7 +147,7 @@ export async function attachLabelLayers(
       show: true,
     },
   });
-  wireText(countryLayer);
+  wireText(countryLayer, () => countryNamesVisible);
 
   const citySource = view.addSource({
     type: "geojson",
@@ -170,14 +173,18 @@ export async function attachLabelLayers(
       show: true,
     },
   });
-  wireText(cityLayer);
+  wireText(cityLayer, () => citiesVisible);
 
   return {
     setCountryNamesVisible(next) {
-      countryLayer.update({ text: { show: next } });
+      if (next === countryNamesVisible) return;
+      countryNamesVisible = next;
+      countryLayer.forceUpdate();
     },
     setCitiesVisible(next) {
-      cityLayer.update({ text: { show: next } });
+      if (next === citiesVisible) return;
+      citiesVisible = next;
+      cityLayer.forceUpdate();
     },
     destroy() {
       countryLayer.delete();
