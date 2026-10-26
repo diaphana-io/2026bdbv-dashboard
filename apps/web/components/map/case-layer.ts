@@ -7,6 +7,13 @@ import type ThreeView from "@navaramap/three";
 import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import type { MapAggregate, MapCase } from "../../lib/data-types";
 import type { CaseLayerMode } from "./basemap-style";
+import type { BoundaryLevel } from "./map-ui-context";
+import {
+  buildStatsDots,
+  STATS_DOT_COLORS,
+  statsDotsGeoJson,
+  type StatsDotStatus,
+} from "./stats-dot-scatter";
 
 type View = ThreeView<DefaultDescriptions>;
 
@@ -16,6 +23,8 @@ export type CaseLayersHandle = {
   update: (cases: MapCase[], aggregates: MapAggregate[]) => void;
   setCasesVisible: (visible: boolean) => void;
   setClaimsVisible: (visible: boolean) => void;
+  setBoundaryLevel: (level: BoundaryLevel) => void;
+  setAsOf: (asOf: string) => void;
   setMode: (mode: CaseLayerMode) => void;
   destroy: () => void;
 };
@@ -35,27 +44,6 @@ function casesGeoJson(cases: MapCase[]) {
       geometry: {
         type: "Point" as const,
         coordinates: [c.lon, c.lat],
-      },
-    })),
-  };
-}
-
-function aggregatesGeoJson(aggregates: MapAggregate[]) {
-  return {
-    type: "FeatureCollection" as const,
-    features: aggregates.map((a) => ({
-      type: "Feature" as const,
-      properties: {
-        admin_iso: a.admin_iso,
-        name: a.name,
-        confirmed: a.confirmed,
-        deaths: a.deaths,
-        radius: Math.max(10, Math.min(40, Math.sqrt(a.confirmed) * 2.5)),
-        kind: "aggregate",
-      },
-      geometry: {
-        type: "Point" as const,
-        coordinates: [a.lon, a.lat],
       },
     })),
   };
@@ -84,20 +72,27 @@ function wireCaseColors(layer: Layer, mode: CaseLayerMode) {
   });
 }
 
-function wireAggregateSizes(layer: Layer) {
+function wireStatsDotColors(layer: Layer) {
   layer.on("featureUpdated", ({ evaluator }) => {
     evaluator.evaluate(
-      ({ properties }) => ({
-        size: (properties?.["radius"] as number) ?? 14,
-        show: true,
-      }),
-      { filters: ["radius"] },
+      ({ properties }) => {
+        const status = properties?.["status"] as StatsDotStatus | undefined;
+        const hex =
+          status && STATS_DOT_COLORS[status]
+            ? STATS_DOT_COLORS[status]
+            : STATS_DOT_COLORS.confirmed;
+        return {
+          color: new Color().setStyle(hex),
+          show: true,
+        };
+      },
+      { filters: ["status"] },
     );
   });
 }
 
 /**
- * Declarative case + aggregate point layers.
+ * Case points + Case Stats 1px dots (replaces aggregate bubbles).
  * Dynamic GeoJSON must delete+recreate (skill invariant).
  */
 export function attachCaseLayers(
@@ -107,17 +102,19 @@ export function attachCaseLayers(
   let modeState = mode;
   let casesVisible = true;
   let claimsVisible = true;
+  let boundaryLevel: BoundaryLevel = "auto";
+  let asOf = "";
   let casesSource: Source | undefined;
   let casesLayer: Layer | undefined;
-  let aggSource: Source | undefined;
-  let aggLayer: Layer | undefined;
+  let dotsSource: Source | undefined;
+  let dotsLayer: Layer | undefined;
 
   function clear() {
     casesLayer?.delete();
     casesSource?.delete();
-    aggLayer?.delete();
-    aggSource?.delete();
-    casesLayer = casesSource = aggLayer = aggSource = undefined;
+    dotsLayer?.delete();
+    dotsSource?.delete();
+    casesLayer = casesSource = dotsLayer = dotsSource = undefined;
   }
 
   function rebuild(cases: MapCase[], aggregates: MapAggregate[]) {
@@ -143,23 +140,24 @@ export function attachCaseLayers(
     }
 
     if (claimsVisible) {
-      aggSource = view.addSource({
+      const dots = buildStatsDots(aggregates, asOf || "0", boundaryLevel);
+      dotsSource = view.addSource({
         type: "geojson",
-        data: aggregatesGeoJson(aggregates),
+        data: statsDotsGeoJson(dots),
       });
-      aggLayer = view.addLayer({
+      dotsLayer = view.addLayer({
         type: "vector",
-        source: aggSource,
+        source: dotsSource,
         point: {
-          color: new Color().setStyle("#b91c1c"),
-          size: 14,
+          color: new Color().setStyle(STATS_DOT_COLORS.confirmed),
+          size: 1,
           sizeInMeters: false,
-          opacity: 0.35,
+          opacity: 0.95,
           clampToGround: true,
           declutter: false,
         },
       });
-      wireAggregateSizes(aggLayer);
+      wireStatsDotColors(dotsLayer);
     }
   }
 
@@ -180,6 +178,16 @@ export function attachCaseLayers(
     setClaimsVisible(next) {
       if (claimsVisible === next) return;
       claimsVisible = next;
+      rebuild(lastCases, lastAggregates);
+    },
+    setBoundaryLevel(level) {
+      if (boundaryLevel === level) return;
+      boundaryLevel = level;
+      rebuild(lastCases, lastAggregates);
+    },
+    setAsOf(next) {
+      if (asOf === next) return;
+      asOf = next;
       rebuild(lastCases, lastAggregates);
     },
     setMode(next) {

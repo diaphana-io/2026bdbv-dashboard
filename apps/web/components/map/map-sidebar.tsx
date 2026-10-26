@@ -32,7 +32,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { withBasePath } from "@/lib/base-path";
-import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
+import {
+  TRACKED_COUNTRIES,
+  statsPanelId,
+} from "@/lib/tracked-countries";
 import { cn } from "@/lib/utils";
 import { BrandLink } from "../shared/brand-link";
 import { ModeToggle } from "../shared/mode-toggle";
@@ -140,8 +143,7 @@ export function MapSidebar() {
   const {
     openPanels,
     setPanelOpen,
-    openCountryStats,
-    selectedCountryIso,
+    setStatsPanelOpen,
     layers,
     setLayerVisible,
     boundaryLevel,
@@ -239,24 +241,10 @@ export function MapSidebar() {
                     <ToggleRow
                       id={`stats-${country.iso}`}
                       label={country.shortName}
-                      checked={
-                        openPanels["country-stats"] &&
-                        (selectedCountryIso === null ||
-                          selectedCountryIso === country.iso)
+                      checked={Boolean(openPanels[statsPanelId(country.iso)])}
+                      onCheckedChange={(checked) =>
+                        setStatsPanelOpen(country.iso, checked)
                       }
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          openCountryStats(country.iso);
-                        } else if (selectedCountryIso === country.iso) {
-                          setPanelOpen("country-stats", false);
-                        } else if (
-                          openPanels["country-stats"] &&
-                          selectedCountryIso === null
-                        ) {
-                          // Showing all — close panel when any country toggled off
-                          setPanelOpen("country-stats", false);
-                        }
-                      }}
                     />
                   </SidebarMenuSubItem>
                 ))}
