@@ -67,6 +67,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<import("@navaramap/three").default | null>(null);
   const layersRef = useRef<LayerBundle | null>(null);
+  /** Papers NE country outlines — hidden while DRC COD-AB boundaries are on. */
+  const papersBorderLayerRef = useRef<
+    import("@navaramap/three").Layer | null
+  >(null);
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
@@ -127,6 +131,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.cases.setAsOf(asOfRef.current);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
+    // Avoid double-drawing CD outline under COD-AB admin edges.
+    papersBorderLayerRef.current?.update({
+      polyline: { show: !vis.boundaries },
+    });
   }
 
   function wireFeatureClick(
@@ -167,6 +175,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     layersRef.current?.labels.destroy();
     layersRef.current?.boundaries.destroy();
     layersRef.current = null;
+    papersBorderLayerRef.current = null;
     const view = viewRef.current;
     viewRef.current = null;
     if (view) {
@@ -199,7 +208,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     tileJsonPlugin: import("@navaramap/three-plugins").TileJsonPlugin,
     Color: typeof import("@navaramap/three").Color,
     colors: PapersBasemapColors,
-  ) {
+  ): Promise<import("@navaramap/three").Layer> {
     // Terrain first (render order = add order), then Papers land/borders draped.
     const terrain = view.addSource({
       type: "quantized-mesh",
@@ -235,7 +244,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       },
     });
 
-    view.addLayer({
+    const borderLayer = view.addLayer({
       type: "vector",
       source: basemapSource,
       sourceLayers: ["boundary_lines"],
@@ -251,6 +260,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
 
     // Papers credit arrives via TileJsonPlugin; only terrain is hand-written.
     view.attribution?.add([TERRAIN_ATTRIBUTION]);
+    return borderLayer;
   }
 
   async function bootView(bootId: BasemapId, generation: number) {
@@ -310,12 +320,18 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     });
     view.toneMappingExposure = entry.toneMappingExposure;
 
-    await attachPapersBasemap(view, tileJsonPlugin, Color, entry.colors);
+    const papersBorder = await attachPapersBasemap(
+      view,
+      tileJsonPlugin,
+      Color,
+      entry.colors,
+    );
     if (generation !== bootGenerationRef.current) {
       view.dispose();
       viewRef.current = null;
       return;
     }
+    papersBorderLayerRef.current = papersBorder;
 
     const cam = cameraRef.current;
     view.setCamera(cam);
