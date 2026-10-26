@@ -80,7 +80,6 @@ case "$UNIT" in
     ;;
   data)
     test -d data/seed/curated
-    test -d seed
     run_schema
     echo "data OK"
     ;;

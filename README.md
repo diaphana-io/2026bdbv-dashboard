@@ -35,7 +35,7 @@ The dashboard is a vinext (Next.js) application styled with Tailwind and shadcn/
 
 ## Data and provenance
 
-Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided through the project’s issue tracker (issue-based gating). Synthetic fixtures under `seed/` support tests (`dataset=test`). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
+Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided through the project’s issue tracker (issue-based gating). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
 
 ## References
 
