@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { CurateDataSource } from "@/lib/curate-data-source";
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar } from "../layout/app-sidebar";
 
 type NavItem = {
   href: string;

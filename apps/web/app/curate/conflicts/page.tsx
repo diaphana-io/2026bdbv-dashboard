@@ -1,7 +1,7 @@
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
-import { ConflictPair } from "../../../components/conflicts/conflict-pair";
-import { ResolveConflictActions } from "../../../components/conflicts/resolve-conflict-actions";
+import { ConflictPair } from "@/components/curate/conflicts/conflict-pair";
+import { ResolveConflictActions } from "@/components/curate/conflicts/resolve-conflict-actions";
 import { getConflictViews } from "../../../lib/data";
 
 /**

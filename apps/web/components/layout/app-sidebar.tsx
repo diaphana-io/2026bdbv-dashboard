@@ -17,8 +17,8 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { BrandLink } from "./brand-link";
-import { ModeToggle } from "./mode-toggle";
+import { BrandLink } from "../shared/brand-link";
+import { ModeToggle } from "../shared/mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";

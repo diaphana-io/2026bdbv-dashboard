@@ -1,4 +1,4 @@
-import { CurateShell } from "@/components/layout/curate-shell";
+import { CurateShell } from "@/components/curate/curate-shell";
 import { getCurateDataSourcePreference } from "@/lib/curate-data-source.server";
 import { getConflictViews, getInboxCandidates } from "@/lib/data";
 import { isNeo4jConfigured } from "@/lib/neo4j";

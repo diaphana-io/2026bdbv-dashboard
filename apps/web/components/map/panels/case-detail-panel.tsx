@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { CaseDetail } from "@/lib/data-types";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { useMapUi } from "../map/map-ui-context";
+import { useMapUi } from "../map-ui-context";
 import { PanelFrame } from "./panel-frame";
 
 export function CaseDetailPanel() {

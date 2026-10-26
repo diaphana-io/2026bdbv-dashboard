@@ -1,4 +1,4 @@
-import { MapShell } from "../components/layout/map-shell";
+import { MapShell } from "../components/map/map-shell";
 import { OutbreakMap } from "../components/map/outbreak-map";
 import { getMapSnapshot } from "../lib/data";
 

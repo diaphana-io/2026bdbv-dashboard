@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapUi } from "../map/map-ui-context";
+import { useMapUi } from "../map-ui-context";
 import { PANEL_REGISTRY } from "./registry";
 
 export function PanelHost() {

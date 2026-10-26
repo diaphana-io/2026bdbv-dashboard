@@ -17,13 +17,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
-import { AppSidebar, NavSection } from "./app-sidebar";
+import { AppSidebar, NavSection } from "../layout/app-sidebar";
 import {
   useMapUi,
   type BoundaryLevel,
   type LayerVisibility,
-} from "../map/map-ui-context";
-import { isBasemapSelectable, type BasemapId } from "../map/basemap-style";
+} from "./map-ui-context";
+import { isBasemapSelectable, type BasemapId } from "./basemap-style";
 
 const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "countryNames", label: "Country / city label" },
