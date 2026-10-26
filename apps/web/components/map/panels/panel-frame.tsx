@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { Rnd } from "react-rnd";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +13,8 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useMapUi } from "../map-ui-context";
+import { PANEL_DEFAULTS } from "./defaults";
 import type { PanelId } from "./types";
-import { usePanelDrag } from "./use-panel-drag";
 
 type Props = {
   id: PanelId;
@@ -21,96 +22,103 @@ type Props = {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  /** Optional accent (e.g. country flag color) as left border — not a nested card. */
+  accentColor?: string;
 };
 
+/**
+ * Common map floating panel: react-rnd + shadcn Card.
+ * See `./README.md` for the design contract.
+ */
 export function PanelFrame({
   id,
   title,
   children,
   className,
   contentClassName,
+  accentColor,
 }: Props) {
   const {
     panelPositions,
-    setPanelPosition,
+    panelSizes,
+    setPanelLayout,
     setPanelOpen,
     focusPanel,
     focusedPanelId,
+    persistPanelLayout,
   } = useMapUi();
   const position = panelPositions[id];
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const size = panelSizes[id] ?? PANEL_DEFAULTS[id].defaultSize;
   const boundsRef = useRef<HTMLElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    boundsRef.current = wrapperRef.current?.offsetParent as HTMLElement | null;
+    boundsRef.current = hostRef.current?.offsetParent as HTMLElement | null;
   });
-
-  const { onPointerDown, onPointerMove, onPointerUp, clampToBounds } =
-    usePanelDrag({
-      position,
-      onMove: (next) => setPanelPosition(id, next),
-      boundsRef,
-      panelRef: wrapperRef,
-    });
-
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      boundsRef.current = wrapperRef.current
-        ?.offsetParent as HTMLElement | null;
-      const clamped = clampToBounds(position);
-      if (clamped.x !== position.x || clamped.y !== position.y) {
-        setPanelPosition(id, clamped);
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- first layout pass only
-  }, [id]);
 
   const zIndex = focusedPanelId === id ? 40 : 30;
 
   return (
-    <div
-      ref={wrapperRef}
-      className={cn(
-        "pointer-events-auto absolute w-80 max-w-[calc(100%-1.5rem)]",
-        className,
-      )}
-      style={{
-        left: position.x,
-        top: position.y,
-        zIndex,
-      }}
-      onPointerDown={() => focusPanel(id)}
-    >
-      <Card size="sm" className="bg-card/95 shadow-md backdrop-blur">
-        <CardHeader className="cursor-grab touch-none select-none border-b active:cursor-grabbing">
-          <CardTitle
-            className="text-sm"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-          >
-            {title}
-          </CardTitle>
-          <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Close ${title}`}
-              onClick={() => setPanelOpen(id, false)}
-            >
-              <XIcon />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent
-          className={cn("max-h-[70vh] overflow-y-auto", contentClassName)}
+    <div ref={hostRef} className="pointer-events-none absolute inset-0">
+      <Rnd
+        size={{ width: size.width, height: size.height }}
+        position={{ x: position.x, y: position.y }}
+        bounds="parent"
+        dragHandleClassName="panel-drag-handle"
+        minWidth={240}
+        minHeight={160}
+        style={{ zIndex, pointerEvents: "auto" }}
+        onDragStart={() => focusPanel(id)}
+        onResizeStart={() => focusPanel(id)}
+        onDragStop={(_e, d) => {
+          setPanelLayout(id, { x: d.x, y: d.y }, size, persistPanelLayout);
+        }}
+        onResizeStop={(_e, _dir, ref, _delta, pos) => {
+          setPanelLayout(
+            id,
+            { x: pos.x, y: pos.y },
+            { width: ref.offsetWidth, height: ref.offsetHeight },
+            persistPanelLayout,
+          );
+        }}
+        className={cn("pointer-events-auto", className)}
+      >
+        <Card
+          size="sm"
+          className="flex h-full flex-col bg-card/95 shadow-md backdrop-blur"
+          style={
+            accentColor
+              ? ({ borderLeftWidth: 3, borderLeftColor: accentColor } as CSSProperties)
+              : undefined
+          }
+          onPointerDown={() => focusPanel(id)}
         >
-          {children}
-        </CardContent>
-      </Card>
+          <CardHeader className="panel-drag-handle shrink-0 cursor-grab touch-none select-none border-b active:cursor-grabbing">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <CardAction>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Close ${title}`}
+                className="cursor-pointer"
+                onClick={() => setPanelOpen(id, false)}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <XIcon />
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto",
+              contentClassName,
+            )}
+          >
+            {children}
+          </CardContent>
+        </Card>
+      </Rnd>
     </div>
   );
 }

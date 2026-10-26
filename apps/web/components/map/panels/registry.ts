@@ -9,6 +9,7 @@ export const PANEL_REGISTRY: DataPanelDefinition[] = [
     title: "Country statistics",
     defaultOpen: false,
     defaultPosition: { x: 12, y: 12 },
+    defaultSize: { width: 320, height: 420 },
     Component: CountryStatsPanel,
   },
   {
@@ -16,6 +17,7 @@ export const PANEL_REGISTRY: DataPanelDefinition[] = [
     title: "Case detail",
     defaultOpen: false,
     defaultPosition: { x: 10_000, y: 12 },
+    defaultSize: { width: 320, height: 360 },
     Component: CaseDetailPanel,
   },
 ];

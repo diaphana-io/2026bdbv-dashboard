@@ -17,17 +17,26 @@ import {
   basemapIdForUiTheme,
   resolveBasemapId,
 } from "./basemap-style";
-import type { PanelId, PanelPosition } from "./panels/types";
+import {
+  PANEL_DEFAULTS,
+  PANEL_IDS,
+} from "./panels/defaults";
+import type { PanelId, PanelPosition, PanelSize } from "./panels/types";
 import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
+ * v9: persistPanelLayout opt-in; panel sizes; react-rnd layout.
  * v8: boundaryLevel pin (auto / admin1–3) for DRC COD-AB outlines.
- * v7: Independent Claims toggle (MapAggregate bubbles) separate from Cases points.
- * v6: Dark basemap only; boundaries = DRC COD-AB LOD outlines (not tracked fills).
- * v5 could still hold light basemap / theme-sync prefs.
  */
-const STORAGE_KEY = "bdbv-map-ui-v8";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v7";
+const STORAGE_KEY = "bdbv-map-ui-v9";
+const PREV_STORAGE_KEYS = [
+  "bdbv-map-ui-v8",
+  "bdbv-map-ui-v7",
+  "bdbv-map-ui-v6",
+  "bdbv-map-ui-v5",
+  "bdbv-map-ui-v4",
+  "bdbv-map-ui-v3",
+] as const;
 
 export type BoundaryLevel = "auto" | "admin1" | "admin2" | "admin3";
 
@@ -48,17 +57,6 @@ function resolveBoundaryLevel(value: unknown): BoundaryLevel {
   return "auto";
 }
 
-/** Defaults live here (not registry) to avoid circular imports with panel components. */
-const PANEL_DEFAULTS: Record<
-  PanelId,
-  { defaultOpen: boolean; defaultPosition: PanelPosition }
-> = {
-  "country-stats": { defaultOpen: false, defaultPosition: { x: 12, y: 12 } },
-  "case-detail": { defaultOpen: false, defaultPosition: { x: 10_000, y: 12 } },
-};
-
-const PANEL_IDS = Object.keys(PANEL_DEFAULTS) as PanelId[];
-
 export type LayerVisibility = {
   boundaries: boolean;
   countryNames: boolean;
@@ -69,34 +67,57 @@ export type LayerVisibility = {
   travels: boolean;
 };
 
-export type { PanelPosition };
+export type { PanelPosition, PanelSize };
 
 type PersistedMapUi = {
   openPanels?: Partial<Record<PanelId, boolean>>;
   panelPositions?: Partial<Record<PanelId, PanelPosition>>;
+  panelSizes?: Partial<Record<PanelId, PanelSize>>;
+  persistPanelLayout?: boolean;
   layers?: Partial<LayerVisibility>;
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
   boundaryLevel?: BoundaryLevel;
+  uiFontSize?: UiFontSize;
+};
+
+export type UiFontSize = "sm" | "md" | "lg";
+
+const FONT_SIZE_PX: Record<UiFontSize, string> = {
+  sm: "14px",
+  md: "16px",
+  lg: "18px",
 };
 
 type MapUiContextValue = {
   openPanels: Record<PanelId, boolean>;
   panelPositions: Record<PanelId, PanelPosition>;
+  panelSizes: Record<PanelId, PanelSize>;
+  persistPanelLayout: boolean;
   layers: LayerVisibility;
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
   boundaryLevel: BoundaryLevel;
+  uiFontSize: UiFontSize;
   selectedCaseId: string | null;
   selectedCountryIso: TrackedCountryIso | null;
   focusedPanelId: PanelId | null;
   setPanelOpen: (id: PanelId, open: boolean) => void;
   togglePanel: (id: PanelId) => void;
   setPanelPosition: (id: PanelId, position: PanelPosition) => void;
+  setPanelLayout: (
+    id: PanelId,
+    position: PanelPosition,
+    size: PanelSize,
+    persist: boolean,
+  ) => void;
+  setPersistPanelLayout: (persist: boolean) => void;
+  resetPanelPositions: () => void;
   setLayerVisible: (layer: keyof LayerVisibility, visible: boolean) => void;
   setBasemapId: (id: BasemapId) => void;
   setSyncBasemapToUiTheme: (sync: boolean) => void;
   setBoundaryLevel: (level: BoundaryLevel) => void;
+  setUiFontSize: (size: UiFontSize) => void;
   openCaseDetail: (caseId: string) => void;
   closeCaseDetail: () => void;
   /** Open country-stats; pass iso to focus one country, omit for all tracked. */
@@ -123,6 +144,14 @@ function defaultPanelPositions(): Record<PanelId, PanelPosition> {
   return out;
 }
 
+function defaultPanelSizes(): Record<PanelId, PanelSize> {
+  const out = {} as Record<PanelId, PanelSize>;
+  for (const id of PANEL_IDS) {
+    out[id] = { ...PANEL_DEFAULTS[id].defaultSize };
+  }
+  return out;
+}
+
 const DEFAULT_LAYERS: LayerVisibility = {
   boundaries: true,
   countryNames: true,
@@ -133,26 +162,30 @@ const DEFAULT_LAYERS: LayerVisibility = {
   travels: true,
 };
 
+function resolveUiFontSize(value: unknown): UiFontSize {
+  if (value === "sm" || value === "md" || value === "lg") return value;
+  return "md";
+}
+
 function readPersisted(): PersistedMapUi | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw =
-      window.localStorage.getItem(STORAGE_KEY) ??
-      window.localStorage.getItem(PREV_STORAGE_KEY) ??
-      window.localStorage.getItem("bdbv-map-ui-v6") ??
-      window.localStorage.getItem("bdbv-map-ui-v5") ??
-      window.localStorage.getItem("bdbv-map-ui-v4") ??
-      window.localStorage.getItem("bdbv-map-ui-v3");
+    let raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      for (const key of PREV_STORAGE_KEYS) {
+        raw = window.localStorage.getItem(key);
+        if (raw) break;
+      }
+    }
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
-    // Always show DRC admin boundaries. Dark-only: drop theme sync and
-    // normalize any persisted light basemap. Missing claims → true.
-    // countryNames / cities respect persisted values (DEFAULT_LAYERS otherwise).
     return {
       ...parsed,
       basemapId: resolveBasemapId(parsed.basemapId),
       syncBasemapToUiTheme: false,
       boundaryLevel: resolveBoundaryLevel(parsed.boundaryLevel),
+      persistPanelLayout: parsed.persistPanelLayout === true,
+      uiFontSize: resolveUiFontSize(parsed.uiFontSize),
       layers: {
         ...parsed.layers,
         boundaries: true,
@@ -167,13 +200,15 @@ function readPersisted(): PersistedMapUi | null {
 function mergeInitialState(persisted: PersistedMapUi | null) {
   const openPanels = defaultOpenPanels();
   const panelPositions = defaultPanelPositions();
+  const panelSizes = defaultPanelSizes();
   if (persisted?.openPanels) {
     for (const id of PANEL_IDS) {
       const v = persisted.openPanels[id];
       if (typeof v === "boolean") openPanels[id] = v;
     }
   }
-  if (persisted?.panelPositions) {
+  const loadLayout = persisted?.persistPanelLayout === true;
+  if (loadLayout && persisted?.panelPositions) {
     for (const id of PANEL_IDS) {
       const pos = persisted.panelPositions[id];
       if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
@@ -181,20 +216,34 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
       }
     }
   }
+  if (loadLayout && persisted?.panelSizes) {
+    for (const id of PANEL_IDS) {
+      const sz = persisted.panelSizes[id];
+      if (
+        sz &&
+        Number.isFinite(sz.width) &&
+        Number.isFinite(sz.height) &&
+        sz.width > 0 &&
+        sz.height > 0
+      ) {
+        panelSizes[id] = { width: sz.width, height: sz.height };
+      }
+    }
+  }
   const layers: LayerVisibility = {
     ...DEFAULT_LAYERS,
     ...persisted?.layers,
   };
-  const basemapId = resolveBasemapId(persisted?.basemapId);
-  const boundaryLevel = resolveBoundaryLevel(persisted?.boundaryLevel);
-  // Dark-only: theme sync is permanently off (Light radio is disabled).
   return {
     openPanels,
     panelPositions,
+    panelSizes,
+    persistPanelLayout: loadLayout,
     layers,
-    basemapId,
+    basemapId: resolveBasemapId(persisted?.basemapId),
     syncBasemapToUiTheme: false,
-    boundaryLevel,
+    boundaryLevel: resolveBoundaryLevel(persisted?.boundaryLevel),
+    uiFontSize: resolveUiFontSize(persisted?.uiFontSize),
   };
 }
 
@@ -203,11 +252,14 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [openPanels, setOpenPanels] = useState(defaultOpenPanels);
   const [panelPositions, setPanelPositions] = useState(defaultPanelPositions);
+  const [panelSizes, setPanelSizes] = useState(defaultPanelSizes);
+  const [persistPanelLayout, setPersistPanelLayoutState] = useState(false);
   const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
   const [basemapId, setBasemapIdState] = useState<BasemapId>(DEFAULT_BASEMAP_ID);
   const [syncBasemapToUiTheme, setSyncState] = useState(false);
   const [boundaryLevel, setBoundaryLevelState] =
     useState<BoundaryLevel>("auto");
+  const [uiFontSize, setUiFontSizeState] = useState<UiFontSize>("md");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [selectedCountryIso, setSelectedCountryIso] =
     useState<TrackedCountryIso | null>(null);
@@ -217,22 +269,34 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     const merged = mergeInitialState(readPersisted());
     setOpenPanels(merged.openPanels);
     setPanelPositions(merged.panelPositions);
+    setPanelSizes(merged.panelSizes);
+    setPersistPanelLayoutState(merged.persistPanelLayout);
     setLayers(merged.layers);
     setBasemapIdState(merged.basemapId);
     setSyncState(merged.syncBasemapToUiTheme);
     setBoundaryLevelState(merged.boundaryLevel);
+    setUiFontSizeState(merged.uiFontSize);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
+    document.documentElement.style.fontSize = FONT_SIZE_PX[uiFontSize];
+  }, [hydrated, uiFontSize]);
+
+  useEffect(() => {
+    if (!hydrated) return;
     const payload: PersistedMapUi = {
       openPanels,
-      panelPositions,
       layers,
       basemapId,
       syncBasemapToUiTheme,
       boundaryLevel,
+      persistPanelLayout,
+      uiFontSize,
+      ...(persistPanelLayout
+        ? { panelPositions, panelSizes }
+        : {}),
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -243,13 +307,15 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     hydrated,
     openPanels,
     panelPositions,
+    panelSizes,
+    persistPanelLayout,
     layers,
     basemapId,
     syncBasemapToUiTheme,
     boundaryLevel,
+    uiFontSize,
   ]);
 
-  // Theme → basemap sync disabled (Dark-only catalog).
   useEffect(() => {
     if (!hydrated || !syncBasemapToUiTheme) return;
     setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
@@ -282,6 +348,31 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setPanelPositions((prev) => ({ ...prev, [id]: position }));
   }, []);
 
+  const setPanelLayout = useCallback(
+    (
+      id: PanelId,
+      position: PanelPosition,
+      size: PanelSize,
+      _persist: boolean,
+    ) => {
+      setPanelPositions((prev) => ({ ...prev, [id]: position }));
+      setPanelSizes((prev) => ({ ...prev, [id]: size }));
+    },
+    [],
+  );
+
+  const setPersistPanelLayout = useCallback((persist: boolean) => {
+    setPersistPanelLayoutState(persist);
+    if (!persist) {
+      // Keep in-memory layout; stop writing positions on next persist effect.
+    }
+  }, []);
+
+  const resetPanelPositions = useCallback(() => {
+    setPanelPositions(defaultPanelPositions());
+    setPanelSizes(defaultPanelSizes());
+  }, []);
+
   const setLayerVisible = useCallback(
     (layer: keyof LayerVisibility, visible: boolean) => {
       setLayers((prev) => ({ ...prev, [layer]: visible }));
@@ -290,23 +381,22 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   );
 
   const setBasemapId = useCallback((id: BasemapId) => {
-    // Dark-only: ignore Light (and any other non-selectable id).
     const next = resolveBasemapId(id);
     setSyncState(false);
     setBasemapIdState(next);
   }, []);
 
-  const setSyncBasemapToUiTheme = useCallback(
-    (_sync: boolean) => {
-      // Dark-only: keep sync off so Light cannot be selected via theme.
-      setSyncState(false);
-      setBasemapIdState(DEFAULT_BASEMAP_ID);
-    },
-    [],
-  );
+  const setSyncBasemapToUiTheme = useCallback((_sync: boolean) => {
+    setSyncState(false);
+    setBasemapIdState(DEFAULT_BASEMAP_ID);
+  }, []);
 
   const setBoundaryLevel = useCallback((level: BoundaryLevel) => {
     setBoundaryLevelState(resolveBoundaryLevel(level));
+  }, []);
+
+  const setUiFontSize = useCallback((size: UiFontSize) => {
+    setUiFontSizeState(resolveUiFontSize(size));
   }, []);
 
   const openCaseDetail = useCallback((caseId: string) => {
@@ -334,20 +424,27 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     () => ({
       openPanels,
       panelPositions,
+      panelSizes,
+      persistPanelLayout,
       layers,
       basemapId,
       syncBasemapToUiTheme,
       boundaryLevel,
+      uiFontSize,
       selectedCaseId,
       selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
+      setPanelLayout,
+      setPersistPanelLayout,
+      resetPanelPositions,
       setLayerVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       setBoundaryLevel,
+      setUiFontSize,
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
@@ -357,20 +454,27 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     [
       openPanels,
       panelPositions,
+      panelSizes,
+      persistPanelLayout,
       layers,
       basemapId,
       syncBasemapToUiTheme,
       boundaryLevel,
+      uiFontSize,
       selectedCaseId,
       selectedCountryIso,
       focusedPanelId,
       setPanelOpen,
       togglePanel,
       setPanelPosition,
+      setPanelLayout,
+      setPersistPanelLayout,
+      resetPanelPositions,
       setLayerVisible,
       setBasemapId,
       setSyncBasemapToUiTheme,
       setBoundaryLevel,
+      setUiFontSize,
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
