@@ -5,11 +5,14 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
+    "predev": "node ./scripts/sync-repo-docs.mjs",
+    "prebuild": "node ./scripts/sync-repo-docs.mjs",
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build && node ./scripts/nest-base.mjs",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "sync:repo-docs": "node ./scripts/sync-repo-docs.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.7",

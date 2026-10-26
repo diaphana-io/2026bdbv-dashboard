@@ -44,6 +44,10 @@ export default defineConfig({
 						{ label: 'Database structure', slug: 'database-structure' },
 					],
 				},
+				{
+					label: 'Developers',
+					items: [{ label: 'Contributing', slug: 'contributing' }],
+				},
 			],
 		}),
 	],

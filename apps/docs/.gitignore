@@ -3,6 +3,9 @@ dist/
 # generated types
 .astro/
 
+# >>> sync-repo-docs (managed — do not edit by hand)
+src/content/docs/contributing.md
+# <<< sync-repo-docs
 # dependencies
 node_modules/
 
