@@ -1,5 +1,7 @@
 # Contributing
 
+Browsable copy on the public docs site: [Contributing](https://2026bdbv.diaphana.io/docs/contributing/). Edit **this file**; Starlight syncs it at docs build time.
+
 ## Who this is for
 
 These guidelines are for contributors who clone this repository to run or change the dashboard. They are not required to use the deployed application.
