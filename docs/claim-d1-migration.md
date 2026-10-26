@@ -57,7 +57,7 @@ Zone1 **Claim** rows (aggregate counts, incidence, and related Curate artifacts)
 | [`apps/web/lib/d1-queries.ts`](../apps/web/lib/d1-queries.ts) | Curate + Map Claim **reads** (incidence, approved case_count heads) |
 | `/api/curate/*` | Thin routes → D1 persist helpers (Phase 3) |
 | Map / incidence | D1 claims + AdminUnit join + Neo4j Case/Travel/Exposure; D1 miss → JSON aggregates |
-| Bundled JSON | Fallback when D1 empty / unbound (`data/curated/claims.json` kept for seed + JSON) |
+| Bundled JSON | Fallback when D1 empty / unbound (`data/seed/curated/claims.json` kept for seed + JSON) |
 
 ## Relationship to Extract ([`docs/extract-issue.md`](./extract-issue.md))
 
@@ -160,7 +160,7 @@ npm run seed:d1-curate -- --local-only
 npm run seed:d1-curate -- --remote-only
 ```
 
-Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `data/curated/{sources,inbox_candidates,claims,conflicts}.json` (+ optional `curate_audit_events.json`). FK order: sources → inbox candidate sources → claims → conflicts → audits. **Does not seed production `bdbv-curate` unless `--production` is passed (Phase 3).**
+Script: [`scripts/seed-d1-curate.mjs`](../scripts/seed-d1-curate.mjs). Input: `data/seed/curated/{sources,inbox_candidates,claims,conflicts}.json` (+ optional `curate_audit_events.json`). FK order: sources → inbox candidate sources → claims → conflicts → audits. **Does not seed production `bdbv-curate` unless `--production` is passed (Phase 3).**
 
 ### Acceptance (Phase 2)
 

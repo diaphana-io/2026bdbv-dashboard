@@ -21,9 +21,10 @@ The web application (`apps/web`) exposes English-language views for outbreak ove
 │   └── docs/             Public outbreak info site (Astro Starlight → Cloudflare Pages, /docs)
 ├── packages/
 │   └── schema/           Shared TypeScript schemas for curated entities
-├── crates/               Rust surveillance compute (surv_*)
+├── crates/               Rust surveillance compute (surv_*) — see crates/README.md
 ├── data/
-│   └── curated/          Human-approved production-oriented datasets
+│   └── seed/
+│       └── curated/      Neo4j/D1 seed SoT (human-approved datasets)
 ├── infra/                Neo4j compose and graph constraints
 ├── docs/                 Operational and design notes
 └── scripts/              Seed, verify, and provisioning helpers
@@ -35,7 +36,7 @@ The dashboard is a vinext (Next.js) application styled with Tailwind and shadcn/
 
 ## Data and provenance
 
-Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided through the project’s issue tracker (issue-based gating). Synthetic fixtures under `seed/` support tests (`dataset=test`). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
+Production reads rely on curated real-world sources (official releases and news) and human-approved claims only. Automated extract remains disabled in production until the Extract backend specification is decided through the project’s issue tracker (issue-based gating). When two sources assert incompatible values, both claims stay linked via `CONFLICTS_WITH` until a human chooses `resolved_a`, `resolved_b`, or `resolved_neither`.
 
 ## References
 

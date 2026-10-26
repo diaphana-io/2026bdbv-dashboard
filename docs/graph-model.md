@@ -33,7 +33,7 @@ Query "show as of D"
 
 ## 2. Entity catalog
 
-Status: **seeded** = in `data/curated` + `scripts/seed-neo4j.mjs` · **neo4j** = constraint only · **zod** = `packages/schema` · **empty** = designed, not populated.
+Status: **seeded** = in `data/seed/curated` + `scripts/seed-neo4j.mjs` · **neo4j** = constraint only · **zod** = `packages/schema` · **empty** = designed, not populated.
 
 Approx seed sizes today: Outbreak 1 · AdminUnit 4 (admin0) · Case 6 · Contact persons 3 · Source 4 (+ inbox) on Neo4j for Case citation · TravelLeg 3 · Hospitalization 3 · BorderMeasure 3 · FollowUpWindow via contacts. **Claims / conflicts seed into D1** (`seed:d1-curate`), not Neo4j (Phase 5).
 

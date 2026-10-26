@@ -9,7 +9,7 @@ import { claimCategoryForType } from "./enums";
 import { HospitalizationSchema } from "./hospitalization";
 import { TravelLegSchema } from "./travel-leg";
 
-const curated = join(__dirname, "../../../data/curated");
+const curated = join(__dirname, "../../../data/seed/curated");
 
 describe("curated production data", () => {
   it("cases validate", () => {

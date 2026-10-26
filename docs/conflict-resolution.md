@@ -97,7 +97,7 @@ Rules:
 | **E** | Kenya MoH via Tuko vs WHO DON-622 | Tuko **23–24 Oct**; DON ~23 Oct | MoH statement cut **23 Oct** vs DON Kenya “as of **20 Oct**” | **9**/1 → **9**/2 deaths | Later official cut | `not_conflict`: new head for later **`as_of_date`**. Article publish day is incidental |
 | **F** | Uganda sitrep / DON chain | Various May–Jul publishes | **24 May** → **~29 May** → **28 Jun / 2 Jul** … | UG **7** → **9** → **20** | Successive cuts | `not_conflict`: lineage by **`as_of_date`** |
 
-Sources used for C–F: [WHO AFRO Sitrep #3](https://www.afro.who.int/publications/ebola-bundibugyo-virus-disease-outbreak-democratic-republic-congo-uganda-weekly-1), [DON-622](https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON622), [DON-612](https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON612), [Tuko / MoH second death](https://www.tuko.co.ke/kenya/644167-kenya-records-second-ebola-death-victims-relative-succumbs/), seed data under `data/curated/`.
+Sources used for C–F: [WHO AFRO Sitrep #3](https://www.afro.who.int/publications/ebola-bundibugyo-virus-disease-outbreak-democratic-republic-congo-uganda-weekly-1), [DON-622](https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON622), [DON-612](https://www.who.int/emergencies/disease-outbreak-news/item/2026-DON612), [Tuko / MoH second death](https://www.tuko.co.ke/kenya/644167-kenya-records-second-ebola-death-victims-relative-succumbs/), seed data under `data/seed/curated/`.
 
 ## Decision labels
 
