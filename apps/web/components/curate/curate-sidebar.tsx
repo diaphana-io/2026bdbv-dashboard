@@ -31,15 +31,13 @@ import {
 import type { CurateDataSource } from "@/lib/curate-data-source";
 import { withBasePath } from "@/lib/base-path";
 import { BrandLink } from "../shared/brand-link";
+import { BuyMeACoffeeButton } from "../shared/buy-me-a-coffee-button";
 import { ModeToggle } from "../shared/mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
 const NEO4J_URL = "https://neo4j.com/";
 const NAVARA_URL = "https://navara.world/";
-const BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/mattsakamaki";
-const BUY_ME_A_COFFEE_IMG =
-  "https://cdn.buymeacoffee.com/buttons/v2/arial-blue.png";
 
 type NavItem = {
   href: string;
@@ -211,6 +209,7 @@ export function CurateSidebar({
             <div className="flex w-full items-center justify-between gap-1 px-1">
               <ModeToggle />
               <div className="flex items-center gap-1">
+                <BuyMeACoffeeButton />
                 <SidebarMenuButton asChild tooltip="GitHub repository">
                   <a
                     href={GITHUB_REPO}
@@ -283,21 +282,6 @@ export function CurateSidebar({
               />
             </a>
           </div>
-        </div>
-        <div className="px-2 pb-1">
-          <a
-            href={BUY_ME_A_COFFEE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={BUY_ME_A_COFFEE_IMG}
-              alt="Buy Me a Coffee"
-              className="h-[60px] w-[217px] max-w-full"
-            />
-          </a>
         </div>
       </SidebarFooter>
       <SidebarRail />
