@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import {
+  ActivityIcon,
   BookOpenIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
   GlobeIcon,
-  LayoutDashboardIcon,
-  LayersIcon,
   MapIcon,
+  SettingsIcon,
+  StethoscopeIcon,
 } from "lucide-react";
 import { Collapsible } from "radix-ui";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { withBasePath } from "@/lib/base-path";
 import { TRACKED_COUNTRIES } from "@/lib/tracked-countries";
 import { cn } from "@/lib/utils";
 import { BrandLink } from "../shared/brand-link";
@@ -37,7 +39,7 @@ import { ModeToggle } from "../shared/mode-toggle";
 import {
   useMapUi,
   type BoundaryLevel,
-  type LayerVisibility,
+  type UiFontSize,
 } from "./map-ui-context";
 import { isBasemapSelectable, type BasemapId } from "./basemap-style";
 
@@ -46,11 +48,6 @@ const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
 const NEO4J_URL = "https://neo4j.com/";
 const NAVARA_URL = "https://navara.world/";
 
-const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "countryNames", label: "Country / city label" },
-  { key: "cities", label: "Cities" },
-];
-
 const BOUNDARY_LEVEL_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "admin1", label: "Admin1 (Provinces)" },
@@ -58,11 +55,10 @@ const BOUNDARY_LEVEL_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: "admin3", label: "Admin3 (Health zones)" },
 ];
 
-const DATA_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
-  { key: "cases", label: "Cases" },
-  { key: "claims", label: "Claims" },
-  { key: "exposures", label: "Exposures" },
-  { key: "travels", label: "Travel" },
+const FONT_SIZE_OPTIONS: { value: UiFontSize; label: string }[] = [
+  { value: "sm", label: "Small" },
+  { value: "md", label: "Medium" },
+  { value: "lg", label: "Large" },
 ];
 
 function GithubIcon({ className }: { className?: string }) {
@@ -153,7 +149,16 @@ export function MapSidebar() {
     basemapId,
     setBasemapId,
     basemapOptions,
+    uiFontSize,
+    setUiFontSize,
+    persistPanelLayout,
+    setPersistPanelLayout,
+    resetPanelPositions,
+    activateCaseTracking,
+    activateCaseStats,
   } = useMapUi();
+
+  const labelsOn = layers.countryNames && layers.cities;
 
   return (
     <Sidebar collapsible="offcanvas" variant="floating">
@@ -174,48 +179,96 @@ export function MapSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <NavSection
-                icon={<LayoutDashboardIcon />}
-                label="Data panels"
+                icon={<StethoscopeIcon />}
+                label="Case Tracking"
                 defaultOpen
               >
-                <SidebarMenuSubItem>
-                  <ToggleRow
-                    id="panel-country-stats"
-                    label="Country statistics"
-                    checked={openPanels["country-stats"]}
-                    onCheckedChange={(checked) => {
-                      if (checked) openCountryStats();
-                      else setPanelOpen("country-stats", false);
-                    }}
-                  />
-                </SidebarMenuSubItem>
-                {TRACKED_COUNTRIES.map((country) => (
-                  <SidebarMenuSubItem key={country.iso}>
-                    <SidebarMenuButton
-                      size="sm"
-                      isActive={
-                        openPanels["country-stats"] &&
-                        selectedCountryIso === country.iso
-                      }
-                      onClick={() => openCountryStats(country.iso)}
-                    >
-                      <span
-                        className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
-                        style={{ backgroundColor: country.color }}
-                        aria-hidden
-                      />
-                      <span>{country.shortName}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuSubItem>
-                ))}
                 <SidebarMenuSubItem>
                   <ToggleRow
                     id="panel-case-detail"
                     label="Case detail"
                     checked={openPanels["case-detail"]}
-                    onCheckedChange={(checked) =>
-                      setPanelOpen("case-detail", checked)
-                    }
+                    onCheckedChange={(checked) => {
+                      if (checked) activateCaseTracking();
+                      setPanelOpen("case-detail", checked);
+                    }}
+                  />
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="layer-cases"
+                    label="Cases"
+                    checked={layers.cases}
+                    onCheckedChange={(checked) => {
+                      if (checked) activateCaseTracking();
+                      setLayerVisible("cases", checked);
+                    }}
+                  />
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="layer-exposures"
+                    label="Exposures"
+                    checked={layers.exposures}
+                    onCheckedChange={(checked) => {
+                      if (checked) activateCaseTracking();
+                      setLayerVisible("exposures", checked);
+                    }}
+                  />
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="layer-travels"
+                    label="Travel"
+                    checked={layers.travels}
+                    onCheckedChange={(checked) => {
+                      if (checked) activateCaseTracking();
+                      setLayerVisible("travels", checked);
+                    }}
+                  />
+                </SidebarMenuSubItem>
+              </NavSection>
+
+              <NavSection
+                icon={<ActivityIcon />}
+                label="Case Stats"
+                defaultOpen
+              >
+                {TRACKED_COUNTRIES.map((country) => (
+                  <SidebarMenuSubItem key={country.iso}>
+                    <ToggleRow
+                      id={`stats-${country.iso}`}
+                      label={country.shortName}
+                      checked={
+                        openPanels["country-stats"] &&
+                        (selectedCountryIso === null ||
+                          selectedCountryIso === country.iso)
+                      }
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          openCountryStats(country.iso);
+                        } else if (selectedCountryIso === country.iso) {
+                          setPanelOpen("country-stats", false);
+                        } else if (
+                          openPanels["country-stats"] &&
+                          selectedCountryIso === null
+                        ) {
+                          // Showing all — close panel when any country toggled off
+                          setPanelOpen("country-stats", false);
+                        }
+                      }}
+                    />
+                  </SidebarMenuSubItem>
+                ))}
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="layer-claims"
+                    label="Claims"
+                    checked={layers.claims}
+                    onCheckedChange={(checked) => {
+                      if (checked) activateCaseStats();
+                      setLayerVisible("claims", checked);
+                    }}
                   />
                 </SidebarMenuSubItem>
               </NavSection>
@@ -259,33 +312,17 @@ export function MapSidebar() {
                     </div>
                   </SidebarMenuSubItem>
                 ) : null}
-                {MAP_LAYER_ITEMS.map(({ key, label }) => (
-                  <SidebarMenuSubItem key={key}>
-                    <ToggleRow
-                      id={`layer-${key}`}
-                      label={label}
-                      checked={layers[key]}
-                      onCheckedChange={(checked) =>
-                        setLayerVisible(key, checked)
-                      }
-                    />
-                  </SidebarMenuSubItem>
-                ))}
-              </NavSection>
-
-              <NavSection icon={<LayersIcon />} label="Data layers" defaultOpen>
-                {DATA_LAYER_ITEMS.map(({ key, label }) => (
-                  <SidebarMenuSubItem key={key}>
-                    <ToggleRow
-                      id={`layer-${key}`}
-                      label={label}
-                      checked={layers[key]}
-                      onCheckedChange={(checked) =>
-                        setLayerVisible(key, checked)
-                      }
-                    />
-                  </SidebarMenuSubItem>
-                ))}
+                <SidebarMenuSubItem>
+                  <ToggleRow
+                    id="layer-labels"
+                    label="Country Name / Cities"
+                    checked={labelsOn}
+                    onCheckedChange={(checked) => {
+                      setLayerVisible("countryNames", checked);
+                      setLayerVisible("cities", checked);
+                    }}
+                  />
+                </SidebarMenuSubItem>
               </NavSection>
 
               <NavSection icon={<MapIcon />} label="Basemap" defaultOpen>
@@ -327,12 +364,61 @@ export function MapSidebar() {
                   </div>
                 </SidebarMenuSubItem>
               </NavSection>
+
+              <NavSection icon={<SettingsIcon />} label="Settings" defaultOpen>
+                <SidebarMenuSubItem>
+                  <div className="space-y-2 px-2 py-1.5">
+                    <p className="text-xs text-muted-foreground">
+                      Base font size
+                    </p>
+                    <RadioGroup
+                      value={uiFontSize}
+                      onValueChange={(value) =>
+                        setUiFontSize(value as UiFontSize)
+                      }
+                      className="gap-2"
+                    >
+                      {FONT_SIZE_OPTIONS.map(({ value, label }) => (
+                        <div key={value} className="flex items-center gap-2">
+                          <RadioGroupItem
+                            value={value}
+                            id={`font-size-${value}`}
+                          />
+                          <Label
+                            htmlFor={`font-size-${value}`}
+                            className="text-sm font-normal"
+                          >
+                            {label}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                </SidebarMenuSubItem>
+              </NavSection>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="gap-2 border-t border-sidebar-border">
+        <div className="space-y-2 px-2 pt-1">
+          <ToggleRow
+            id="persist-panel-layout"
+            label="Save Panel Positions in Browser"
+            checked={persistPanelLayout}
+            onCheckedChange={setPersistPanelLayout}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="w-full"
+            onClick={resetPanelPositions}
+          >
+            Reset Panel Positions
+          </Button>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between gap-1 px-1">
@@ -374,13 +460,15 @@ export function MapSidebar() {
               className="opacity-70 transition-opacity hover:opacity-100"
               aria-label="Neo4j"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/neo4j.svg"
+                src={withBasePath("/logos/neo4j.svg")}
                 alt="Neo4j"
                 className="h-4 w-auto dark:hidden"
               />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/neo4j-white.svg"
+                src={withBasePath("/logos/neo4j-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"
@@ -393,13 +481,15 @@ export function MapSidebar() {
               className="opacity-70 transition-opacity hover:opacity-100"
               aria-label="Navara"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/navara.svg"
+                src={withBasePath("/logos/navara.svg")}
                 alt="Navara"
                 className="h-4 w-auto dark:hidden"
               />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/navara-white.svg"
+                src={withBasePath("/logos/navara-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"

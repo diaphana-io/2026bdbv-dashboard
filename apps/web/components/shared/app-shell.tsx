@@ -37,7 +37,10 @@ export function AppShell({
   return (
     <TooltipProvider>
       <SidebarProvider
-        className={cn(isMap && "h-svh max-h-svh !min-h-0 overflow-hidden")}
+        className={cn(
+          isMap &&
+            "h-svh max-h-svh !min-h-0 overflow-hidden [&_[data-slot=sidebar-gap]]:!w-0",
+        )}
       >
         {sidebar}
         <SidebarInset
