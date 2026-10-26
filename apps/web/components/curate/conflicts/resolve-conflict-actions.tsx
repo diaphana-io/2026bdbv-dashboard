@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "../ui/button";
-import type { ResolveStatus } from "../../lib/curate-api";
-import { withBasePath } from "../../lib/base-path";
+import { Button } from "@/components/ui/button";
+import type { ResolveStatus } from "@/lib/curate-api";
+import { withBasePath } from "@/lib/base-path";
 
 export function ResolveConflictActions({ conflictId }: { conflictId: string }) {
   const [status, setStatus] = useState<string | null>(null);
