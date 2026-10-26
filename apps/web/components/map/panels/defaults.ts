@@ -70,7 +70,8 @@ function buildDefaults(): Record<PanelId, PanelLayoutDefault> {
   TRACKED_COUNTRIES.forEach((c) => {
     const id = statsPanelId(c.iso);
     out[id] = {
-      defaultOpen: false,
+      // DR Congo Case Stats on by default (claims dots + hover for CD).
+      defaultOpen: c.iso === "CD",
       defaultPosition: positions[id],
       defaultSize: { width: 280, height: 220 },
     };

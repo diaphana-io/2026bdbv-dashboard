@@ -176,13 +176,14 @@ function defaultPanelSizes(): Record<PanelId, PanelSize> {
   return out;
 }
 
+/** Match Case Stats default (stats-CD open): Case Tracking layers off. */
 const DEFAULT_LAYERS: LayerVisibility = {
   boundaries: true,
   countryNames: true,
   cities: true,
-  cases: true,
-  exposures: true,
-  travels: true,
+  cases: false,
+  exposures: false,
+  travels: false,
 };
 
 function resolveUiFontSize(value: unknown): UiFontSize {
