@@ -3,7 +3,7 @@ title: Database structure
 description: Technical source-of-truth split — Claim tables on D1, Case network on Neo4j.
 ---
 
-Modeling rationale (why two stores help outbreak work) is on [Data and storage](./data-and-storage/). This page is the technical picture of **target** persistence: Claims on Cloudflare D1, Cases on Neo4j.
+Modeling rationale (why two stores help outbreak work) is on [Data and storage](/docs/data-and-storage/). This page is the technical picture of **target** persistence: Claims on Cloudflare D1, Cases on Neo4j.
 
 ## Source-of-truth split
 
@@ -153,5 +153,5 @@ Do not keep two approval truths for the same claim. Snapshots on R2 are **derive
 
 ## What this page is not
 
-- **Why** this split helps infectious-disease modeling → [Data and storage](./data-and-storage/).
+- **Why** this split helps infectious-disease modeling → [Data and storage](/docs/data-and-storage/).
 - Worker timeout runbooks, Bolt serving tactics, and step-by-step Claim migration phases → unpublished repo doc `docs/claim-d1-migration.md` for implementers.

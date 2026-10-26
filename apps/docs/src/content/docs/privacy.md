@@ -28,4 +28,4 @@ The map UI may keep preferences in `localStorage` under keys such as `bdbv-map-u
 
 ## Contact
 
-Questions about this project: see [About](./about/) or the repository [diaphana-io/2026bdbv-dashboard](https://github.com/diaphana-io/2026bdbv-dashboard).
+Questions about this project: see [About](/docs/about/) or the repository [diaphana-io/2026bdbv-dashboard](https://github.com/diaphana-io/2026bdbv-dashboard).
