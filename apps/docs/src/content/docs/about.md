@@ -22,3 +22,7 @@ The [2026 BDBV outbreak dashboard](https://2026bdbv.diaphana.io/app) is an Engli
 It provides outbreak overview, timeline, cases, contacts, map, border measures, and sources. Production data come from curated real-world sources and human-approved claims. When two sources disagree, both claims stay visible until a human curator resolves the conflict. Automated extract stays off in production until a backend design is approved through the project’s issue tracker.
 
 This `/docs` site is the public companion: short background and references for a general audience. It does not replace WHO or national ministry reporting. For live maps and curated claims, use the [dashboard](https://2026bdbv.diaphana.io/app).
+
+## Contact
+
+Questions about the project: [GitHub Issues](https://github.com/diaphana-io/2026bdbv-dashboard/issues) or [Discussions](https://github.com/diaphana-io/2026bdbv-dashboard/discussions). Sensitive matters: [bdbv@diaphana.co](mailto:bdbv@diaphana.co). How we handle visitor data: [Privacy Policy](/docs/privacy/).
