@@ -20,8 +20,8 @@ const CASE_ROWS = [
  * Top-right map inset legend for Case Stats dots and Case Tracking points.
  */
 export function MapLegend({ className }: { className?: string }) {
-  const { layers } = useMapUi();
-  const showClaims = layers.claims;
+  const { layers, enabledStatsIsos } = useMapUi();
+  const showClaims = enabledStatsIsos.length > 0;
   const showCases = layers.cases;
   if (!showClaims && !showCases) return null;
 

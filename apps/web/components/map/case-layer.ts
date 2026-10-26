@@ -6,6 +6,7 @@ import {
 import type ThreeView from "@navaramap/three";
 import type { DefaultDescriptions } from "@navaramap/three-default-plugin";
 import type { MapAggregate, MapCase } from "../../lib/data-types";
+import { filterAggregatesForCountries } from "../../lib/claims-country-filter";
 import type { CaseLayerMode } from "./basemap-style";
 import type { BoundaryLevel } from "./map-ui-context";
 import {
@@ -22,7 +23,8 @@ export type { CaseLayerMode };
 export type CaseLayersHandle = {
   update: (cases: MapCase[], aggregates: MapAggregate[]) => void;
   setCasesVisible: (visible: boolean) => void;
-  setClaimsVisible: (visible: boolean) => void;
+  /** Show claims dots only for these country ISOs (empty = hide). */
+  setClaimsCountries: (isos: readonly string[]) => void;
   setBoundaryLevel: (level: BoundaryLevel) => void;
   setAsOf: (asOf: string) => void;
   setMode: (mode: CaseLayerMode) => void;
@@ -91,6 +93,14 @@ function wireStatsDotColors(layer: Layer) {
   });
 }
 
+function sameIsoList(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 /**
  * Case points + Case Stats dots (replaces aggregate bubbles).
  * Dynamic GeoJSON must delete+recreate (skill invariant).
@@ -101,7 +111,7 @@ export function attachCaseLayers(
 ): CaseLayersHandle {
   let modeState = mode;
   let casesVisible = true;
-  let claimsVisible = true;
+  let claimsCountries: string[] = [];
   let boundaryLevel: BoundaryLevel = "auto";
   let asOf = "";
   let casesSource: Source | undefined;
@@ -139,8 +149,12 @@ export function attachCaseLayers(
       wireCaseColors(casesLayer, modeState);
     }
 
-    if (claimsVisible) {
-      const dots = buildStatsDots(aggregates, asOf || "0", boundaryLevel);
+    if (claimsCountries.length > 0) {
+      const filtered = filterAggregatesForCountries(
+        aggregates,
+        claimsCountries,
+      );
+      const dots = buildStatsDots(filtered, asOf || "0", boundaryLevel);
       dotsSource = view.addSource({
         type: "geojson",
         data: statsDotsGeoJson(dots),
@@ -175,9 +189,10 @@ export function attachCaseLayers(
       casesVisible = next;
       rebuild(lastCases, lastAggregates);
     },
-    setClaimsVisible(next) {
-      if (claimsVisible === next) return;
-      claimsVisible = next;
+    setClaimsCountries(isos) {
+      const next = [...isos].sort();
+      if (sameIsoList(claimsCountries, next)) return;
+      claimsCountries = next;
       rebuild(lastCases, lastAggregates);
     },
     setBoundaryLevel(level) {
