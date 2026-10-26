@@ -21,9 +21,10 @@ The web application (`apps/web`) exposes English-language views for outbreak ove
 │   └── docs/             Public outbreak info site (Astro Starlight → Cloudflare Pages, /docs)
 ├── packages/
 │   └── schema/           Shared TypeScript schemas for curated entities
-├── crates/               Rust surveillance compute (surv_*)
+├── crates/               Rust surveillance compute (surv_*) — see crates/README.md
 ├── data/
-│   └── curated/          Human-approved production-oriented datasets
+│   └── seed/
+│       └── curated/      Neo4j/D1 seed SoT (human-approved datasets)
 ├── infra/                Neo4j compose and graph constraints
 ├── docs/                 Operational and design notes
 └── scripts/              Seed, verify, and provisioning helpers
