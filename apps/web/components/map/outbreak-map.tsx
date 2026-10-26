@@ -67,7 +67,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<import("@navaramap/three").default | null>(null);
   const layersRef = useRef<LayerBundle | null>(null);
-  /** Papers NE country outlines — hidden while DRC COD-AB boundaries are on. */
+  /**
+   * Papers NE land borders. While COD-AB is on, FeatureEvaluator hides only
+   * features touching COD (ADM0_A3_L/R) — not a geometry clip of COD-AB edges.
+   */
   const papersBorderLayerRef = useRef<
     import("@navaramap/three").Layer | null
   >(null);
@@ -131,10 +134,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.cases.setAsOf(asOfRef.current);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
-    // Avoid double-drawing CD outline under COD-AB admin edges.
-    papersBorderLayerRef.current?.update({
-      polyline: { show: !vis.boundaries },
-    });
+    // Re-run COD border filter (evaluator reads visibilityRef.boundaries).
+    papersBorderLayerRef.current?.forceUpdate();
   }
 
   function wireFeatureClick(
@@ -256,6 +257,26 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         clampToGround: true,
         show: true,
       },
+    });
+
+    // Hide Papers land borders that touch DRC (COD) while COD-AB is visible.
+    // Props exist at z≥5; at z≤4 they are absent — keep those features shown.
+    borderLayer.on("featureUpdated", ({ evaluator }) => {
+      evaluator.evaluate(
+        ({ properties }) => {
+          if (!visibilityRef.current.boundaries) {
+            return { show: true };
+          }
+          const left = properties?.["ADM0_A3_L"];
+          const right = properties?.["ADM0_A3_R"];
+          if (typeof left !== "string" && typeof right !== "string") {
+            return { show: true };
+          }
+          const touchesCd = left === "COD" || right === "COD";
+          return { show: !touchesCd };
+        },
+        { filters: ["ADM0_A3_L", "ADM0_A3_R"] },
+      );
     });
 
     // Papers credit arrives via TileJsonPlugin; only terrain is hand-written.
