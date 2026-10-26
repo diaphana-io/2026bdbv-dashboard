@@ -2,6 +2,8 @@
 
 Modeling inventory (entities, **time axes**, seed gaps): [`docs/graph-model.md`](../../docs/graph-model.md).
 
+Claim / ClaimConflict / CurateAuditEvent and Claim `FROM` / conflict edges are **D1 tabular SoT** after [Phase 5](../../docs/claim-d1-migration.md). Neo4j keeps `SourceDocument` for Case citation only.
+
 - `(Outbreak)-[:INCLUDES_ADMIN]->(AdminUnit)`
 - `(Person)-[:HAS_CASE]->(Case)`
 - `(Case)-[:IN_OUTBREAK]->(Outbreak)`
@@ -17,27 +19,13 @@ Modeling inventory (entities, **time axes**, seed gaps): [`docs/graph-model.md`]
 - `(Person)-[:BECAME_CASE]->(Case)`
 - `(Case)-[:GENERATION_OF]->(Case)`
 - `(Event)-[:OCCURRED_IN]->(AdminUnit)`
-- `(Case|Person|Event|Cluster|FollowUpWindow|LabResult|BorderMeasure)-[:SUPPORTED_BY]->(Claim)`
-- `(Case)-[:SOURCED_FROM]->(SourceDocument)` — case cites sources by internal id (`Case.source_ids`); UI case detail resolves these
-- `(Claim)-[:FROM]->(SourceDocument)` — one source may produce many claims
-- `(Claim)-[:CONFLICTS_WITH]->(Claim)` — both remain visible until ClaimConflict resolved; same `claim_type` + subject + `as_of_date`
-- `(Claim)-[:SUPERSEDES]->(Claim)`
-- `(ClaimConflict)-[:SIDE_A|SIDE_B]->(Claim)`
-
-Claim nodes store `claim_type` (fine) and `claim_category` (coarse: `aggregate_count` \| `case_detail` \| `exposure_contact` \| `border_measure` \| `outbreak_status` \| `other`). Filter Map / conflict queues by `claim_category`.
-- `(IngestBatch)-[:PRODUCED]->(Claim|Case|Person|SourceDocument|BorderMeasure)`
+- `(Case)-[:SOURCED_FROM]->(SourceDocument)` — case cites sources by internal id (`Case.source_ids`); UI case detail resolves these. Claim→Source links live in D1 (`claims.source_id`), not Neo4j `FROM`
+- `(IngestBatch)-[:PRODUCED]->(Case|Person|SourceDocument|BorderMeasure)`
 - `(AdminUnit)-[:PARENT_OF]->(AdminUnit)`
 - `(BorderMeasure)-[:APPLIES_IN]->(AdminUnit)`
 - `(BorderMeasure)-[:AT_POE]->(PointOfEntry)`
 - `(DiscoveryRun)-[:ENQUEUED]->(SourceDocument)`
 
-## Claim types: cumulative vs incidence
+## Claim aggregates (D1, not Neo4j)
 
-Aggregate `Claim` nodes share the same label and `FROM` edges; they differ by `claim_type` and `object_value`:
-
-| `claim_type` | Meaning | Typical `object_value` |
-| --- | --- | --- |
-| `case_count` | Cumulative snapshot as of `as_of_date` | `{ confirmed, deaths, … }` |
-| `incidence` | New counts over an inclusive period | `{ period_start, period_end, grain, new_confirmed, new_deaths?, metric_basis }` |
-
-CD production path: daily `grain: "day"` with `metric_basis: "reporting_date"`, where `period_start === period_end === as_of_date`. Do not difference successive `case_count` rows to invent incidence.
+Zone1 count assertions (`case_count`, `incidence`, …) and conflicts/audit are stored in Cloudflare D1. See [`docs/claim-d1-migration.md`](../../docs/claim-d1-migration.md). Map joins approved D1 `case_count` rows to Neo4j `AdminUnit` geo; Case / Travel / Exposure graph layers stay Neo4j without Claim MATCH.

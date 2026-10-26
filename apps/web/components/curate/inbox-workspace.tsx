@@ -33,14 +33,20 @@ export function InboxWorkspace({ initialRows }: { initialRows: InboxRow[] }) {
     setSelectedId((cur) => (cur === id ? null : cur));
   }
 
+  function onAdopted(id: string) {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    setSelectedId((cur) => (cur === id ? null : cur));
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-semibold">Inbox</h1>
           <p className="text-sm text-muted-foreground">
-            Submit or review source candidates. Exact duplicates stay visible
-            with a soft Accept — flags are informational, not auto-discard.
+            Submit or review source candidates. Adopt moves a source into
+            Catalog for Claim Extract — flags are informational, not
+            auto-discard.
           </p>
         </div>
         <div className="flex gap-2">
@@ -80,6 +86,7 @@ export function InboxWorkspace({ initialRows }: { initialRows: InboxRow[] }) {
               row={selected}
               onUpdated={onUpdated}
               onDismissed={onDismissed}
+              onAdopted={onAdopted}
             />
           </CardContent>
         </Card>

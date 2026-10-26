@@ -1,0 +1,23 @@
+/**
+ * CLI-only D1 config for `wrangler d1 migrations apply <name> --local|--remote`.
+ * Worker runtime binding is owned by cloudflare.config.ts (isPreview → one of
+ * these two IDs as env.DB). Do not use preview_database_id conflation.
+ */
+{
+  "name": "bdbv-dashboard-d1",
+  "compatibility_date": "2026-10-24",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bdbv-curate",
+      "database_id": "13554abd-a4de-4194-84cb-3cca82a5d7bf",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "DB_PREVIEW",
+      "database_name": "bdbv-curate-preview",
+      "database_id": "8c803639-56c6-405c-8dba-157e054a483a",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

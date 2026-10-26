@@ -1,10 +1,13 @@
-import { shouldUseNeo4j } from "../../../../lib/curate-data-source.server";
-import { invalidateGraphReadCache } from "../../../../lib/data";
 import {
-  loadClaimGraphRow,
+  preferFixtureData,
+  shouldPersistCurateTabular,
+} from "../../../../lib/curate-data-source.server";
+import { invalidateGraphReadCache } from "../../../../lib/data";
+import { getDb } from "../../../../lib/d1";
+import {
+  loadClaimTabularRow,
   persistRollbackClaim,
-} from "../../../../lib/neo4j-curate";
-import { isNeo4jConfigured } from "../../../../lib/neo4j";
+} from "../../../../lib/d1-curate";
 import { runCommand } from "../../../../lib/surv-engine";
 
 type EngineRollbackResult = {
@@ -48,15 +51,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "reason required" }, { status: 400 });
   }
 
-  if (!isNeo4jConfigured() || !(await shouldUseNeo4j())) {
+  if (await preferFixtureData()) {
     return Response.json(
-      { error: "neo4j_required_for_rollback" },
+      { error: "fixture_mode_no_rollback_persist" },
       { status: 503 },
     );
   }
+  if (!(await shouldPersistCurateTabular())) {
+    return Response.json({ error: "d1_unavailable" }, { status: 503 });
+  }
+
+  const db = getDb();
+  if (!db) {
+    return Response.json({ error: "d1_unavailable" }, { status: 503 });
+  }
 
   try {
-    const head = await loadClaimGraphRow(claimId);
+    const head = await loadClaimTabularRow(db, claimId);
     if (!head) {
       return Response.json({ error: "claim_not_found" }, { status: 404 });
     }
@@ -70,7 +81,7 @@ export async function POST(request: Request) {
 
     let target = head;
     if (targetClaimId && targetClaimId !== claimId) {
-      const loaded = await loadClaimGraphRow(targetClaimId);
+      const loaded = await loadClaimTabularRow(db, targetClaimId);
       if (!loaded) {
         return Response.json({ error: "target_claim_not_found" }, { status: 404 });
       }
@@ -141,7 +152,7 @@ export async function POST(request: Request) {
       asString(pending.lineage_id) ?? head.lineage_id ?? head.id;
     const toVersion = asNumber(pending.version) ?? head.version + 1;
 
-    await persistRollbackClaim({
+    await persistRollbackClaim(db, {
       head: { ...head, is_head: true },
       pending: {
         id: pendingId,

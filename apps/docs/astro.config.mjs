@@ -1,12 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import mermaid from 'astro-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://2026bdbv.diaphana.io',
 	base: '/docs',
 	integrations: [
+		// Must come BEFORE starlight so ```mermaid fences are transformed.
+		mermaid({
+			autoTheme: true,
+		}),
 		starlight({
 			title: '2026 Ebola Outbreak Dashboard',
 			description:
@@ -30,6 +35,13 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', slug: 'index' },
 						{ label: 'About', slug: 'about' },
+					],
+				},
+				{
+					label: 'Data',
+					items: [
+						{ label: 'Data and storage', slug: 'data-and-storage' },
+						{ label: 'Database structure', slug: 'database-structure' },
 					],
 				},
 			],

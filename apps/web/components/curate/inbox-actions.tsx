@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,18 +9,55 @@ import type { DuplicateLevel } from "../../lib/data-types";
 export function InboxActions({
   url,
   duplicateLevel = "none",
+  onAdopted,
+  onDismissed,
 }: {
   url: string;
   duplicateLevel?: DuplicateLevel | string | null;
+  onAdopted?: () => void;
+  onDismissed?: () => void;
 }) {
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
+  const [adopted, setAdopted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const level = (duplicateLevel ?? "none") as DuplicateLevel;
   const exactDup = level === "exact_url" || level === "content_hash";
-  const reviewHref = `/curate/review?url=${encodeURIComponent(url)}`;
+  const catalogHref = `/curate/catalog?source=${encodeURIComponent(url)}`;
+
+  async function adopt() {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(withBasePath("/api/curate/adopt-source"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setAdopted(true);
+      onAdopted?.();
+      router.push(catalogHref);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "request failed");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function adoptExactDup() {
+    const ok = window.confirm(
+      "This source looks like an exact duplicate (same URL or content hash). Adopt anyway into Catalog?",
+    );
+    if (ok) void adopt();
+  }
 
   async function dismiss() {
     setPending(true);
@@ -38,6 +74,7 @@ export function InboxActions({
         return;
       }
       setDismissed(true);
+      onDismissed?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "request failed");
     } finally {
@@ -45,15 +82,11 @@ export function InboxActions({
     }
   }
 
-  function acceptExactDup() {
-    const ok = window.confirm(
-      "This source looks like an exact duplicate (same URL or content hash). Accept anyway to open Review?",
-    );
-    if (ok) router.push(reviewHref);
-  }
-
   if (dismissed) {
     return <span className="text-xs text-muted-foreground">Dismissed (session)</span>;
+  }
+  if (adopted) {
+    return <span className="text-xs text-muted-foreground">Adopted → Catalog</span>;
   }
 
   return (
@@ -64,14 +97,21 @@ export function InboxActions({
             type="button"
             variant="ghost"
             size="xs"
-            onClick={acceptExactDup}
+            disabled={pending}
+            onClick={adoptExactDup}
             className="text-muted-foreground"
           >
-            Accept anyway
+            Adopt anyway
           </Button>
         ) : (
-          <Button variant="outline" size="xs" asChild>
-            <Link href={reviewHref}>Accept</Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            disabled={pending}
+            onClick={() => void adopt()}
+          >
+            Adopt
           </Button>
         )}
         <Button
@@ -86,7 +126,7 @@ export function InboxActions({
       </div>
       {exactDup && (
         <span className="text-[11px] text-amber-800 dark:text-amber-200">
-          Flagged duplicate — review before accepting
+          Flagged duplicate — review before adopting
         </span>
       )}
       {error && <span className="text-xs text-destructive">{error}</span>}

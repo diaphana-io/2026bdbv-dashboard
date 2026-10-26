@@ -85,8 +85,6 @@ async function main() {
     const outbreak = readJson("outbreak.json");
     const sources = readJson("sources.json");
     const cases = readJson("cases.json");
-    const claims = readJson("claims.json");
-    const conflicts = readJson("conflicts.json");
     const contacts = readJson("contacts.json");
     const measures = readJson("measures.json");
     const inbox = readJson("inbox_candidates.json");
@@ -257,83 +255,7 @@ async function main() {
       );
     }
 
-    for (const claim of claims) {
-      await session.run(
-        `
-        MERGE (cl:Claim {id: $id})
-        SET cl.claim_type = $claim_type,
-            cl.claim_category = $claim_category,
-            cl.subject_ref = $subject_ref,
-            cl.object_value_json = $object_value_json,
-            cl.as_of_date = $as_of_date,
-            cl.claim_fingerprint = $claim_fingerprint,
-            cl.confidence = $confidence,
-            cl.extractor = $extractor,
-            cl.review_status = $review_status,
-            cl.reviewed_at = $reviewed_at,
-            cl.reviewed_by = $reviewed_by,
-            cl.excerpt = $excerpt,
-            cl.source_id = $source_id,
-            cl.lineage_id = $lineage_id,
-            cl.version = $version,
-            cl.is_head = $is_head
-        WITH cl
-        MATCH (s:SourceDocument {id: $source_id})
-        MERGE (cl)-[:FROM]->(s)
-        `,
-        {
-          id: claim.id,
-          claim_type: claim.claim_type,
-          claim_category: claim.claim_category ?? "other",
-          subject_ref: claim.subject_ref,
-          object_value_json: JSON.stringify(claim.object_value ?? {}),
-          as_of_date: claim.as_of_date,
-          claim_fingerprint: claim.claim_fingerprint,
-          confidence: claim.confidence,
-          extractor: claim.extractor ?? null,
-          review_status: claim.review_status,
-          reviewed_at: claim.reviewed_at ?? null,
-          reviewed_by: claim.reviewed_by ?? null,
-          excerpt: claim.excerpt ?? null,
-          source_id: claim.source_id,
-          lineage_id: claim.lineage_id ?? claim.id,
-          version: claim.version ?? 1,
-          is_head:
-            claim.is_head ?? claim.review_status === "approved",
-        },
-      );
-    }
-
-    for (const conflict of conflicts) {
-      await session.run(
-        `
-        MERGE (cf:ClaimConflict {id: $id})
-        SET cf.subject_ref = $subject_ref,
-            cf.claim_type = $claim_type,
-            cf.status = $status,
-            cf.detected_at = $detected_at,
-            cf.resolution_note = $resolution_note,
-            cf.claim_a_id = $claim_a_id,
-            cf.claim_b_id = $claim_b_id
-        WITH cf
-        MATCH (a:Claim {id: $claim_a_id}), (b:Claim {id: $claim_b_id})
-        MERGE (cf)-[:SIDE_A]->(a)
-        MERGE (cf)-[:SIDE_B]->(b)
-        MERGE (a)-[:CONFLICTS_WITH]->(b)
-        MERGE (b)-[:CONFLICTS_WITH]->(a)
-        `,
-        {
-          id: conflict.id,
-          subject_ref: conflict.subject_ref,
-          claim_type: conflict.claim_type,
-          status: conflict.status,
-          detected_at: conflict.detected_at,
-          resolution_note: conflict.resolution_note ?? null,
-          claim_a_id: conflict.claim_a_id,
-          claim_b_id: conflict.claim_b_id,
-        },
-      );
-    }
+    // Claims / conflicts seed into D1 only (Phase 5); Neo4j keeps SourceDocument for Case SOURCED_FROM.
 
     for (const contact of contacts) {
       await session.run(
@@ -514,8 +436,6 @@ async function main() {
       RETURN
         count { MATCH (o:Outbreak) RETURN o } AS outbreaks,
         count { MATCH (c:Case) RETURN c } AS cases,
-        count { MATCH (cl:Claim) RETURN cl } AS claims,
-        count { MATCH (cf:ClaimConflict) RETURN cf } AS conflicts,
         count { MATCH (p:Person) WHERE p.role = 'contact' RETURN p } AS contacts,
         count { MATCH (s:SourceDocument) RETURN s } AS sources,
         count { MATCH (b:BorderMeasure) RETURN b } AS measures,
@@ -527,8 +447,6 @@ async function main() {
     console.log("Seed complete:", {
       outbreaks: row.get("outbreaks").toNumber?.() ?? row.get("outbreaks"),
       cases: row.get("cases").toNumber?.() ?? row.get("cases"),
-      claims: row.get("claims").toNumber?.() ?? row.get("claims"),
-      conflicts: row.get("conflicts").toNumber?.() ?? row.get("conflicts"),
       contacts: row.get("contacts").toNumber?.() ?? row.get("contacts"),
       sources: row.get("sources").toNumber?.() ?? row.get("sources"),
       measures: row.get("measures").toNumber?.() ?? row.get("measures"),

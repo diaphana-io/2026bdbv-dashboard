@@ -6,10 +6,12 @@ Related: versioning contracts in [extract-issue.md](./extract-issue.md); graph s
 
 ## IA
 
-Pipeline (English UI): Overview → Inbox → Extract → Review → Conflicts → **Catalog** → Status.
+Claim track (English UI): Overview → Inbox → **Catalog** → Extract → Review → Conflicts → Status. See [curate-ui.md](./curate-ui.md).
+
+Inbox **Adopt** sets `curation_status` to `fetched` and lands the source here. Claim Approve is separate (claim rows only).
 
 - **List** (`/curate/catalog`): sources with `curation_status` ∈ `fetched|extracted|in_review|done` (dismissed filter default off).
-- **Detail** (`?source=` id / normalized URL / URL): source timing, claims (type, subject, `as_of_date`, object, extractor, version, review_status), short audit trail.
+- **Detail** (`?source=` id / normalized URL / URL): source timing, claims (type, zone/`subject_ref`, `as_of_date`, object, extractor, version, review_status), short audit trail. **Open** → `/curate/source?url=` Claim workspace.
 - Review **History** links into Catalog when `?url=` is set.
 
 ## Rollback semantics (差し戻し)
@@ -29,4 +31,4 @@ Public Map shows **approved head only** (`review_status: approved`). After rollb
 
 ## Approve path
 
-`persistReviewClaim` writes `lineage_id` / `version` / `is_head` and a `CurateAuditEvent` (`approve` | `reject`) so Catalog is not seed-only.
+`persistReviewClaim` (D1, Phase 3) writes `lineage_id` / `version` / `is_head` and a `curate_audit_events` row (`approve` | `reject`) so Catalog is not seed-only.

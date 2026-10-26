@@ -2,7 +2,7 @@
 
 **Purpose:** Enumerate what the Neo4j / Zod model must cover for BDBV outbreak surveillance. **Time is a first-class axis** — almost every fact is meaningless without when it applies.
 
-**Canonical edges:** [`infra/neo4j/relationships.md`](../infra/neo4j/relationships.md) · **Constraints:** [`infra/neo4j/constraints.cypher`](../infra/neo4j/constraints.cypher) · **Claim policy:** [`conflict-resolution.md`](./conflict-resolution.md)
+**Canonical edges:** [`infra/neo4j/relationships.md`](../infra/neo4j/relationships.md) · **Constraints:** [`infra/neo4j/constraints.cypher`](../infra/neo4j/constraints.cypher) · **Claim policy:** [`conflict-resolution.md`](./conflict-resolution.md) · **Claim SoT (D1):** [`claim-d1-migration.md`](./claim-d1-migration.md)
 
 ## 1. Time axes (do not conflate)
 
@@ -35,7 +35,7 @@ Query "show as of D"
 
 Status: **seeded** = in `data/curated` + `scripts/seed-neo4j.mjs` · **neo4j** = constraint only · **zod** = `packages/schema` · **empty** = designed, not populated.
 
-Approx seed sizes today: Outbreak 1 · AdminUnit 4 (admin0) · Case 6 · Contact persons 3 · Source 4 (+ inbox) · Claim 6 (all `aggregate_count`) · ClaimConflict 1 · TravelLeg 3 · Hospitalization 3 · BorderMeasure 3 · FollowUpWindow via contacts.
+Approx seed sizes today: Outbreak 1 · AdminUnit 4 (admin0) · Case 6 · Contact persons 3 · Source 4 (+ inbox) on Neo4j for Case citation · TravelLeg 3 · Hospitalization 3 · BorderMeasure 3 · FollowUpWindow via contacts. **Claims / conflicts seed into D1** (`seed:d1-curate`), not Neo4j (Phase 5).
 
 ### 2.1 Geography & places
 
@@ -94,15 +94,15 @@ Same-day exposure → set both equal. Follow-up (`FollowUpWindow`) starts from *
 
 | Label | Purpose | Key temporal | Status |
 |-------|---------|--------------|--------|
-| **SourceDocument** | Document (internal UUID) | published / retrieved / discovered | seeded |
-| **Claim** | Atomic assertion + `claim_category` | **`as_of_date`**, version / lineage | seeded (no `SUPERSEDES` / `case_detail` claims yet) |
-| **ClaimConflict** | Incompatible pair | detected / resolved | seeded |
-| **DismissedSource** | Rejected inbox URL | dismissal via audit later | neo4j empty |
-| **DiscoveryRun** | Discover job | run time | neo4j empty |
+| **SourceDocument** | Document (internal UUID); Neo4j copy for Case `SOURCED_FROM` | published / retrieved / discovered | seeded on Neo4j (Case citation) + D1 (Curate) |
+| **Claim** | Atomic assertion + `claim_category` | **`as_of_date`**, version / lineage | **D1 SoT** (Phase 5); not seeded to Neo4j |
+| **ClaimConflict** | Incompatible pair | detected / resolved | **D1 SoT** |
+| **DismissedSource** | Rejected inbox URL | dismissal time | D1 (+ optional Neo4j constraint) |
+| **DiscoveryRun** | Discover job | run time | neo4j empty / future D1 jobs |
 | **IngestBatch** | Import batch | batch time | neo4j empty |
-| **CurateAuditEvent** | Approve / revise / rollback | event time + versions | constraint on `id`; written on Curate approve/reject/rollback |
+| **CurateAuditEvent** | Approve / revise / rollback | event time + versions | **D1 SoT** |
 
-`(Case)-[:SOURCED_FROM]->(SourceDocument)` cites sources by **internal id**. Claims use `(Claim)-[:FROM]->(SourceDocument)`. `SUPPORTED_BY` (Case|Person|… → Claim) is designed but unused.
+`(Case)-[:SOURCED_FROM]->(SourceDocument)` cites sources by **internal id** on Neo4j. Claim→source links are D1 `claims.source_id` (no Neo4j `FROM`).
 
 **Out of product scope for now:** vaccines / therapeutics / ring vaccination (not labeled).
 
