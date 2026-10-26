@@ -29,6 +29,7 @@ const MAP_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
 
 const DATA_LAYER_ITEMS: { key: keyof LayerVisibility; label: string }[] = [
   { key: "cases", label: "Cases" },
+  { key: "claims", label: "Claims" },
   { key: "exposures", label: "Exposures" },
   { key: "travels", label: "Travel" },
 ];

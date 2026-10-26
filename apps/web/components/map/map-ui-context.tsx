@@ -21,11 +21,12 @@ import type { PanelId, PanelPosition } from "../panels/types";
 import type { TrackedCountryIso } from "@/lib/tracked-countries";
 
 /**
+ * v7: Independent Claims toggle (MapAggregate bubbles) separate from Cases points.
  * v6: Dark basemap only; boundaries = DRC COD-AB LOD outlines (not tracked fills).
  * v5 could still hold light basemap / theme-sync prefs.
  */
-const STORAGE_KEY = "bdbv-map-ui-v6";
-const PREV_STORAGE_KEY = "bdbv-map-ui-v5";
+const STORAGE_KEY = "bdbv-map-ui-v7";
+const PREV_STORAGE_KEY = "bdbv-map-ui-v6";
 
 /** Defaults live here (not registry) to avoid circular imports with panel components. */
 const PANEL_DEFAULTS: Record<
@@ -43,6 +44,7 @@ export type LayerVisibility = {
   countryNames: boolean;
   cities: boolean;
   cases: boolean;
+  claims: boolean;
   exposures: boolean;
   travels: boolean;
 };
@@ -103,6 +105,7 @@ const DEFAULT_LAYERS: LayerVisibility = {
   countryNames: true,
   cities: true,
   cases: true,
+  claims: true,
   exposures: true,
   travels: true,
 };
@@ -113,12 +116,13 @@ function readPersisted(): PersistedMapUi | null {
     const raw =
       window.localStorage.getItem(STORAGE_KEY) ??
       window.localStorage.getItem(PREV_STORAGE_KEY) ??
+      window.localStorage.getItem("bdbv-map-ui-v5") ??
       window.localStorage.getItem("bdbv-map-ui-v4") ??
       window.localStorage.getItem("bdbv-map-ui-v3");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedMapUi;
     // Always show DRC admin boundaries + country names. Dark-only: drop theme
-    // sync and normalize any persisted light basemap.
+    // sync and normalize any persisted light basemap. Missing claims → true.
     return {
       ...parsed,
       basemapId: resolveBasemapId(parsed.basemapId),
@@ -127,6 +131,7 @@ function readPersisted(): PersistedMapUi | null {
         ...parsed.layers,
         boundaries: true,
         countryNames: true,
+        claims: parsed.layers?.claims ?? true,
       },
     };
   } catch {

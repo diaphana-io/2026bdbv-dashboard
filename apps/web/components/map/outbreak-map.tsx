@@ -75,6 +75,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     countryNames: true,
     cities: true,
     cases: true,
+    claims: true,
     exposures: true,
     travels: true,
   });
@@ -103,7 +104,8 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     bundle.boundaries.setVisible(vis.boundaries);
     bundle.labels.setCountryNamesVisible(vis.countryNames);
     bundle.labels.setCitiesVisible(vis.cities);
-    bundle.cases.setVisible(vis.cases);
+    bundle.cases.setCasesVisible(vis.cases);
+    bundle.cases.setClaimsVisible(vis.claims);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
   }
