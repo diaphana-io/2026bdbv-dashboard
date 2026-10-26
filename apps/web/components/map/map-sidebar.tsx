@@ -50,6 +50,9 @@ const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
 const NEO4J_URL = "https://neo4j.com/";
 const NAVARA_URL = "https://navara.world/";
+const BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/mattsakamaki";
+const BUY_ME_A_COFFEE_IMG =
+  "https://cdn.buymeacoffee.com/buttons/v2/arial-blue.png";
 
 const BOUNDARY_LEVEL_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: "auto", label: "Auto" },
@@ -484,6 +487,21 @@ export function MapSidebar() {
               />
             </a>
           </div>
+        </div>
+        <div className="px-2 pb-1">
+          <a
+            href={BUY_ME_A_COFFEE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={BUY_ME_A_COFFEE_IMG}
+              alt="Buy Me a Coffee"
+              className="h-[60px] w-[217px] max-w-full"
+            />
+          </a>
         </div>
       </SidebarFooter>
       <SidebarRail />
