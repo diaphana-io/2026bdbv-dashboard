@@ -122,6 +122,10 @@ type MapUiContextValue = {
   closeCaseDetail: () => void;
   /** Open country-stats; pass iso to focus one country, omit for all tracked. */
   openCountryStats: (iso?: TrackedCountryIso) => void;
+  /** Enable Case Tracking group; turns off Case Stats panels + Claims. */
+  activateCaseTracking: () => void;
+  /** Enable Case Stats group; turns off Case Tracking panels + case layers. */
+  activateCaseStats: () => void;
   focusPanel: (id: PanelId) => void;
   basemapOptions: typeof BASEMAPS;
 };
@@ -399,11 +403,29 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setUiFontSizeState(resolveUiFontSize(size));
   }, []);
 
+  const activateCaseTracking = useCallback(() => {
+    setOpenPanels((prev) => ({ ...prev, "country-stats": false }));
+    setSelectedCountryIso(null);
+    setLayers((prev) => ({ ...prev, claims: false }));
+  }, []);
+
+  const activateCaseStats = useCallback(() => {
+    setOpenPanels((prev) => ({ ...prev, "case-detail": false }));
+    setSelectedCaseId(null);
+    setLayers((prev) => ({
+      ...prev,
+      cases: false,
+      exposures: false,
+      travels: false,
+    }));
+  }, []);
+
   const openCaseDetail = useCallback((caseId: string) => {
+    activateCaseTracking();
     setSelectedCaseId(caseId);
     setOpenPanels((prev) => ({ ...prev, "case-detail": true }));
     setFocusedPanelId("case-detail");
-  }, []);
+  }, [activateCaseTracking]);
 
   const closeCaseDetail = useCallback(() => {
     setSelectedCaseId(null);
@@ -411,10 +433,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openCountryStats = useCallback((iso?: TrackedCountryIso) => {
+    activateCaseStats();
     setSelectedCountryIso(iso ?? null);
     setOpenPanels((prev) => ({ ...prev, "country-stats": true }));
     setFocusedPanelId("country-stats");
-  }, []);
+  }, [activateCaseStats]);
 
   const focusPanel = useCallback((id: PanelId) => {
     setFocusedPanelId(id);
@@ -448,6 +471,8 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
+      activateCaseTracking,
+      activateCaseStats,
       focusPanel,
       basemapOptions: BASEMAPS,
     }),
@@ -478,6 +503,8 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       openCaseDetail,
       closeCaseDetail,
       openCountryStats,
+      activateCaseTracking,
+      activateCaseStats,
       focusPanel,
     ],
   );

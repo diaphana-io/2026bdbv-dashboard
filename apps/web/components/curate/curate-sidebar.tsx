@@ -29,6 +29,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import type { CurateDataSource } from "@/lib/curate-data-source";
+import { withBasePath } from "@/lib/base-path";
 import { BrandLink } from "../shared/brand-link";
 import { ModeToggle } from "../shared/mode-toggle";
 
@@ -243,13 +244,15 @@ export function CurateSidebar({
               className="opacity-70 transition-opacity hover:opacity-100"
               aria-label="Neo4j"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/neo4j.svg"
+                src={withBasePath("/logos/neo4j.svg")}
                 alt="Neo4j"
                 className="h-4 w-auto dark:hidden"
               />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/neo4j-white.svg"
+                src={withBasePath("/logos/neo4j-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"
@@ -262,13 +265,15 @@ export function CurateSidebar({
               className="opacity-70 transition-opacity hover:opacity-100"
               aria-label="Navara"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/navara.svg"
+                src={withBasePath("/logos/navara.svg")}
                 alt="Navara"
                 className="h-4 w-auto dark:hidden"
               />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logos/navara-white.svg"
+                src={withBasePath("/logos/navara-white.svg")}
                 alt=""
                 aria-hidden
                 className="hidden h-4 w-auto dark:block"
