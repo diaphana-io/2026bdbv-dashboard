@@ -9,9 +9,9 @@ import { TravelLegSchema } from "./travel-leg";
 describe("graph-related schemas", () => {
   it("parses exposure and follow-up window", () => {
     const exp = ExposureSchema.parse({
-      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-      from_person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-      to_ref_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      from_person_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      to_ref_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       to_ref_type: "case",
       date_of_first_contact: "2026-10-03",
       date_of_last_contact: "2026-10-05",
@@ -20,7 +20,7 @@ describe("graph-related schemas", () => {
       certainty: "confirmed",
     });
     const w = FollowUpWindowSchema.parse({
-      id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       person_id: exp.from_person_id,
       source_exposure_id: exp.id,
       window_start: "2026-10-05",
@@ -35,9 +35,9 @@ describe("graph-related schemas", () => {
   it("rejects exposure when first contact is after last", () => {
     expect(() =>
       ExposureSchema.parse({
-        id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        from_person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        to_ref_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        from_person_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        to_ref_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
         to_ref_type: "case",
         date_of_first_contact: "2026-10-06",
         date_of_last_contact: "2026-10-05",
@@ -50,7 +50,7 @@ describe("graph-related schemas", () => {
 
   it("conflict pair keeps both claims visible", () => {
     const claim = {
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       claim_type: "case_count",
       subject_ref: "KE",
       object_value: { confirmed: 9 },
@@ -62,14 +62,14 @@ describe("graph-related schemas", () => {
     };
     const claimB = {
       ...claim,
-      id: "22222222-2222-2222-2222-222222222222",
+      id: "22222222-2222-4222-8222-222222222222",
       object_value: { confirmed: 11 },
       claim_fingerprint: "fp-b",
       confidence: "news_single" as const,
     };
     const view = ConflictPairViewSchema.parse({
       conflict: {
-        id: "33333333-3333-3333-3333-333333333333",
+        id: "33333333-3333-4333-8333-333333333333",
         claim_a_id: claim.id,
         claim_b_id: claimB.id,
         subject_ref: "KE",
@@ -86,7 +86,7 @@ describe("graph-related schemas", () => {
 
   it("parses contact person", () => {
     const p = PersonSchema.parse({
-      id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+      id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       visual_id: "KE-C-001",
       dataset: "production",
       role: "contact",
@@ -120,8 +120,8 @@ describe("graph-related schemas", () => {
     expect(cd.tracking_mode).toBe("aggregate");
 
     const leg = TravelLegSchema.parse({
-      id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
-      person_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      person_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       departed_at: "2026-09-28",
       arrived_at: "2026-09-29",
       mode: "air",
@@ -131,8 +131,8 @@ describe("graph-related schemas", () => {
     expect(leg.mode).toBe("air");
 
     const hosp = HospitalizationSchema.parse({
-      id: "99999999-9999-9999-9999-999999999999",
-      case_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "99999999-9999-4999-8999-999999999999",
+      case_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       admitted_at: "2026-10-03",
       discharged_at: "2026-10-05",
       facility_name: "Kenyatta National Hospital",

@@ -5,8 +5,8 @@ const DateTimeOrDateSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}(T[\d:.+-Z]+)?$/);
 
 export const TravelLegSchema = z.object({
-  id: z.string().uuid(),
-  person_id: z.string().uuid(),
+  id: z.uuid(),
+  person_id: z.uuid(),
   departed_at: DateTimeOrDateSchema.nullable().optional(),
   arrived_at: DateTimeOrDateSchema.nullable().optional(),
   mode: z.enum(["air", "land", "unknown"]).default("unknown"),
