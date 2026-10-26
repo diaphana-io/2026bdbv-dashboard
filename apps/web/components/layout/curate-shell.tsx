@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { CurateDataSource } from "@/lib/curate-data-source";
-import { AppShell } from "./app-shell";
+import { AppShell } from "../shared/app-shell";
 import { CurateSidebar } from "./curate-sidebar";
 
 export function CurateShell({

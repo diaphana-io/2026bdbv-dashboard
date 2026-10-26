@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { MapUiProvider } from "../map/map-ui-context";
 import { PanelHost } from "../panels/panel-host";
-import { AppShell } from "./app-shell";
+import { AppShell } from "../shared/app-shell";
 import { MapSidebar } from "./map-sidebar";
 
 /**
