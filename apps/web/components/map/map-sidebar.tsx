@@ -29,6 +29,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { withBasePath } from "@/lib/base-path";
@@ -38,6 +39,7 @@ import {
 } from "@/lib/tracked-countries";
 import { cn } from "@/lib/utils";
 import { BrandLink } from "../shared/brand-link";
+import { BuyMeACoffeeButton } from "../shared/buy-me-a-coffee-button";
 import { ModeToggle } from "../shared/mode-toggle";
 import {
   useMapUi,
@@ -157,7 +159,6 @@ export function MapSidebar() {
     setPersistPanelLayout,
     resetPanelPositions,
     activateCaseTracking,
-    activateCaseStats,
   } = useMapUi();
 
   const labelsOn = layers.countryNames && layers.cities;
@@ -166,13 +167,16 @@ export function MapSidebar() {
     <Sidebar collapsible="offcanvas" variant="floating">
       <SidebarHeader className="gap-2 border-b border-sidebar-border px-3 py-3">
         <div className="flex items-start justify-between gap-2">
-          <BrandLink className="flex-1" />
-          <Button variant="outline" size="xs" asChild>
-            <Link href="/curate" target="_blank" rel="noopener noreferrer">
-              Curate
-              <ExternalLinkIcon data-icon="inline-end" />
-            </Link>
-          </Button>
+          <BrandLink className="min-w-0 flex-1" />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="outline" size="xs" asChild>
+              <Link href="/curate" target="_blank" rel="noopener noreferrer">
+                Curate
+                <ExternalLinkIcon data-icon="inline-end" />
+              </Link>
+            </Button>
+            <SidebarTrigger />
+          </div>
         </div>
       </SidebarHeader>
 
@@ -248,17 +252,6 @@ export function MapSidebar() {
                     />
                   </SidebarMenuSubItem>
                 ))}
-                <SidebarMenuSubItem>
-                  <ToggleRow
-                    id="layer-claims"
-                    label="Claims"
-                    checked={layers.claims}
-                    onCheckedChange={(checked) => {
-                      if (checked) activateCaseStats();
-                      setLayerVisible("claims", checked);
-                    }}
-                  />
-                </SidebarMenuSubItem>
               </NavSection>
 
               <NavSection icon={<GlobeIcon />} label="Map layers" defaultOpen>
@@ -412,6 +405,7 @@ export function MapSidebar() {
             <div className="flex w-full items-center justify-between gap-1 px-1">
               <ModeToggle />
               <div className="flex items-center gap-1">
+                <BuyMeACoffeeButton />
                 <SidebarMenuButton asChild tooltip="GitHub repository">
                   <a
                     href={GITHUB_REPO}

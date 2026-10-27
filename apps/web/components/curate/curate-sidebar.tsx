@@ -27,10 +27,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import type { CurateDataSource } from "@/lib/curate-data-source";
 import { withBasePath } from "@/lib/base-path";
 import { BrandLink } from "../shared/brand-link";
+import { BuyMeACoffeeButton } from "../shared/buy-me-a-coffee-button";
 import { ModeToggle } from "../shared/mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
@@ -169,13 +171,16 @@ export function CurateSidebar({
     <Sidebar collapsible="offcanvas" variant="sidebar">
       <SidebarHeader className="gap-2 border-b border-sidebar-border px-3 py-3">
         <div className="flex items-start justify-between gap-2">
-          <BrandLink className="flex-1" />
-          <Button variant="outline" size="xs" asChild>
-            <Link href="/" target="_blank" rel="noopener noreferrer">
-              Map
-              <ExternalLinkIcon data-icon="inline-end" />
-            </Link>
-          </Button>
+          <BrandLink className="min-w-0 flex-1" />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="outline" size="xs" asChild>
+              <Link href="/" target="_blank" rel="noopener noreferrer">
+                Map
+                <ExternalLinkIcon data-icon="inline-end" />
+              </Link>
+            </Button>
+            <SidebarTrigger />
+          </div>
         </div>
       </SidebarHeader>
 
@@ -208,6 +213,7 @@ export function CurateSidebar({
             <div className="flex w-full items-center justify-between gap-1 px-1">
               <ModeToggle />
               <div className="flex items-center gap-1">
+                <BuyMeACoffeeButton />
                 <SidebarMenuButton asChild tooltip="GitHub repository">
                   <a
                     href={GITHUB_REPO}

@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { AppShell } from "../shared/app-shell";
+import { CaseStatsDotsDisclaimer } from "./case-stats-dots-disclaimer";
+import { MapLegend } from "./map-legend";
+import { MapSidebar } from "./map-sidebar";
 import { MapUiProvider } from "./map-ui-context";
 import { PanelHost } from "./panels/panel-host";
-import { AppShell } from "../shared/app-shell";
-import { MapSidebar } from "./map-sidebar";
 
 /**
  * Map-first shell: locks document scroll and fills the viewport so the Navara
@@ -35,10 +38,17 @@ export function MapShell({ children }: { children: ReactNode }) {
       <AppShell
         variant="map"
         sidebar={<MapSidebar />}
-        insetOverlay={<PanelHost />}
+        insetOverlay={
+          <>
+            <MapLegend />
+            <PanelHost />
+            <CaseStatsDotsDisclaimer />
+          </>
+        }
       >
         {children}
       </AppShell>
+      <Toaster position="bottom-right" closeButton={false} />
     </MapUiProvider>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BrandLink } from "./brand-link";
+import { BuyMeACoffeeButton } from "./buy-me-a-coffee-button";
 import { ModeToggle } from "./mode-toggle";
 
 const links: { href: string; label: string; newTab?: boolean }[] = [
@@ -45,6 +46,7 @@ export function AppNav() {
         </nav>
         <div className="ml-auto flex items-center gap-1">
           <ModeToggle />
+          <BuyMeACoffeeButton />
           <Button variant="ghost" size="icon" asChild>
             <a
               href={GITHUB_REPO}

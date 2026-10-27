@@ -18,6 +18,8 @@ export type CdAdminLayerHandle = {
   setVisible: (visible: boolean) => void;
   setLevelMode: (mode: BoundaryLevelMode) => void;
   setAggregates: (aggregates: MapAggregate[]) => void;
+  /** When true (CD Case Stats on), near-invisible pick fills are shown for hover. */
+  setHoverEnabled: (enabled: boolean) => void;
   destroy: () => void;
 };
 
@@ -28,9 +30,16 @@ type FeatureCollection = {
   features: Array<{
     type: "Feature";
     properties: Record<string, unknown>;
-    geometry: unknown;
+    geometry:
+      | { type: "Polygon"; coordinates: number[][][] }
+      | { type: "MultiPolygon"; coordinates: number[][][][] };
   }>;
 };
+
+/** Navara geojson source accepts GeoJSON; our COD-AB casts are slightly looser. */
+function asGeoJsonData(fc: FeatureCollection) {
+  return fc as never;
+}
 
 /** Camera-height bands (meters). Africa overview ≈ 6_800_000 m. */
 const FAR_MIN_HEIGHT = 4_000_000;
@@ -109,6 +118,41 @@ function outlineLayer(
   });
 }
 
+function withAdminIdentity(
+  fc: FeatureCollection,
+  level: "admin1" | "admin2" | "admin3",
+): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: fc.features.map((f) => {
+      const props = f.properties ?? {};
+      return {
+        ...f,
+        properties: {
+          ...props,
+          kind: "admin-region",
+          admin_level: level,
+          admin0_iso:
+            typeof props["admin0_iso"] === "string" ? props["admin0_iso"] : "CD",
+          name: typeof props["name"] === "string" ? props["name"] : "",
+          adm1_pcode:
+            typeof props["adm1_pcode"] === "string"
+              ? props["adm1_pcode"]
+              : undefined,
+          adm2_pcode:
+            typeof props["adm2_pcode"] === "string"
+              ? props["adm2_pcode"]
+              : undefined,
+          adm3_pcode:
+            typeof props["adm3_pcode"] === "string"
+              ? props["adm3_pcode"]
+              : undefined,
+        },
+      };
+    }),
+  };
+}
+
 function hzFillCollection(
   confirmedByPcode: Map<string, number>,
 ): FeatureCollection {
@@ -131,30 +175,58 @@ function hzFillCollection(
   };
 }
 
+function pickFillLayer(view: View, source: Source, show: boolean): Layer {
+  return view.addLayer({
+    type: "vector",
+    source,
+    polygon: {
+      color: new Color().setStyle("#000000"),
+      opacity: 0.01,
+      transparent: true,
+      clampToGround: true,
+      show,
+    },
+  });
+}
+
 /**
  * DRC COD-AB province / territory / health-zone outlines with camera-height LOD.
  * Near band may fill health zones from existing MapSnapshot.aggregates
  * (`admin_iso` ↔ `adm3_pcode`). Country-total `admin_iso: "CD"` does not match
  * any HZ — provisional fill-less state until zone-level aggregates exist.
+ * Pick fills carry thin identity props for featureHover → HoverCard.
  */
 export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
   view.attribution?.add([COD_AB_ATTRIBUTION]);
 
   const provinceSource = view.addSource({
     type: "geojson",
-    data: provinces,
+    data: asGeoJsonData(provinces),
   });
   const territorySource = view.addSource({
     type: "geojson",
-    data: territories,
+    data: asGeoJsonData(territories),
   });
   const hzOutlineSource = view.addSource({
     type: "geojson",
-    data: healthZones,
+    data: asGeoJsonData(healthZones),
   });
   let hzFillSource = view.addSource({
     type: "geojson",
-    data: hzFillCollection(new Map()),
+    data: asGeoJsonData(hzFillCollection(new Map())),
+  });
+
+  const provincePickSource = view.addSource({
+    type: "geojson",
+    data: asGeoJsonData(withAdminIdentity(provinces, "admin1")),
+  });
+  const territoryPickSource = view.addSource({
+    type: "geojson",
+    data: asGeoJsonData(withAdminIdentity(territories, "admin2")),
+  });
+  const hzPickSource = view.addSource({
+    type: "geojson",
+    data: asGeoJsonData(withAdminIdentity(healthZones, "admin3")),
   });
 
   let hzFill = view.addLayer({
@@ -183,8 +255,13 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
   );
   let hzOutline = outlineLayer(view, hzOutlineSource, LINE.healthZone, false);
 
+  let provincePick = pickFillLayer(view, provincePickSource, false);
+  let territoryPick = pickFillLayer(view, territoryPickSource, false);
+  let hzPick = pickFillLayer(view, hzPickSource, false);
+
   let maxConfirmed = 0;
   let visible = true;
+  let hoverEnabled = false;
   let levelMode: BoundaryLevelMode = "auto";
   let band: LodBand = "far";
   let hasHzClaims = false;
@@ -210,12 +287,36 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
   }
   wireHzFillColors(hzFill);
 
+  /** Which admin LOD is active for outlines / pick fills. */
+  function activePickLevel(): "admin1" | "admin2" | "admin3" {
+    if (levelMode === "admin1") return "admin1";
+    if (levelMode === "admin2") return "admin2";
+    if (levelMode === "admin3") return "admin3";
+    if (band === "far") return "admin1";
+    if (band === "mid") return "admin2";
+    return "admin3";
+  }
+
+  function applyPickFills() {
+    if (!hoverEnabled) {
+      provincePick.update({ polygon: { show: false } });
+      territoryPick.update({ polygon: { show: false } });
+      hzPick.update({ polygon: { show: false } });
+      return;
+    }
+    const level = activePickLevel();
+    provincePick.update({ polygon: { show: level === "admin1" } });
+    territoryPick.update({ polygon: { show: level === "admin2" } });
+    hzPick.update({ polygon: { show: level === "admin3" } });
+  }
+
   function applyVisibility() {
     if (!visible) {
       provinceOutline.update({ polyline: { show: false } });
       territoryOutline.update({ polyline: { show: false } });
       hzOutline.update({ polyline: { show: false } });
       hzFill.update({ polygon: { show: false } });
+      applyPickFills();
       return;
     }
 
@@ -226,6 +327,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       territoryOutline.update({ polyline: { show: false } });
       hzOutline.update({ polyline: { show: false } });
       hzFill.update({ polygon: { show: false } });
+      applyPickFills();
       return;
     }
 
@@ -236,6 +338,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       });
       hzOutline.update({ polyline: { show: false } });
       hzFill.update({ polygon: { show: false } });
+      applyPickFills();
       return;
     }
 
@@ -244,6 +347,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       territoryOutline.update({ polyline: { show: false } });
       hzOutline.update({ polyline: { show: true } });
       hzFill.update({ polygon: { show: hasHzClaims } });
+      applyPickFills();
       return;
     }
 
@@ -255,6 +359,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       territoryOutline.update({ polyline: { show: false } });
       hzOutline.update({ polyline: { show: false } });
       hzFill.update({ polygon: { show: false } });
+      applyPickFills();
       return;
     }
     if (band === "mid") {
@@ -264,6 +369,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       territoryOutline.update({ polyline: { show: true } });
       hzOutline.update({ polyline: { show: false } });
       hzFill.update({ polygon: { show: false } });
+      applyPickFills();
       return;
     }
     provinceOutline.update({ polyline: { show: false } });
@@ -272,6 +378,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
     });
     hzOutline.update({ polyline: { show: true } });
     hzFill.update({ polygon: { show: hasHzClaims } });
+    applyPickFills();
   }
 
   function syncFromCamera() {
@@ -309,6 +416,11 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       }
       applyVisibility();
     },
+    setHoverEnabled(enabled) {
+      if (hoverEnabled === enabled) return;
+      hoverEnabled = enabled;
+      applyPickFills();
+    },
     setAggregates(aggregates) {
       const confirmedByPcode = new Map<string, number>();
       maxConfirmed = 0;
@@ -322,6 +434,7 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
 
       if (!hasHzClaims) {
         hzFill.update({ polygon: { show: false } });
+        applyPickFills();
         return;
       }
 
@@ -331,10 +444,13 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       provinceOutline.delete();
       territoryOutline.delete();
       hzOutline.delete();
+      provincePick.delete();
+      territoryPick.delete();
+      hzPick.delete();
 
       hzFillSource = view.addSource({
         type: "geojson",
-        data: hzFillCollection(confirmedByPcode),
+        data: asGeoJsonData(hzFillCollection(confirmedByPcode)),
       });
       hzFill = view.addLayer({
         type: "vector",
@@ -362,6 +478,9 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
         false,
       );
       hzOutline = outlineLayer(view, hzOutlineSource, LINE.healthZone, false);
+      provincePick = pickFillLayer(view, provincePickSource, false);
+      territoryPick = pickFillLayer(view, territoryPickSource, false);
+      hzPick = pickFillLayer(view, hzPickSource, false);
       applyVisibility();
     },
     destroy() {
@@ -372,9 +491,15 @@ export function attachCdAdminLayer(view: View): CdAdminLayerHandle {
       provinceOutline.delete();
       territoryOutline.delete();
       hzOutline.delete();
+      provincePick.delete();
+      territoryPick.delete();
+      hzPick.delete();
       provinceSource.delete();
       territorySource.delete();
       hzOutlineSource.delete();
+      provincePickSource.delete();
+      territoryPickSource.delete();
+      hzPickSource.delete();
     },
   };
 }

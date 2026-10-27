@@ -19,21 +19,25 @@ import {
 } from "./basemap-style";
 import {
   allStatsPanelIds,
+  computeDefaultPanelPositions,
   PANEL_DEFAULTS,
   PANEL_IDS,
 } from "./panels/defaults";
 import type { PanelId, PanelPosition, PanelSize } from "./panels/types";
 import {
+  parseStatsPanelId,
   statsPanelId,
+  TRACKED_COUNTRIES,
   type TrackedCountryIso,
 } from "@/lib/tracked-countries";
 
 /**
+ * v10: claims derived from open stats countries; viewport panel defaults.
  * v9: persistPanelLayout opt-in; panel sizes; react-rnd layout.
- * v8: boundaryLevel pin (auto / admin1–3) for DRC COD-AB outlines.
  */
-const STORAGE_KEY = "bdbv-map-ui-v9";
+const STORAGE_KEY = "bdbv-map-ui-v10";
 const PREV_STORAGE_KEYS = [
+  "bdbv-map-ui-v9",
   "bdbv-map-ui-v8",
   "bdbv-map-ui-v7",
   "bdbv-map-ui-v6",
@@ -66,7 +70,6 @@ export type LayerVisibility = {
   countryNames: boolean;
   cities: boolean;
   cases: boolean;
-  claims: boolean;
   exposures: boolean;
   travels: boolean;
 };
@@ -78,7 +81,7 @@ type PersistedMapUi = {
   panelPositions?: Partial<Record<PanelId, PanelPosition>>;
   panelSizes?: Partial<Record<PanelId, PanelSize>>;
   persistPanelLayout?: boolean;
-  layers?: Partial<LayerVisibility>;
+  layers?: Partial<LayerVisibility> & { claims?: boolean };
   basemapId?: BasemapId;
   syncBasemapToUiTheme?: boolean;
   boundaryLevel?: BoundaryLevel;
@@ -99,6 +102,8 @@ type MapUiContextValue = {
   panelSizes: Record<PanelId, PanelSize>;
   persistPanelLayout: boolean;
   layers: LayerVisibility;
+  /** Country ISOs with an open Case Stats panel — drives claims dots. */
+  enabledStatsIsos: TrackedCountryIso[];
   basemapId: BasemapId;
   syncBasemapToUiTheme: boolean;
   boundaryLevel: BoundaryLevel;
@@ -126,7 +131,7 @@ type MapUiContextValue = {
   /** Open one country's stats panel (activates Case Stats group). */
   openCountryStats: (iso: TrackedCountryIso) => void;
   setStatsPanelOpen: (iso: TrackedCountryIso, open: boolean) => void;
-  /** Enable Case Tracking group; turns off Case Stats panels + Claims. */
+  /** Enable Case Tracking group; turns off Case Stats panels. */
   activateCaseTracking: () => void;
   /** Enable Case Stats group; turns off Case Tracking panels + case layers. */
   activateCaseStats: () => void;
@@ -144,7 +149,18 @@ function defaultOpenPanels(): Record<PanelId, boolean> {
   return out;
 }
 
-function defaultPanelPositions(): Record<PanelId, PanelPosition> {
+function defaultPanelPositions(
+  vw?: number,
+  vh?: number,
+): Record<PanelId, PanelPosition> {
+  if (
+    typeof vw === "number" &&
+    typeof vh === "number" &&
+    Number.isFinite(vw) &&
+    Number.isFinite(vh)
+  ) {
+    return computeDefaultPanelPositions(vw, vh);
+  }
   const out = {} as Record<PanelId, PanelPosition>;
   for (const id of PANEL_IDS) {
     out[id] = { ...PANEL_DEFAULTS[id].defaultPosition };
@@ -160,19 +176,39 @@ function defaultPanelSizes(): Record<PanelId, PanelSize> {
   return out;
 }
 
+/** Match Case Stats default (stats-CD open): Case Tracking layers off. */
 const DEFAULT_LAYERS: LayerVisibility = {
   boundaries: true,
   countryNames: true,
   cities: true,
-  cases: true,
-  claims: true,
-  exposures: true,
-  travels: true,
+  cases: false,
+  exposures: false,
+  travels: false,
 };
 
 function resolveUiFontSize(value: unknown): UiFontSize {
   if (value === "sm" || value === "md" || value === "lg") return value;
   return "md";
+}
+
+function stripClaimsFromLayers(
+  layers: (Partial<LayerVisibility> & { claims?: boolean }) | undefined,
+): Partial<LayerVisibility> {
+  if (!layers) return {};
+  const { claims: _claims, ...rest } = layers;
+  return rest;
+}
+
+function enabledStatsIsosFromPanels(
+  openPanels: Record<PanelId, boolean>,
+): TrackedCountryIso[] {
+  const out: TrackedCountryIso[] = [];
+  for (const country of TRACKED_COUNTRIES) {
+    if (openPanels[statsPanelId(country.iso)]) {
+      out.push(country.iso);
+    }
+  }
+  return out;
 }
 
 function readPersisted(): PersistedMapUi | null {
@@ -195,9 +231,8 @@ function readPersisted(): PersistedMapUi | null {
       persistPanelLayout: parsed.persistPanelLayout === true,
       uiFontSize: resolveUiFontSize(parsed.uiFontSize),
       layers: {
-        ...parsed.layers,
+        ...stripClaimsFromLayers(parsed.layers),
         boundaries: true,
-        claims: parsed.layers?.claims ?? true,
       },
     };
   } catch {
@@ -207,7 +242,11 @@ function readPersisted(): PersistedMapUi | null {
 
 function mergeInitialState(persisted: PersistedMapUi | null) {
   const openPanels = defaultOpenPanels();
-  const panelPositions = defaultPanelPositions();
+  const vw =
+    typeof window !== "undefined" ? window.innerWidth : undefined;
+  const vh =
+    typeof window !== "undefined" ? window.innerHeight : undefined;
+  const panelPositions = defaultPanelPositions(vw, vh);
   const panelSizes = defaultPanelSizes();
   if (persisted?.openPanels) {
     for (const id of PANEL_IDS) {
@@ -240,7 +279,7 @@ function mergeInitialState(persisted: PersistedMapUi | null) {
   }
   const layers: LayerVisibility = {
     ...DEFAULT_LAYERS,
-    ...persisted?.layers,
+    ...stripClaimsFromLayers(persisted?.layers),
   };
   return {
     openPanels,
@@ -327,6 +366,26 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setBasemapIdState(basemapIdForUiTheme(resolvedTheme));
   }, [hydrated, syncBasemapToUiTheme, resolvedTheme]);
 
+  // Recompute default panel positions on resize when layout is not persisted.
+  useEffect(() => {
+    if (!hydrated || persistPanelLayout) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const apply = () => {
+      setPanelPositions(
+        computeDefaultPanelPositions(window.innerWidth, window.innerHeight),
+      );
+    };
+    const onResize = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(apply, 150);
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (timer) clearTimeout(timer);
+    };
+  }, [hydrated, persistPanelLayout]);
+
   const setPanelOpen = useCallback((id: PanelId, open: boolean) => {
     setOpenPanels((prev) => ({ ...prev, [id]: open }));
     if (open) setFocusedPanelId(id);
@@ -361,13 +420,12 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
 
   const setPersistPanelLayout = useCallback((persist: boolean) => {
     setPersistPanelLayoutState(persist);
-    if (!persist) {
-      // Keep in-memory layout; stop writing positions on next persist effect.
-    }
   }, []);
 
   const resetPanelPositions = useCallback(() => {
-    setPanelPositions(defaultPanelPositions());
+    setPanelPositions(
+      computeDefaultPanelPositions(window.innerWidth, window.innerHeight),
+    );
     setPanelSizes(defaultPanelSizes());
   }, []);
 
@@ -403,7 +461,6 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       for (const id of allStatsPanelIds()) next[id] = false;
       return next;
     });
-    setLayers((prev) => ({ ...prev, claims: false }));
   }, []);
 
   const activateCaseStats = useCallback(() => {
@@ -450,6 +507,11 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
     setFocusedPanelId(id);
   }, []);
 
+  const enabledStatsIsos = useMemo(
+    () => enabledStatsIsosFromPanels(openPanels),
+    [openPanels],
+  );
+
   const value = useMemo<MapUiContextValue>(
     () => ({
       openPanels,
@@ -457,6 +519,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       panelSizes,
       persistPanelLayout,
       layers,
+      enabledStatsIsos,
       basemapId,
       syncBasemapToUiTheme,
       boundaryLevel,
@@ -489,6 +552,7 @@ export function MapUiProvider({ children }: { children: ReactNode }) {
       panelSizes,
       persistPanelLayout,
       layers,
+      enabledStatsIsos,
       basemapId,
       syncBasemapToUiTheme,
       boundaryLevel,
@@ -527,4 +591,17 @@ export function useMapUi() {
     throw new Error("useMapUi must be used within MapUiProvider");
   }
   return ctx;
+}
+
+/** @deprecated Prefer enabledStatsIsosFromPanels via context; kept for tests. */
+export function resolveEnabledStatsIsos(
+  openPanels: Record<string, boolean>,
+): TrackedCountryIso[] {
+  const out: TrackedCountryIso[] = [];
+  for (const id of Object.keys(openPanels)) {
+    if (!openPanels[id]) continue;
+    const iso = parseStatsPanelId(id);
+    if (iso) out.push(iso);
+  }
+  return out;
 }

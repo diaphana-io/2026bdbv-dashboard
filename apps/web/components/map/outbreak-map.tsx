@@ -12,6 +12,10 @@ import {
   type PapersBasemapColors,
 } from "./basemap-style";
 import { isTrackedCountryIso } from "@/lib/tracked-countries";
+import {
+  AdminRegionHoverCard,
+  type AdminRegionHoverIdentity,
+} from "./admin-region-hover-card";
 import { MapBootStatus } from "./map-boot-status";
 import { useMapUi, type BoundaryLevel } from "./map-ui-context";
 import { TimeSlider } from "./time-slider";
@@ -67,27 +71,37 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<import("@navaramap/three").default | null>(null);
   const layersRef = useRef<LayerBundle | null>(null);
+  /**
+   * Papers NE land borders. While COD-AB is on, FeatureEvaluator hides only
+   * features touching COD (ADM0_A3_L/R) — not a geometry clip of COD-AB edges.
+   */
+  const papersBorderLayerRef = useRef<
+    import("@navaramap/three").Layer | null
+  >(null);
   const removeClickRef = useRef<(() => void) | undefined>(undefined);
+  const removeHoverRef = useRef<(() => void) | undefined>(undefined);
   const snapshotRef = useRef(initialSnapshot);
   const asOfRef = useRef(initialSnapshot.asOf);
+  const pointerRef = useRef({ clientX: 0, clientY: 0 });
+  const cdStatsOnRef = useRef(false);
   const visibilityRef = useRef<{
     boundaries: boolean;
     countryNames: boolean;
     cities: boolean;
     cases: boolean;
-    claims: boolean;
     exposures: boolean;
     travels: boolean;
     boundaryLevel: BoundaryLevel;
+    enabledStatsIsos: string[];
   }>({
     boundaries: true,
     countryNames: true,
     cities: true,
     cases: true,
-    claims: true,
     exposures: true,
     travels: true,
     boundaryLevel: "auto",
+    enabledStatsIsos: [],
   });
   const cameraRef = useRef<ViewCamera>(DEFAULT_CAMERA);
   const bootGenerationRef = useRef(0);
@@ -96,6 +110,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     basemapId,
     layers,
     boundaryLevel,
+    enabledStatsIsos,
     openCaseDetail,
     openCountryStats,
     selectedCaseId,
@@ -110,23 +125,33 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
   const [loading, setLoading] = useState<string | null>("navara");
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [regionHover, setRegionHover] =
+    useState<AdminRegionHoverIdentity | null>(null);
 
   snapshotRef.current = snapshot;
   asOfRef.current = asOf;
-  visibilityRef.current = { ...layers, boundaryLevel };
+  cdStatsOnRef.current = enabledStatsIsos.includes("CD");
+  visibilityRef.current = {
+    ...layers,
+    boundaryLevel,
+    enabledStatsIsos: [...enabledStatsIsos],
+  };
 
   function applyLayerVisibility(bundle: LayerBundle) {
     const vis = visibilityRef.current;
     bundle.boundaries.setVisible(vis.boundaries);
     bundle.boundaries.setLevelMode(vis.boundaryLevel);
+    bundle.boundaries.setHoverEnabled(vis.enabledStatsIsos.includes("CD"));
     bundle.labels.setCountryNamesVisible(vis.countryNames);
     bundle.labels.setCitiesVisible(vis.cities);
     bundle.cases.setCasesVisible(vis.cases);
-    bundle.cases.setClaimsVisible(vis.claims);
+    bundle.cases.setClaimsCountries(vis.enabledStatsIsos);
     bundle.cases.setBoundaryLevel(vis.boundaryLevel);
     bundle.cases.setAsOf(asOfRef.current);
     bundle.exposures.setVisible(vis.exposures);
     bundle.travels.setVisible(vis.travels);
+    // Re-run COD border filter (evaluator reads visibilityRef.boundaries).
+    papersBorderLayerRef.current?.forceUpdate();
   }
 
   function wireFeatureClick(
@@ -147,6 +172,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         openCaseDetailRef.current(id);
         return;
       }
+      if (kind === "admin-region") return;
       const rawIso = props["admin0_iso"] ?? props["iso"];
       if (typeof rawIso === "string" && isTrackedCountryIso(rawIso)) {
         openCountryStatsRef.current(rawIso);
@@ -158,7 +184,78 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     };
   }
 
+  function wireFeatureHover(
+    view: import("@navaramap/three").default,
+    container: HTMLElement,
+  ): () => void {
+    let activeProps: Record<string, unknown> | null = null;
+
+    const publishHover = () => {
+      if (!cdStatsOnRef.current || !activeProps) {
+        setRegionHover(null);
+        return;
+      }
+      const props = activeProps;
+      const admin0 =
+        typeof props["admin0_iso"] === "string" ? props["admin0_iso"] : "CD";
+      if (admin0 !== "CD" || props["kind"] !== "admin-region") {
+        setRegionHover(null);
+        return;
+      }
+      const { clientX, clientY } = pointerRef.current;
+      setRegionHover({
+        admin0_iso: admin0,
+        name: typeof props["name"] === "string" ? props["name"] : "",
+        adm1_pcode:
+          typeof props["adm1_pcode"] === "string"
+            ? props["adm1_pcode"]
+            : undefined,
+        adm2_pcode:
+          typeof props["adm2_pcode"] === "string"
+            ? props["adm2_pcode"]
+            : undefined,
+        adm3_pcode:
+          typeof props["adm3_pcode"] === "string"
+            ? props["adm3_pcode"]
+            : undefined,
+        clientX,
+        clientY,
+      });
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      pointerRef.current = { clientX: event.clientX, clientY: event.clientY };
+      if (activeProps) publishHover();
+    };
+    container.addEventListener("pointermove", onPointerMove);
+
+    const onHover = (
+      info:
+        | { properties?: Record<string, unknown> }
+        | null
+        | undefined,
+    ) => {
+      const props = info?.properties;
+      if (!props || props["kind"] !== "admin-region") {
+        activeProps = null;
+        setRegionHover(null);
+        return;
+      }
+      activeProps = props;
+      publishHover();
+    };
+    view.on("featureHover", onHover);
+    return () => {
+      container.removeEventListener("pointermove", onPointerMove);
+      view.off("featureHover", onHover);
+      activeProps = null;
+      setRegionHover(null);
+    };
+  }
+
   async function destroyView() {
+    removeHoverRef.current?.();
+    removeHoverRef.current = undefined;
     removeClickRef.current?.();
     removeClickRef.current = undefined;
     layersRef.current?.travels.destroy();
@@ -167,6 +264,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     layersRef.current?.labels.destroy();
     layersRef.current?.boundaries.destroy();
     layersRef.current = null;
+    papersBorderLayerRef.current = null;
     const view = viewRef.current;
     viewRef.current = null;
     if (view) {
@@ -199,7 +297,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     tileJsonPlugin: import("@navaramap/three-plugins").TileJsonPlugin,
     Color: typeof import("@navaramap/three").Color,
     colors: PapersBasemapColors,
-  ) {
+  ): Promise<import("@navaramap/three").Layer> {
     // Terrain first (render order = add order), then Papers land/borders draped.
     const terrain = view.addSource({
       type: "quantized-mesh",
@@ -235,7 +333,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       },
     });
 
-    view.addLayer({
+    const borderLayer = view.addLayer({
       type: "vector",
       source: basemapSource,
       sourceLayers: ["boundary_lines"],
@@ -249,8 +347,29 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
       },
     });
 
+    // Hide Papers land borders that touch DRC (COD) while COD-AB is visible.
+    // Props exist at z≥5; at z≤4 they are absent — keep those features shown.
+    borderLayer.on("featureUpdated", ({ evaluator }) => {
+      evaluator.evaluate(
+        ({ properties }) => {
+          if (!visibilityRef.current.boundaries) {
+            return { show: true };
+          }
+          const left = properties?.["ADM0_A3_L"];
+          const right = properties?.["ADM0_A3_R"];
+          if (typeof left !== "string" && typeof right !== "string") {
+            return { show: true };
+          }
+          const touchesCd = left === "COD" || right === "COD";
+          return { show: !touchesCd };
+        },
+        { filters: ["ADM0_A3_L", "ADM0_A3_R"] },
+      );
+    });
+
     // Papers credit arrives via TileJsonPlugin; only terrain is hand-written.
     view.attribution?.add([TERRAIN_ATTRIBUTION]);
+    return borderLayer;
   }
 
   async function bootView(bootId: BasemapId, generation: number) {
@@ -310,12 +429,18 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     });
     view.toneMappingExposure = entry.toneMappingExposure;
 
-    await attachPapersBasemap(view, tileJsonPlugin, Color, entry.colors);
+    const papersBorder = await attachPapersBasemap(
+      view,
+      tileJsonPlugin,
+      Color,
+      entry.colors,
+    );
     if (generation !== bootGenerationRef.current) {
       view.dispose();
       viewRef.current = null;
       return;
     }
+    papersBorderLayerRef.current = papersBorder;
 
     const cam = cameraRef.current;
     view.setCamera(cam);
@@ -362,6 +487,7 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     layersRef.current = bundle;
     applyLayerVisibility(bundle);
     removeClickRef.current = wireFeatureClick(view);
+    removeHoverRef.current = wireFeatureHover(view, containerRef.current);
 
     setLoading(null);
     setMapReady(true);
@@ -404,7 +530,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
     const bundle = layersRef.current;
     if (!bundle || !mapReady) return;
     applyLayerVisibility(bundle);
-  }, [layers, boundaryLevel, mapReady]);
+    if (!enabledStatsIsos.includes("CD")) {
+      setRegionHover(null);
+    }
+  }, [layers, boundaryLevel, enabledStatsIsos, mapReady]);
 
   useEffect(() => {
     if (selectedCaseId) return;
@@ -453,6 +582,10 @@ export function OutbreakMap({ initialSnapshot, minDate, maxDate }: Props) {
         style={{ backgroundColor: SPACE_COLOR }}
       />
       <MapBootStatus loading={loading} error={mapError} />
+      <AdminRegionHoverCard
+        identity={regionHover}
+        aggregates={snapshot.aggregates}
+      />
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
         <TimeSlider
           min={minDate}
