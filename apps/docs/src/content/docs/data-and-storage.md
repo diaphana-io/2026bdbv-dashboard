@@ -3,7 +3,7 @@ title: Data and storage
 description: Why the dashboard separates zone counts from case pathways — and how that helps infectious-disease modeling.
 ---
 
-For table names, keys, and graph labels, see [Database structure](./database-structure/).
+For table names, keys, and graph labels, see [Database structure](/docs/database-structure/).
 
 ## The questions an outbreak forces you to ask
 
@@ -112,7 +112,7 @@ flowchart TB
   claims -.-> snap
 ```
 
-Schemas, keys, and edges are spelled out on [Database structure](./database-structure/). The split is intentional: one source of truth per kind of fact, one outbreak picture in the product.
+Schemas, keys, and edges are spelled out on [Database structure](/docs/database-structure/). The split is intentional: one source of truth per kind of fact, one outbreak picture in the product.
 
 ## Three clocks
 
@@ -154,4 +154,4 @@ flowchart LR
   open --> dash
 ```
 
-For live maps and curated claims, open the [dashboard](https://2026bdbv.diaphana.io/app). For how Claim and Case are stored, continue to [Database structure](./database-structure/).
+For live maps and curated claims, open the [dashboard](https://2026bdbv.diaphana.io/app). For how Claim and Case are stored, continue to [Database structure](/docs/database-structure/).
