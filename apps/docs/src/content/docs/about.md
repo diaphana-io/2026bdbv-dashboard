@@ -1,15 +1,21 @@
 ---
 title: About
-description: Who maintains the 2026 BDBV outbreak dashboard and what the application does.
+description: Diaphana, LLC, the founder behind this project, and what the 2026 BDBV outbreak dashboard does.
 sidebar:
   order: 2
 ---
 
-## Who we are
+## Diaphana, LLC
 
-### Matt Sakamaki, MD, MPH
+**Diaphana, LLC** maintains the public [2026 BDBV outbreak dashboard](https://2026bdbv.diaphana.io/app) and this companion documentation site. The company focuses on practical public-health information tools: making outbreak evidence easier to inspect, compare across sources, and use without replacing official WHO or national ministry reporting.
 
-Matt Sakamaki is a physician from Japan and holds a Master of Public Health from the Johns Hopkins Bloomberg School of Public Health, with focus areas in epidemiology, social epidemiology, and behavioral sciences.
+Diaphana publishes open project work under the [diaphana-io](https://github.com/diaphana-io) GitHub organization. For how visitor data is handled on these sites, see the [Privacy Policy](/docs/privacy/).
+
+### Founder
+
+#### Matt Sakamaki, MD, MPH
+
+Matt Sakamaki is Founder of Diaphana, LLC. He is a physician from Japan and holds a Master of Public Health from the Johns Hopkins Bloomberg School of Public Health, with focus areas in epidemiology, social epidemiology, and behavioral sciences.
 
 He trained at the School of Medicine, Niigata University (2016–2023), then worked as a junior resident and staff physician in nephrology at Kashiwazaki General Medical Center (JA Niigata Koseiren, 2023–2025), providing community-based care in a rural, super-aging setting. There he saw that long-standing health promotion activities often lacked quantitative evaluation, and that many drivers of local health disparities sit outside routine clinical and administrative data. That experience led him to public health: closing the gap between social-determinants research and practical tools clinicians and communities can use.
 

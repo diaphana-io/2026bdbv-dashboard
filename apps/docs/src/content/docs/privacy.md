@@ -1,19 +1,17 @@
 ---
 title: Privacy Policy
-description: How Diaphana LLC processes personal data for the public 2026 BDBV outbreak dashboard and documentation site (GDPR-oriented notice).
+description: How Diaphana, LLC processes personal data for the public 2026 BDBV outbreak dashboard and documentation site (GDPR-oriented notice).
 ---
 
 **Last updated:** 26 October 2026
 
-This notice explains how **Diaphana LLC** (the data controller) processes personal data when you use the public [interactive dashboard](https://2026bdbv.diaphana.io/app) and this documentation site at `/docs`. The notice is written in English and is structured for GDPR-style transparency (including Article 13).
-
-For project background, see [About](/docs/about/).
+This Privacy Policy describes how we process personal data for the public dashboard and documentation site.
 
 ## Data controller
 
-**Diaphana LLC** is the data controller for processing described in this notice.
+**Diaphana, LLC** is the data controller for processing described in this notice.
 
-Contact channels are listed under [Contact](#contact). Diaphana LLC does not publish a separate corporate website in this notice.
+Contact channels are listed under [Contact](#contact).
 
 ## What this notice covers
 
