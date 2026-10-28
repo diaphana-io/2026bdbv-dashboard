@@ -1,8 +1,9 @@
 import { bindings, defineConfig, defineWorker, triggers } from "cf/config";
+// Explicit .ts extension: Workers Builds loads this file via Node ESM.
 import {
   APP_WORKER_FETCH_PATTERNS,
   CURATE_WORKER_FETCH_PATTERNS,
-} from "./lib/worker-routes";
+} from "./lib/worker-routes.ts";
 
 /**
  * Dual Worker seam (still one git repo):
