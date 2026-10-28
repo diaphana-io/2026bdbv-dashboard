@@ -2,7 +2,6 @@ import {
   isNeo4jConfigured,
   readNeo4jEnv,
   resolveNeo4jDatabase,
-  verifyConnectivity,
   withSession,
 } from "../../../../lib/neo4j";
 
@@ -16,8 +15,8 @@ export async function GET() {
   }
 
   try {
-    await verifyConnectivity(env);
     const database = resolveNeo4jDatabase(env);
+    // Single timed session covers connectivity + count (B9 / no 1101).
     const nodeCount = await withSession(async (session) => {
       const res = await session.run("MATCH (n) RETURN count(n) AS n");
       const n = res.records[0]?.get("n");
