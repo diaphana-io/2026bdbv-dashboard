@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ResolveStatus } from "@/lib/curate-api";
 import { withBasePath } from "@/lib/base-path";
+import { curateApiPath } from "@/lib/curate-surface";
 
 export function ResolveConflictActions({ conflictId }: { conflictId: string }) {
   const [status, setStatus] = useState<string | null>(null);
@@ -14,7 +15,7 @@ export function ResolveConflictActions({ conflictId }: { conflictId: string }) {
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/resolve-conflict"), {
+      const res = await fetch(withBasePath(curateApiPath("resolve-conflict")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conflict_id: conflictId, status: next }),

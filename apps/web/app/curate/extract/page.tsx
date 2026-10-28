@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Claim Extract stage (Claim track only). Production keeps EXTRACT_ENABLED=false.
@@ -64,10 +65,10 @@ export default async function CurateClaimExtractPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/catalog">Open Catalog</Link>
+              <Link href={curateHref("catalog")}>Open Catalog</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/review">Claim Review</Link>
+              <Link href={curateHref("review")}>Claim Review</Link>
             </Button>
           </div>
         </CardContent>

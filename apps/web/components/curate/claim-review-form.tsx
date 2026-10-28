@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { withBasePath } from "../../lib/base-path";
+import { curateApiPath } from "../../lib/curate-surface";
 import {
   CLAIM_CATEGORIES,
   claimCategoryForType,
@@ -31,7 +32,7 @@ export function ClaimReviewForm({ sourceUrl }: { sourceUrl: string }) {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/review-claim"), {
+      const res = await fetch(withBasePath(curateApiPath("review-claim")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Case Extract placeholder — Claim Extract (/curate/extract) must not be reused.
@@ -28,7 +29,7 @@ export default function CurateCaseExtractPage() {
             is follow-up (out of scope for this Curate UI slice).
           </p>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/curate/cases">Back to Cases</Link>
+            <Link href={curateHref("cases")}>Back to Cases</Link>
           </Button>
         </CardContent>
       </Card>

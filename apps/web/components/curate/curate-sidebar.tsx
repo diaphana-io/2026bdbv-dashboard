@@ -31,12 +31,14 @@ import {
 } from "@/components/ui/sidebar";
 import type { CurateDataSource } from "@/lib/curate-data-source";
 import { withBasePath } from "@/lib/base-path";
+import { curateHref, isCurateSurface } from "@/lib/curate-surface";
 import { BrandLink } from "../shared/brand-link";
 import { BuyMeACoffeeButton } from "../shared/buy-me-a-coffee-button";
 import { ModeToggle } from "../shared/mode-toggle";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
+const MAP_PUBLIC_URL = "https://2026bdbv.diaphana.io/app";
 const NEO4J_URL = "https://neo4j.com/";
 const NAVARA_URL = "https://navara.world/";
 
@@ -45,50 +47,60 @@ type NavItem = {
   label: string;
   icon: typeof InboxIcon;
   exact?: boolean;
+  badge?: "inbox" | "conflicts";
 };
 
-const CLAIM_NAV: NavItem[] = [
-  {
-    href: "/curate/overview",
-    label: "Overview",
-    icon: LayoutDashboardIcon,
-    exact: true,
-  },
-  { href: "/curate/inbox", label: "Inbox", icon: InboxIcon },
-  { href: "/curate/catalog", label: "Catalog", icon: BookOpenIcon },
-  { href: "/curate/extract", label: "Extract", icon: SparklesIcon },
-  { href: "/curate/review", label: "Review", icon: FilePenLineIcon },
-  {
-    href: "/curate/conflicts",
-    label: "Conflicts",
-    icon: AlertTriangleIcon,
-  },
-  {
-    href: "/curate/status",
-    label: "Status",
-    icon: ActivityIcon,
-  },
-];
+function claimNav(): NavItem[] {
+  return [
+    {
+      href: curateHref("overview"),
+      label: "Overview",
+      icon: LayoutDashboardIcon,
+      exact: true,
+    },
+    {
+      href: curateHref("inbox"),
+      label: "Inbox",
+      icon: InboxIcon,
+      badge: "inbox",
+    },
+    { href: curateHref("catalog"), label: "Catalog", icon: BookOpenIcon },
+    { href: curateHref("extract"), label: "Extract", icon: SparklesIcon },
+    { href: curateHref("review"), label: "Review", icon: FilePenLineIcon },
+    {
+      href: curateHref("conflicts"),
+      label: "Conflicts",
+      icon: AlertTriangleIcon,
+      badge: "conflicts",
+    },
+    {
+      href: curateHref("status"),
+      label: "Status",
+      icon: ActivityIcon,
+    },
+  ];
+}
 
-const CASE_NAV: NavItem[] = [
-  {
-    href: "/curate/cases",
-    label: "Cases",
-    icon: FolderKanbanIcon,
-    exact: true,
-  },
-  {
-    href: "/curate/cases/extract",
-    label: "Extract",
-    icon: SparklesIcon,
-  },
-  {
-    href: "/curate/cases/review",
-    label: "Review",
-    icon: FilePenLineIcon,
-  },
-];
-
+function caseNav(): NavItem[] {
+  return [
+    {
+      href: curateHref("cases"),
+      label: "Cases",
+      icon: FolderKanbanIcon,
+      exact: true,
+    },
+    {
+      href: curateHref("cases/extract"),
+      label: "Extract",
+      icon: SparklesIcon,
+    },
+    {
+      href: curateHref("cases/review"),
+      label: "Review",
+      icon: FilePenLineIcon,
+    },
+  ];
+}
 function GithubIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -127,12 +139,12 @@ function NavSection({
           {title}
         </p>
       </SidebarMenuItem>
-      {items.map(({ href, label, icon: Icon, exact }) => {
+      {items.map(({ href, label, icon: Icon, exact, badge }) => {
         const active = isActive(pathname, href, exact);
         const count =
-          href === "/curate/inbox"
+          badge === "inbox"
             ? inboxCount
-            : href === "/curate/conflicts"
+            : badge === "conflicts"
               ? conflictCount
               : undefined;
 
@@ -174,7 +186,11 @@ export function CurateSidebar({
           <BrandLink className="min-w-0 flex-1" />
           <div className="flex shrink-0 items-center gap-1">
             <Button variant="outline" size="xs" asChild>
-              <Link href="/" target="_blank" rel="noopener noreferrer">
+              <Link
+                href={isCurateSurface() ? MAP_PUBLIC_URL : "/"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Map
                 <ExternalLinkIcon data-icon="inline-end" />
               </Link>
@@ -190,12 +206,12 @@ export function CurateSidebar({
             <SidebarMenu>
               <NavSection
                 title="Claim"
-                items={CLAIM_NAV}
+                items={claimNav()}
                 pathname={pathname}
                 inboxCount={inboxCount}
                 conflictCount={conflictCount}
               />
-              <NavSection title="Case" items={CASE_NAV} pathname={pathname} />
+              <NavSection title="Case" items={caseNav()} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

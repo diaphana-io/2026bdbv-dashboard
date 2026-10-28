@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { ConflictsPreviewTable } from "../../../components/curate/conflicts-preview-table";
 import { InboxTable } from "../../../components/curate/inbox-table";
 import { PipelineTable } from "../../../components/curate/pipeline-table";
+import { curateHref } from "@/lib/curate-surface";
 import {
   getCatalogSources,
   getClaims,
@@ -32,31 +33,31 @@ export default async function CurateOverviewPage() {
   const pipelineRows = [
     {
       stage: "Inbox",
-      href: "/curate/inbox",
+      href: curateHref("inbox"),
       count: inbox.length,
       note: `${dupFlagged.length} with duplicate flag · Adopt → Catalog`,
     },
     {
       stage: "Catalog",
-      href: "/curate/catalog",
+      href: curateHref("catalog"),
       count: catalog.length,
       note: "Post-Adopt Claim home",
     },
     {
       stage: "Claim Extract",
-      href: "/curate/extract",
+      href: curateHref("extract"),
       count: extractEnabled ? "—" : 0,
       note: extractEnabled ? "Gate open (staging)" : "Stub / not configured",
     },
     {
       stage: "Claim Review",
-      href: "/curate/review",
+      href: curateHref("review"),
       count: pendingReview.length,
       note: "Approve / Reject claims only",
     },
     {
       stage: "Conflicts",
-      href: "/curate/conflicts",
+      href: curateHref("conflicts"),
       count: openConflicts.length,
       note: "Both claims visible until resolve",
     },
@@ -91,7 +92,7 @@ export default async function CurateOverviewPage() {
         <CardHeader className="flex items-center justify-between">
           <span className="text-sm font-semibold">Recent inbox</span>
           <Link
-            href="/curate/inbox"
+            href={curateHref("inbox")}
             className="text-xs text-blue-700 hover:underline dark:text-blue-400"
           >
             Open Inbox
@@ -133,7 +134,7 @@ export default async function CurateOverviewPage() {
               Backend: <Badge variant="outline">not_configured</Badge> (Jev stub)
             </p>
             <Link
-              href="/curate/extract"
+              href={curateHref("extract")}
               className="inline-block text-xs text-blue-700 hover:underline dark:text-blue-400"
             >
               Open Extract stage

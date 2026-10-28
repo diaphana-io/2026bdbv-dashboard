@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { withBasePath } from "../../lib/base-path";
+import { curateApiPath } from "../../lib/curate-surface";
 import type { InboxRow } from "../../lib/data-types";
 import type { SourceBibCandidate } from "../../lib/source-bib";
 import {
@@ -69,7 +70,7 @@ export function SubmitSourceForm({
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/fetch-source-bib"), {
+      const res = await fetch(withBasePath(curateApiPath("fetch-source-bib")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ identifier: value }),
@@ -107,7 +108,7 @@ export function SubmitSourceForm({
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/submit-source"), {
+      const res = await fetch(withBasePath(curateApiPath("submit-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

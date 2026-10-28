@@ -66,7 +66,7 @@ Target shape: **snapshot-first reads, mutation-only writes.** Today the “snaps
 - [x] Documented read/write path (this file)
 - [x] Hard timeout + fallback on graph reads (`lib/neo4j.ts`, `lib/data.ts`)
 - [x] Prefetch / Access path does not await Neo4j (`middleware.ts` + timeout on Curate SSR)
-- [ ] Production: curator opens Curate without intermittent 1101 (verify after deploy)
+- [ ] Production: curator opens Curate without intermittent 1101 (verify after deploy; `verifyConnectivity` must use timed `withSession`, never bare `driver.verifyConnectivity`)
 - [x] Extract issue cross-link: shared Bolt constraint ([extract-issue.md](./extract-issue.md))
 
 ## Out of scope

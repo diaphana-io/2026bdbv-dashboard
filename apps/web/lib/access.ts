@@ -1,7 +1,23 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import {
+  getAccessSurface,
+  type AccessSurface,
+} from "./curate-surface";
 
-/** Paths that must sit behind Cloudflare Access (pathname without APP_BASE_PATH). */
-export function isAccessProtectedPath(pathname: string): boolean {
+/**
+ * Paths that must sit behind Cloudflare Access (pathname without APP_BASE_PATH).
+ *
+ * - **app** surface (Map Worker, base `/app`): nested `/curate` + `/api/curate`.
+ * - **curate** surface (Curate Worker, base `/curate`): remounted `/`, `/inbox`,
+ *   `/api/…` — the whole Worker is curator-only, so every matched path is protected.
+ */
+export function isAccessProtectedPath(
+  pathname: string,
+  surface: AccessSurface = getAccessSurface(),
+): boolean {
+  if (surface === "curate") {
+    return true;
+  }
   return (
     pathname === "/curate" ||
     pathname.startsWith("/curate/") ||
@@ -26,6 +42,26 @@ function normalizeTeamDomain(teamDomain: string): string {
     return trimmed;
   }
   return `https://${trimmed}`;
+}
+
+/**
+ * Browser login URL when edge Access did not intercept (e.g. new Worker preview
+ * before the Access app lists that Worker). APIs should still 401.
+ */
+export function accessLoginRedirectUrl(
+  requestUrl: string,
+  env: AccessEnv,
+): string | null {
+  const teamDomain = env.teamDomain?.trim();
+  if (!teamDomain) return null;
+  const issuer = normalizeTeamDomain(teamDomain);
+  const target = new URL(requestUrl);
+  const login = new URL(`${issuer}/cdn-cgi/access/login/${target.host}`);
+  login.searchParams.set(
+    "redirect_url",
+    `${target.pathname}${target.search}`,
+  );
+  return login.toString();
 }
 
 /**

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Case Review placeholder — Claim Review (/curate/review) must not be reused.
@@ -30,10 +31,10 @@ export default function CurateCaseReviewPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/cases">Back to Cases</Link>
+              <Link href={curateHref("cases")}>Back to Cases</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/cases/extract">Case Extract</Link>
+              <Link href={curateHref("cases/extract")}>Case Extract</Link>
             </Button>
           </div>
         </CardContent>

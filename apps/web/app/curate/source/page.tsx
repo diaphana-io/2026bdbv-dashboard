@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { CatalogClaimsTable } from "../../../components/curate/catalog-claims-table";
 import { ClaimReviewForm } from "../../../components/curate/claim-review-form";
 import { getSourceCatalogDetail } from "../../../lib/data";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Claim-only source workspace (Catalog → Extract stub + claims + Approve).
@@ -31,7 +32,7 @@ export default async function CurateSourceWorkspacePage({
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/curate/catalog">Back to Catalog</Link>
+          <Link href={curateHref("catalog")}>Back to Catalog</Link>
         </Button>
       </main>
     );
@@ -50,10 +51,10 @@ export default async function CurateSourceWorkspacePage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/curate/catalog">Catalog</Link>
+            <Link href={curateHref("catalog")}>Catalog</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/curate/inbox">Inbox</Link>
+            <Link href={curateHref("inbox")}>Inbox</Link>
           </Button>
         </div>
       </main>
@@ -61,8 +62,8 @@ export default async function CurateSourceWorkspacePage({
   }
 
   const { source, claims } = detail;
-  const catalogHref = `/curate/catalog?source=${encodeURIComponent(source.normalized_url || source.url)}`;
-  const reviewHref = `/curate/review?url=${encodeURIComponent(source.url)}`;
+  const catalogHref = `${curateHref("catalog")}?source=${encodeURIComponent(source.normalized_url || source.url)}`;
+  const reviewHref = `${curateHref("review")}?url=${encodeURIComponent(source.url)}`;
 
   return (
     <main className="flex flex-col gap-4">
@@ -73,7 +74,7 @@ export default async function CurateSourceWorkspacePage({
               <Link href={catalogHref}>← Catalog</Link>
             </Button>
             <Button variant="ghost" size="xs" asChild>
-              <Link href="/curate/extract">Claim Extract</Link>
+              <Link href={curateHref("extract")}>Claim Extract</Link>
             </Button>
             <Button variant="ghost" size="xs" asChild>
               <Link href={reviewHref}>Claim Review</Link>

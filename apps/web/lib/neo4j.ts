@@ -234,9 +234,15 @@ export async function withSession<T>(
   return next;
 }
 
+/**
+ * Bolt round-trip through {@link withSession} so acquisition / handshake
+ * cannot hang past {@link neo4jSessionTimeoutMs} (Workers Error 1101).
+ * Do not call `driver.verifyConnectivity()` directly — it is unbounded.
+ */
 export async function verifyConnectivity(
   env: Neo4jEnv = readNeo4jEnv(),
 ): Promise<void> {
-  const d = getDriver(env);
-  await d.verifyConnectivity();
+  await withSession(async (session) => {
+    await session.run("RETURN 1 AS ok");
+  }, env);
 }

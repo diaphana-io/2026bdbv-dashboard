@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { withBasePath } from "../../lib/base-path";
+import { curateApiPath, curateHref } from "../../lib/curate-surface";
 import type { DuplicateLevel, InboxRow } from "../../lib/data-types";
 import {
   EVIDENCE_CLASSES,
@@ -78,14 +79,14 @@ export function InboxDetailPanel({
 
   const level = (row.duplicate_level ?? "none") as DuplicateLevel;
   const exactDup = level === "exact_url" || level === "content_hash";
-  const catalogHref = `/curate/catalog?source=${encodeURIComponent(row.url)}`;
+  const catalogHref = `${curateHref("catalog")}?source=${encodeURIComponent(row.url)}`;
 
   async function save() {
     setPending(true);
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/update-source"), {
+      const res = await fetch(withBasePath(curateApiPath("update-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -131,7 +132,7 @@ export function InboxDetailPanel({
     setAdoptPending(true);
     setError(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/adopt-source"), {
+      const res = await fetch(withBasePath(curateApiPath("adopt-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: row!.url }),
@@ -162,7 +163,7 @@ export function InboxDetailPanel({
     setDismissPending(true);
     setError(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/dismiss-source"), {
+      const res = await fetch(withBasePath(curateApiPath("dismiss-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: row!.url }),

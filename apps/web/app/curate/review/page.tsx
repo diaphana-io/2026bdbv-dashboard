@@ -4,6 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { ClaimReviewForm } from "../../../components/curate/claim-review-form";
 import { getSourceCatalogDetail } from "../../../lib/data";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Claim Review / Approve (Claim track only).
@@ -30,11 +31,11 @@ export default async function CurateClaimReviewPage({
       )
       .sort((a, b) => b.at.localeCompare(a.at)) ?? [];
   const catalogHref = url
-    ? `/curate/catalog?source=${encodeURIComponent(url)}`
-    : "/curate/catalog";
+    ? `${curateHref("catalog")}?source=${encodeURIComponent(url)}`
+    : curateHref("catalog");
   const sourceHref = url
-    ? `/curate/source?url=${encodeURIComponent(url)}`
-    : "/curate/source";
+    ? `${curateHref("source")}?url=${encodeURIComponent(url)}`
+    : curateHref("source");
 
   return (
     <main className="flex flex-col gap-4">

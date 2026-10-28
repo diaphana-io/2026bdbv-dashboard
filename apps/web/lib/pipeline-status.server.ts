@@ -10,7 +10,6 @@ import { runCommand } from "./surv-engine";
 import {
   isNeo4jConfigured,
   readNeo4jEnv,
-  verifyConnectivity,
   withSession,
 } from "./neo4j";
 
@@ -38,7 +37,7 @@ async function probeNeo4j(): Promise<{
     return { configured: false, ok: false, error: "neo4j_not_configured" };
   }
   try {
-    await verifyConnectivity(env);
+    // Single timed session: connectivity + count (no unbounded verifyConnectivity).
     const nodeCount = await withSession(async (session) => {
       const res = await session.run("MATCH (n) RETURN count(n) AS n");
       const n = res.records[0]?.get("n");
