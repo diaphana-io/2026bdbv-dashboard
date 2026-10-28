@@ -9,7 +9,7 @@
 
 Workers Builds: `main` runs `npm run deploy:ci` → `cf deploy` (production domain). Other branches run the same script, which detects `WORKERS_CI_BRANCH` and runs `cf previews deploy` so the push lands on a Preview URL only.
 
-Production must not ship an automatic Extract backend until decided (Linear **MATT-310** / private Curate Extract docs).
+Production must not ship an automatic Extract backend until decided (Linear **BDBV-16** / private Curate Extract docs — [curate#6](https://github.com/diaphana-io/2026bdbv-curate/issues/6)).
 
 ## Cloudflare Access
 

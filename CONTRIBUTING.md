@@ -36,24 +36,31 @@ Prebuilt wasm under `apps/web/lib/surv_wasm/` may already be present; regenerate
 
 ## Issue tracking
 
-Internal planning lives in the Linear project [2026 BDBV outbreak dashboard](https://linear.app/diaphana/project/2026-bdbv-outbreak-dashboard-12839a73f192/overview) (team **MATT**). Linear is the source of truth for open work.
+Internal planning lives in the Linear project [2026 BDBV outbreak dashboard](https://linear.app/diaphana/project/2026-bdbv-outbreak-dashboard-12839a73f192/overview) (team **BDBV** / [2026 Ebola Dashboard](https://linear.app/diaphana/team/BDBV/overview)). Linear is the source of truth for open work.
 
-GitHub Issues on this repository may be used for public discussion. They are intended to sync **one-way into MATT** (GitHub → Linear), not two-way. Prefer linking PRs to the current open items in the tracker; **do not hard-code individual issue identifiers** into README or other durable docs.
+**Where to open GitHub Issues**
 
-To enable sync (Linear workspace admin): **Settings → Features → Integrations → GitHub → GitHub Issues → +**, map `diaphana-io/2026bdbv-dashboard` → team **MATT**, choose **One-way**. See [Linear GitHub Issues sync](https://linear.app/docs/github-to-linear).
+| Surface | Repository |
+| --- | --- |
+| Map / public `/app` reads | `diaphana-io/2026bdbv-dashboard` (this repo) |
+| Curate / Extract / Access / claim writes | private `diaphana-io/2026bdbv-curate` |
+
+Both repos sync **one-way into BDBV** (GitHub → Linear), not two-way. Prefer linking PRs to the current open items in the tracker; **do not hard-code individual issue identifiers** into README or other durable docs.
+
+To enable sync (Linear workspace admin): **Settings → Features → Integrations → GitHub → GitHub Issues → +**, map `diaphana-io/2026bdbv-dashboard` and `diaphana-io/2026bdbv-curate` → team **BDBV**, choose **One-way**. See [Linear GitHub Issues sync](https://linear.app/docs/github-to-linear).
 
 ### Issue labels (area)
 
-Every open GitHub Issue should carry **exactly one** area label so triage can filter Curate vs Map vs everything else:
+Every open GitHub Issue should carry **exactly one** area label so triage can filter surfaces:
 
 | Label | Use for |
 | --- | --- |
-| `curate` | Curate UI/API, Extract, claim SoT (D1), Inbox/Catalog/Review/Conflicts, Cloudflare Access for `/curate` |
+| `curate` | Prefer opening on **private Curate** (`2026bdbv-curate`: UI/API, Extract, Access, claim writes). On this OSS repo only for rare Map↔shared-D1 cross-cuts. |
 | `map` | Public Map / dashboard surface: basemap, layers, incidence series, Rt/Cori, country-stats, map-facing snapshots |
 | `docs` | Starlight / public docs site, Privacy Policy, CONTRIBUTING sync, docs-only copy |
 | `other` | Neither Curate, Map, nor Docs primary: infra, CI, cross-cutting work with no clear product surface |
 
-Pick by **primary surface**, not by every phase that touches another system (e.g. a Claim→D1 migration stays `curate` even if a later phase feeds the Map). Combine with type labels when useful (`enhancement`, `bug`, `discussion`, `duplicate`, …). Do not invent parallel area names; add a row here if a new area is needed.
+Pick by **primary surface**, not by every phase that touches another system. Combine with type labels when useful (`enhancement`, `bug`, `discussion`, `duplicate`, …). Do not invent parallel area names; add a row here if a new area is needed.
 
 ## How to contribute
 
@@ -84,3 +91,5 @@ bash scripts/verify.sh scaffold   # or schema|engine|curation|all
 - Neo4j Aura: [`docs/neo4j-aura.md`](docs/neo4j-aura.md)
 - Curate (private): [`docs/curate.md`](docs/curate.md)
 - Security / deploy notes: [`docs/security-deploy.md`](docs/security-deploy.md)
+- Vulnerability reporting: [`SECURITY.md`](SECURITY.md)
+- Community standards: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
