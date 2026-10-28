@@ -32,6 +32,16 @@ describe("Phase 5: no Neo4j Claim / Conflict / Audit leftovers", () => {
     expect(missing).toBe(true);
   });
 
+  it("d1-curate write helpers are removed from OSS (private Curate owns mutate)", () => {
+    let missing = false;
+    try {
+      readRepo("apps/web/lib/d1-curate.ts");
+    } catch {
+      missing = true;
+    }
+    expect(missing).toBe(true);
+  });
+
   it("constraints.cypher has no Claim / Conflict / Audit constraints", () => {
     const cypher = readRepo("infra/neo4j/constraints.cypher")
       .split("\n")

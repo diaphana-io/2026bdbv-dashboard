@@ -14,14 +14,16 @@ Operational conventions for coding agents working in this repository. Human cont
 
 Setup (workspace admin): Linear → Settings → Features → Integrations → GitHub → GitHub Issues → map `diaphana-io/2026bdbv-dashboard` → **MATT**, **One-way**. Docs: [Linear GitHub Issues sync](https://linear.app/docs/github-to-linear).
 
-## Suggested post-scaffold priority (Curate path)
+## Suggested post-scaffold priority
 
 Human-curation cutover before automatic Extract:
 
-1. Neo4j Aura Free cutover (graph read/write + Curate persist) — see `docs/neo4j-aura.md`
-2. Curate graph serving on Workers (hard Bolt timeout + snapshot/cache reads; avoid Error 1101) — see `docs/curate-graph-serving.md`
-3. Cloudflare Access for `/app/curate` + `/api/curate` — see `docs/cloudflare-access-curate.md`
+1. Neo4j Aura Free cutover (graph read + Map) — see `docs/neo4j-aura.md`
+2. Curate graph serving on Workers (hard Bolt timeout + snapshot/cache reads; avoid Error 1101) — see `docs/curate-graph-serving.md` (live Curate Worker is private `2026bdbv-curate`)
+3. Cloudflare Access for `/curate` — see `docs/cloudflare-access-curate.md`
 4. Extract backend specification (keeps production `EXTRACT_ENABLED=false` until decided) — see `docs/extract-issue.md`. Shared constraint: Workers must not hold responses hostage to Bolt.
+
+**Repo split:** this OSS tree is Map / public reads only (`/app`). Curate UI + mutate live in private `diaphana-io/2026bdbv-curate` (`/curate`). Do not re-add `app/api/curate` or `d1-curate` write helpers here.
 
 ## Commit messages
 
