@@ -45,22 +45,36 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_CURATE_SURFACE: curateBuild ? "1" : "0",
   },
   async redirects() {
-    if (!basePath) return [];
-    // Map / Curate builds: bare `/` outside basePath → basePath (preview fallback).
-    return [
-      {
+    const out: {
+      source: string;
+      destination: string;
+      permanent: boolean;
+      basePath?: false;
+    }[] = [];
+    if (basePath) {
+      // Bare host `/` → mount (preview workers.dev without path prefix).
+      out.push({
         source: "/",
         destination: basePath,
         permanent: false,
         basePath: false,
-      },
-    ];
+      });
+    }
+    if (curateBuild) {
+      // After basePath strip, `/` is Map's page — force Curate Overview.
+      out.push({
+        source: "/",
+        destination: "/overview",
+        permanent: false,
+      });
+    }
+    return out;
   },
   async rewrites() {
     if (!curateBuild) return [];
     // Public `/curate/inbox` → strip base → `/inbox` → rewrite → `/curate/inbox` files.
+    // Do not rewrite `/` here — page route wins; use redirect + page.tsx instead.
     return [
-      { source: "/", destination: "/curate" },
       ...CURATE_UI_SEGMENTS.map((seg) => ({
         source: `/${seg}`,
         destination: `/curate/${seg}`,
