@@ -82,5 +82,5 @@ bash scripts/verify.sh scaffold   # or schema|engine|curation|all
 
 - Deferred work: [`docs/remaining-tasks.md`](docs/remaining-tasks.md)
 - Neo4j Aura: [`docs/neo4j-aura.md`](docs/neo4j-aura.md)
-- Curate Access: [`docs/cloudflare-access-curate.md`](docs/cloudflare-access-curate.md)
+- Curate (private): [`docs/curate.md`](docs/curate.md)
 - Security / deploy notes: [`docs/security-deploy.md`](docs/security-deploy.md)
