@@ -10,7 +10,7 @@ In May 2026, a high-mortality cluster in Ituri Province, Democratic Republic of 
 
 ## Features
 
-The web application (`apps/web`) exposes English-language views for outbreak overview, timeline, cases, contacts, map, border measures, and sources. A Curate workspace supports human review of inbox candidates, claim approval or rejection, and conflict resolution. When sources disagree, both claims remain visible until a curator resolves the conflict.
+The web application (`apps/web`) exposes English-language Map views for outbreak overview, timeline, cases, contacts, map layers, border measures, and sources. Human curation (inbox review, claim approval or rejection, conflict resolution) runs in the private Curate app; this repository only consumes approved reads for the public Map. When sources disagree, unresolved contradictions stay visible on the Map until a curator resolves them.
 
 ## Repository layout
 
