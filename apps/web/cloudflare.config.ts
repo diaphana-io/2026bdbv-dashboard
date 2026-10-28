@@ -16,6 +16,11 @@ import { APP_WORKER_FETCH_PATTERNS } from "./lib/worker-routes.ts";
  * next.config.ts picks it up at compile time.
  *
  * Apex `/` → `/app` stays a zone Single Redirect (not this Worker).
+ *
+ * Access team domain / AUD and Neo4j credentials are Worker secrets (never
+ * committed). Set production via `wrangler secret put`; preview via
+ * `wrangler preview base-config secret put` (and per-Preview overrides).
+ * D1 binds by database name only (no UUID in source).
  */
 export default defineConfig(({ isPreview }) => ({
   worker: defineWorker({
@@ -46,29 +51,15 @@ export default defineConfig(({ isPreview }) => ({
       STRIP_CURATE_FROM_APP: bindings.text("1"),
       APP_ENV: bindings.text(isPreview ? "staging" : "production"),
       EXTRACT_ENABLED: bindings.text("false"),
-      CF_ACCESS_TEAM_DOMAIN: bindings.text(
-        "https://tetra4rnav.cloudflareaccess.com",
-      ),
-      // Defense in depth for any leftover Access-gated paths; Curate AUD.
-      CF_ACCESS_AUD: bindings.text(
-        isPreview
-          ? "0ce99c26cf4e6266bdcad189995e6d35418cadd43d1c4882f4182255d0942cb7"
-          : "30f260613dd004af14e3735da0b4cefb3b1ed822a7ef5804173a3d46c0b5550d",
-      ),
+      // Defense in depth for leftover Access-gated paths; values are secrets.
+      CF_ACCESS_TEAM_DOMAIN: bindings.secret(),
+      CF_ACCESS_AUD: bindings.secret(),
       NEO4J_URI: bindings.secret(),
       NEO4J_USER: bindings.secret(),
       NEO4J_PASSWORD: bindings.secret(),
-      DB: bindings.d1(
-        isPreview
-          ? {
-              name: "bdbv-curate-preview",
-              id: "8c803639-56c6-405c-8dba-157e054a483a",
-            }
-          : {
-              name: "bdbv-curate",
-              id: "13554abd-a4de-4194-84cb-3cca82a5d7bf",
-            },
-      ),
+      DB: bindings.d1({
+        name: isPreview ? "bdbv-curate-preview" : "bdbv-curate",
+      }),
     },
   }),
 }));
