@@ -27,13 +27,20 @@ Create Free instance, seed, and wire secrets: [`docs/neo4j-aura.md`](./neo4j-aur
 
 ## Secrets (Worker / Wrangler)
 
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (Aura `neo4j+s://…`) — declared as secrets in `cloudflare.config.ts`
+Declared in `cloudflare.config.ts` via `bindings.secret()` — **values live only in Cloudflare**, never in git or committed `.env`.
+
+| Secret | Production | Preview |
+|--------|------------|---------|
+| `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` | `wrangler secret put <NAME> --name bdbv-dashboard` | `wrangler preview base-config secret put <NAME> --worker-name bdbv-dashboard` |
+| `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` | same (prod Access app AUD) | same (preview Access app AUD) |
+
+- Local Map: keep `NEO4J_*` in gitignored `apps/web/.env` for Aura/compose connection tests. Omit `CF_ACCESS_*` locally — Access stays unenforced until both secrets exist on the Worker.
+- D1: bind by **name** only (`bdbv-curate` / `bdbv-curate-preview`); no database UUID in source.
 - `EXTRACT_ENABLED=false` until issue closed
 - `APP_ENV=staging|production`
 - `APP_BASE_PATH=/app` on the Worker (runtime) — production `vite build` defaults to `/app` when unset
 - Worker routes (not a Custom Domain): `2026bdbv.diaphana.io/app` and `2026bdbv.diaphana.io/app/*` → `bdbv-dashboard`. Other host paths (e.g. `/docs`) are free for Cloudflare Pages. Keep a proxied originless DNS record (`AAAA 100::`) for `2026bdbv.diaphana.io`.
 - Cloudflare Single Redirect: `2026bdbv.diaphana.io/` → `https://2026bdbv.diaphana.io/app` (`http_request_dynamic_redirect`; also mirrored in `apps/web/next.config.ts` as a non-production fallback)
-- Optional: `CF_ACCESS_*` defense-in-depth; Curate Access config is private
 - Optional: Workers AI / Vectorize bindings for measures RAG
 
 ## Headers

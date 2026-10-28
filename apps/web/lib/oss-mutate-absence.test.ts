@@ -69,6 +69,16 @@ describe("OSS mutate absence (G2b-oss)", () => {
     expect(cfg).toMatch(/APP_WORKER_FETCH_PATTERNS/);
   });
 
+  it("cloudflare.config does not embed Access AUD or D1 UUIDs", () => {
+    const cfg = readFileSync(join(webRoot, "cloudflare.config.ts"), "utf8");
+    expect(cfg).toMatch(/CF_ACCESS_TEAM_DOMAIN:\s*bindings\.secret\(\)/);
+    expect(cfg).toMatch(/CF_ACCESS_AUD:\s*bindings\.secret\(\)/);
+    expect(cfg).not.toMatch(/cloudflareaccess\.com/);
+    expect(cfg).not.toMatch(/\bid:\s*"[0-9a-f-]{36}"/);
+    expect(cfg).not.toMatch(/"[0-9a-f]{64}"/);
+    expect(cfg).toMatch(/name:\s*isPreview\s*\?\s*"bdbv-curate-preview"/);
+  });
+
   it("no mutate route filenames remain under apps/web", () => {
     const files = listFilesRecursive(webRoot).map((f) =>
       f.replace(/\\/g, "/"),

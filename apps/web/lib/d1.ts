@@ -1,6 +1,6 @@
 /**
  * D1 binding for Claim Curate SoT (env.DB).
- * Bound in cloudflare.config.ts to bdbv-curate or bdbv-curate-preview.
+ * Bound in cloudflare.config.ts by name (bdbv-curate / bdbv-curate-preview).
  * Returns null when unbound (Node, vitest, or missing binding).
  */
 import { env } from "cloudflare:workers";
