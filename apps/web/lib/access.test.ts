@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isAccessEnforced, isAccessProtectedPath } from "./access";
+import {
+  accessLoginRedirectUrl,
+  isAccessEnforced,
+  isAccessProtectedPath,
+} from "./access";
 
 describe("isAccessProtectedPath (app surface — base /app)", () => {
   it("protects nested curate UI and API", () => {
@@ -60,5 +64,18 @@ describe("isAccessEnforced", () => {
         audience: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
       }),
     ).toBe(true);
+  });
+});
+
+describe("accessLoginRedirectUrl", () => {
+  it("builds team login URL for the request host", () => {
+    const url = accessLoginRedirectUrl(
+      "https://feat-curate-worker-seam-bdbv-curate-app.jh1cid.workers.dev/curate/inbox",
+      { teamDomain: "https://tetra4rnav.cloudflareaccess.com", audience: "aud" },
+    );
+    expect(url).toContain(
+      "https://tetra4rnav.cloudflareaccess.com/cdn-cgi/access/login/feat-curate-worker-seam-bdbv-curate-app.jh1cid.workers.dev",
+    );
+    expect(url).toContain("redirect_url=%2Fcurate%2Finbox");
   });
 });

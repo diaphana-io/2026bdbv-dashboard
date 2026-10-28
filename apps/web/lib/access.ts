@@ -45,6 +45,26 @@ function normalizeTeamDomain(teamDomain: string): string {
 }
 
 /**
+ * Browser login URL when edge Access did not intercept (e.g. new Worker preview
+ * before the Access app lists that Worker). APIs should still 401.
+ */
+export function accessLoginRedirectUrl(
+  requestUrl: string,
+  env: AccessEnv,
+): string | null {
+  const teamDomain = env.teamDomain?.trim();
+  if (!teamDomain) return null;
+  const issuer = normalizeTeamDomain(teamDomain);
+  const target = new URL(requestUrl);
+  const login = new URL(`${issuer}/cdn-cgi/access/login/${target.host}`);
+  login.searchParams.set(
+    "redirect_url",
+    `${target.pathname}${target.search}`,
+  );
+  return login.toString();
+}
+
+/**
  * Validate Cf-Access-Jwt-Assertion against the team JWKS.
  * Returns null when valid; otherwise an error message.
  */

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isAccessEnforced, isAccessProtectedPath, verifyAccessJwt } from "./lib/access";
+import {
+  accessLoginRedirectUrl,
+  isAccessEnforced,
+  isAccessProtectedPath,
+  verifyAccessJwt,
+} from "./lib/access";
 import {
   CURATE_PUBLIC_ORIGIN,
   shouldStripCurateFromApp,
@@ -59,6 +64,15 @@ export async function middleware(request: NextRequest) {
     const token = request.headers.get("cf-access-jwt-assertion");
     const err = await verifyAccessJwt(token, accessEnv);
     if (err) {
+      // Preview Workers without an Access destination otherwise return a raw
+      // 401 and block B4/B6. Send browsers to Access login; keep APIs at 401.
+      const wantsHtml =
+        request.method === "GET" || request.method === "HEAD";
+      const accept = request.headers.get("accept") ?? "";
+      if (wantsHtml && accept.includes("text/html")) {
+        const login = accessLoginRedirectUrl(request.url, accessEnv);
+        if (login) return NextResponse.redirect(login, 302);
+      }
       return new NextResponse(err, {
         status: 401,
         headers: { "content-type": "text/plain; charset=utf-8" },
