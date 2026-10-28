@@ -18,11 +18,10 @@ import {
 
 /**
  * Staging/production gates:
- * - Cloudflare Access at the edge protects Curate — preferred.
- * - When CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set, this middleware
- *   validates Cf-Access-Jwt-Assertion as defense in depth.
- * - Map Worker (STRIP_CURATE_FROM_APP): redirect `/curate` UI → `/curate` on
- *   the Curate Worker; 404 nested `/api/curate` mutate (B2 / B7).
+ * - Cloudflare Access at the edge protects private `/curate` (other Worker).
+ * - Map Worker strip: redirect legacy `/curate` UI → `/curate` Worker; 404
+ *   nested `/api/curate` mutate (B2 / B7).
+ * - When CF_ACCESS_* are set, validate JWT as defense in depth on leftover paths.
  * - Production never serves Extract-enabled Curate until GitHub #2 / MATT-310.
  * - Never touch Neo4j here (docs/curate-graph-serving.md / MATT-314).
  */
@@ -64,8 +63,6 @@ export async function middleware(request: NextRequest) {
     const token = request.headers.get("cf-access-jwt-assertion");
     const err = await verifyAccessJwt(token, accessEnv);
     if (err) {
-      // Preview Workers without an Access destination otherwise return a raw
-      // 401 and block B4/B6. Send browsers to Access login; keep APIs at 401.
       const wantsHtml =
         request.method === "GET" || request.method === "HEAD";
       const accept = request.headers.get("accept") ?? "";

@@ -1,23 +1,14 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import {
-  getAccessSurface,
-  type AccessSurface,
-} from "./curate-surface";
 
 /**
- * Paths that must sit behind Cloudflare Access (pathname without APP_BASE_PATH).
+ * Paths that must sit behind Cloudflare Access on the Map Worker
+ * (pathname without APP_BASE_PATH).
  *
- * - **app** surface (Map Worker, base `/app`): nested `/curate` + `/api/curate`.
- * - **curate** surface (Curate Worker, base `/curate`): remounted `/`, `/inbox`,
- *   `/api/…` — the whole Worker is curator-only, so every matched path is protected.
+ * Legacy nested `/curate` + `/api/curate` — middleware strips/404s these first;
+ * Access remains defense in depth if strip is off locally.
+ * Live Curate Access lives on private `bdbv-curate-app`.
  */
-export function isAccessProtectedPath(
-  pathname: string,
-  surface: AccessSurface = getAccessSurface(),
-): boolean {
-  if (surface === "curate") {
-    return true;
-  }
+export function isAccessProtectedPath(pathname: string): boolean {
   return (
     pathname === "/curate" ||
     pathname.startsWith("/curate/") ||

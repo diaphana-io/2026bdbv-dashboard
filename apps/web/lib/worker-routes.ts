@@ -4,15 +4,18 @@ export const APP_WORKER_FETCH_PATTERNS = [
   "2026bdbv.diaphana.io/app/*",
 ] as const;
 
-/** Path fetch patterns for the Curate Worker (`/curate`). */
-export const CURATE_WORKER_FETCH_PATTERNS = [
+/**
+ * Curate Worker patterns live in private `2026bdbv-curate` only.
+ * Kept here so OSS CI can assert this Worker never claims them.
+ */
+export const PRIVATE_CURATE_FETCH_PATTERNS = [
   "2026bdbv.diaphana.io/curate",
   "2026bdbv.diaphana.io/curate/*",
 ] as const;
 
 export function assertWorkerRouteSeparation(
   appPatterns: readonly string[],
-  curatePatterns: readonly string[],
+  curatePatterns: readonly string[] = PRIVATE_CURATE_FETCH_PATTERNS,
 ): void {
   for (const p of appPatterns) {
     if (p.includes("/curate")) {

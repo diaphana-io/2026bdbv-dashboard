@@ -34,7 +34,7 @@ Provision: `ACCESS_MOUNT=/curate bash scripts/provision-access-curate.sh` (do no
 
 Parent and child paths must both be listed: `…/curate/*` does **not** cover `…/curate` ([application paths](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/)).
 
-On the Map Worker after strip, `/app/curate` redirects to `/curate` and `/app/api/curate/*` returns 404.
+After G2b-oss, the OSS Map Worker has **no** Curate UI/API trees. Legacy `/app/curate` redirects to `/curate` (private Worker) and `/app/api/curate/*` returns 404. Curate mutate + CI live only in `diaphana-io/2026bdbv-curate`.
 
 ## Preview / staging
 

@@ -22,7 +22,6 @@
     "verify:curation": "bash scripts/verify.sh curation",
     "lint": "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings",
     "seed:neo4j": "node scripts/seed-neo4j.mjs",
-    "seed:d1-curate": "node scripts/seed-d1-curate.mjs",
     "fetch:cod-ab": "node scripts/fetch-cod-ab-cd.mjs"
   }
 }
