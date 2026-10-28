@@ -22,7 +22,7 @@ thiserror = "2"
 sha2 = "0.11"
 hex = "0.4"
 geo = "0.28"
-geojson = "0.24"
+geojson = "1.0"
 
 surv_geom = { path = "crates/surv_geom" }
 surv_data = { path = "crates/surv_data" }
