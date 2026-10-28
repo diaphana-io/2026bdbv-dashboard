@@ -154,4 +154,4 @@ Do not keep two approval truths for the same claim. Snapshots on R2 are **derive
 ## What this page is not
 
 - **Why** this split helps infectious-disease modeling → [Data and storage](/docs/data-and-storage/).
-- Worker timeout runbooks, Bolt serving tactics, and step-by-step Claim migration phases → unpublished repo doc `docs/claim-d1-migration.md` for implementers.
+- Curate write path / Claim D1 migration / Bolt serving for Curate → private `diaphana-io/2026bdbv-curate` (OSS Map only reads shared D1 + Neo4j).

@@ -18,4 +18,4 @@ cargo test --workspace
 npm run build:wasm
 ```
 
-Command contracts for Extract / Curate: [`docs/extract-issue.md`](../docs/extract-issue.md).
+Extract / Curate command contracts live in private `diaphana-io/2026bdbv-curate` (see [`docs/curate.md`](../docs/curate.md)).

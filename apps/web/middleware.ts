@@ -23,7 +23,7 @@ import {
  *   nested `/api/curate` mutate (B2 / B7).
  * - When CF_ACCESS_* are set, validate JWT as defense in depth on leftover paths.
  * - Production never serves Extract-enabled Curate until GitHub #2 / MATT-310.
- * - Never touch Neo4j here (docs/curate-graph-serving.md / MATT-314).
+ * - Never touch Neo4j here (Map Bolt timeout / JSON fallback in lib/neo4j.ts + lib/data.ts).
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

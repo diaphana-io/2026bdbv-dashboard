@@ -70,7 +70,7 @@ export type {
 
 type CacheEntry<T> = { value: T; expiresAt: number };
 
-/** Isolate-local SWR cache for curated read models (see docs/curate-graph-serving.md). */
+/** Isolate-local SWR cache for Map / curated read models (Bolt must not hang `/app`). */
 const readCache = new Map<string, CacheEntry<unknown>>();
 
 export function neo4jReadCacheTtlMs(

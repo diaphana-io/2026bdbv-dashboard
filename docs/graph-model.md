@@ -2,7 +2,7 @@
 
 **Purpose:** Enumerate what the Neo4j / Zod model must cover for BDBV outbreak surveillance. **Time is a first-class axis** — almost every fact is meaningless without when it applies.
 
-**Canonical edges:** [`infra/neo4j/relationships.md`](../infra/neo4j/relationships.md) · **Constraints:** [`infra/neo4j/constraints.cypher`](../infra/neo4j/constraints.cypher) · **Claim policy:** [`conflict-resolution.md`](./conflict-resolution.md) · **Claim SoT (D1):** [`claim-d1-migration.md`](./claim-d1-migration.md)
+**Canonical edges:** [`infra/neo4j/relationships.md`](../infra/neo4j/relationships.md) · **Constraints:** [`infra/neo4j/constraints.cypher`](../infra/neo4j/constraints.cypher) · **Curate / Claim policy docs:** private `diaphana-io/2026bdbv-curate` (see [`curate.md`](./curate.md))
 
 ## 1. Time axes (do not conflate)
 
@@ -18,7 +18,7 @@
 
 Rules:
 
-1. Never default claim `as_of_date` from source `published_at` ([conflict-resolution](./conflict-resolution.md)).
+1. Never default claim `as_of_date` from source `published_at` (Curate conflict policy lives in private `2026bdbv-curate`).
 2. Aggregate Map queries are **as-of slices**: latest approved claim head with `as_of_date ≤ query day`.
 3. Individual timelines are **event sequences** (onset → travel → isolation → outcome), not a single date.
 4. One SourceDocument can assert many claims with **different** `as_of_date` values.

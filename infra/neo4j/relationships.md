@@ -2,7 +2,7 @@
 
 Modeling inventory (entities, **time axes**, seed gaps): [`docs/graph-model.md`](../../docs/graph-model.md).
 
-Claim / ClaimConflict / CurateAuditEvent and Claim `FROM` / conflict edges are **D1 tabular SoT** after [Phase 5](../../docs/claim-d1-migration.md). Neo4j keeps `SourceDocument` for Case citation only.
+Claim / ClaimConflict / CurateAuditEvent and Claim `FROM` / conflict edges are **D1 tabular SoT** (Curate private repo). Neo4j keeps `SourceDocument` for Case citation only.
 
 - `(Outbreak)-[:INCLUDES_ADMIN]->(AdminUnit)`
 - `(Person)-[:HAS_CASE]->(Case)`
@@ -28,4 +28,4 @@ Claim / ClaimConflict / CurateAuditEvent and Claim `FROM` / conflict edges are *
 
 ## Claim aggregates (D1, not Neo4j)
 
-Zone1 count assertions (`case_count`, `incidence`, …) and conflicts/audit are stored in Cloudflare D1. See [`docs/claim-d1-migration.md`](../../docs/claim-d1-migration.md). Map joins approved D1 `case_count` rows to Neo4j `AdminUnit` geo; Case / Travel / Exposure graph layers stay Neo4j without Claim MATCH.
+Zone1 count assertions (`case_count`, `incidence`, …) and conflicts/audit are stored in Cloudflare D1 (Curate private repo owns write path). Map joins approved D1 `case_count` rows to Neo4j `AdminUnit` geo; Case / Travel / Exposure graph layers stay Neo4j without Claim MATCH.
