@@ -6,9 +6,14 @@
 #   CLOUDFLARE_API_TOKEN   (Access: Apps Edit, Access: Policies Edit)
 # Optional:
 #   ACCESS_HOSTNAME        (default: 2026bdbv.diaphana.io)
-#   ACCESS_BASE_PATH       (default: /app)
+#   ACCESS_MOUNT           (nested|/curate — default: nested under /app)
+#   ACCESS_BASE_PATH       (legacy nested only; default: /app)
 #   ACCESS_ALLOWED_EMAILS  (comma-separated curator emails)
 #   ACCESS_APP_NAME        (default: BDBV Curate)
+#
+# Mount modes:
+#   nested  — /app/curate(+/*) + /app/api/curate(+/*)  [pre-split]
+#   /curate — /curate(+/*) covers UI + /curate/api/*   [Curate Worker]
 #
 # See docs/cloudflare-access-curate.md
 set -euo pipefail
@@ -16,17 +21,24 @@ set -euo pipefail
 ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
 TOKEN="${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
 HOSTNAME="${ACCESS_HOSTNAME:-2026bdbv.diaphana.io}"
+MOUNT="${ACCESS_MOUNT:-nested}"
 BASE_PATH="${ACCESS_BASE_PATH:-/app}"
 APP_NAME="${ACCESS_APP_NAME:-BDBV Curate}"
 API="https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}"
 
 auth=(-H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json")
 
-PATHS="$(printf '%s\n' \
-  "${BASE_PATH}/curate" \
-  "${BASE_PATH}/curate/*" \
-  "${BASE_PATH}/api/curate" \
-  "${BASE_PATH}/api/curate/*")"
+if [[ "$MOUNT" == "/curate" || "$MOUNT" == "curate" ]]; then
+  PATHS="$(printf '%s\n' \
+    "/curate" \
+    "/curate/*")"
+else
+  PATHS="$(printf '%s\n' \
+    "${BASE_PATH}/curate" \
+    "${BASE_PATH}/curate/*" \
+    "${BASE_PATH}/api/curate" \
+    "${BASE_PATH}/api/curate/*")"
+fi
 
 payload=$(
   HOSTNAME="$HOSTNAME" \

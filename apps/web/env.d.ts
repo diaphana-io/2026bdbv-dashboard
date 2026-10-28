@@ -30,6 +30,13 @@ interface D1Database {
 declare namespace Cloudflare {
   interface Env {
     DB: D1Database;
+    APP_BASE_PATH?: string;
+    CURATE_SURFACE?: string;
+    STRIP_CURATE_FROM_APP?: string;
+    APP_ENV?: string;
+    EXTRACT_ENABLED?: string;
+    CF_ACCESS_TEAM_DOMAIN?: string;
+    CF_ACCESS_AUD?: string;
   }
 }
 

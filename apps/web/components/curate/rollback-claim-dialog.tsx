@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { withBasePath } from "@/lib/base-path";
+import { curateApiPath } from "@/lib/curate-surface";
 import type { CatalogClaimRow } from "@/lib/data-types";
 
 export function RollbackClaimDialog({
@@ -46,7 +47,7 @@ export function RollbackClaimDialog({
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/rollback-claim"), {
+      const res = await fetch(withBasePath(curateApiPath("rollback-claim")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

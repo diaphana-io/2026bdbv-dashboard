@@ -19,6 +19,7 @@ import {
 import type { CatalogClaimRow } from "@/lib/data-types";
 import { curateTableFeatures } from "./curate-table-features";
 import { RollbackClaimDialog } from "./rollback-claim-dialog";
+import { curateHref } from "@/lib/curate-surface";
 
 function objectPreview(value: Record<string, unknown>): string {
   try {
@@ -124,7 +125,7 @@ export function CatalogClaimsTable({
           <div className="flex flex-wrap items-center gap-1.5">
             <Button variant="outline" size="xs" asChild>
               <Link
-                href={`/curate/review?url=${encodeURIComponent(sourceUrl)}&claim=${encodeURIComponent(c.id)}`}
+                href={`${curateHref("review")}?url=${encodeURIComponent(sourceUrl)}&claim=${encodeURIComponent(c.id)}`}
               >
                 Open Claim Review
               </Link>

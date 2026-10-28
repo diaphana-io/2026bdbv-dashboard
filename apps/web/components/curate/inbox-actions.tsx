@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { withBasePath } from "../../lib/base-path";
+import { curateApiPath, curateHref } from "../../lib/curate-surface";
 import type { DuplicateLevel } from "../../lib/data-types";
 
 export function InboxActions({
@@ -25,13 +26,13 @@ export function InboxActions({
 
   const level = (duplicateLevel ?? "none") as DuplicateLevel;
   const exactDup = level === "exact_url" || level === "content_hash";
-  const catalogHref = `/curate/catalog?source=${encodeURIComponent(url)}`;
+  const catalogHref = `${curateHref("catalog")}?source=${encodeURIComponent(url)}`;
 
   async function adopt() {
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/adopt-source"), {
+      const res = await fetch(withBasePath(curateApiPath("adopt-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url }),
@@ -63,7 +64,7 @@ export function InboxActions({
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(withBasePath("/api/curate/dismiss-source"), {
+      const res = await fetch(withBasePath(curateApiPath("dismiss-source")), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url }),

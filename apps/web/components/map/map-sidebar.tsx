@@ -47,6 +47,7 @@ import {
   type UiFontSize,
 } from "./map-ui-context";
 import { isBasemapSelectable, type BasemapId } from "./basemap-style";
+import { curatePublicUrl } from "@/lib/curate-surface";
 
 const GITHUB_REPO = "https://github.com/diaphana-io/2026bdbv-dashboard";
 const DOCS_URL = "https://2026bdbv.diaphana.io/docs";
@@ -170,7 +171,7 @@ export function MapSidebar() {
           <BrandLink className="min-w-0 flex-1" />
           <div className="flex shrink-0 items-center gap-1">
             <Button variant="outline" size="xs" asChild>
-              <Link href="/curate" target="_blank" rel="noopener noreferrer">
+              <Link href={curatePublicUrl()} target="_blank" rel="noopener noreferrer">
                 Curate
                 <ExternalLinkIcon data-icon="inline-end" />
               </Link>

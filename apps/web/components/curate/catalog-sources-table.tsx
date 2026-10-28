@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import type { CatalogSourceRow } from "@/lib/data-types";
 import { curateTableFeatures } from "./curate-table-features";
+import { curateHref } from "@/lib/curate-surface";
 
 const columns: Array<ColumnDef<typeof curateTableFeatures, CatalogSourceRow>> = [
   {
@@ -29,7 +30,7 @@ const columns: Array<ColumnDef<typeof curateTableFeatures, CatalogSourceRow>> = 
       return (
         <div className="min-w-0">
           <Link
-            href={`/curate/catalog?source=${encodeURIComponent(s.normalized_url || s.id)}`}
+            href={`${curateHref("catalog")}?source=${encodeURIComponent(s.normalized_url || s.id)}`}
             className="font-medium text-blue-700 hover:underline dark:text-blue-400"
           >
             {s.title ?? s.url}
@@ -136,7 +137,7 @@ const columns: Array<ColumnDef<typeof curateTableFeatures, CatalogSourceRow>> = 
       return (
         <Button variant="outline" size="xs" asChild>
           <Link
-            href={`/curate/source?url=${encodeURIComponent(s.url)}`}
+            href={`${curateHref("source")}?url=${encodeURIComponent(s.url)}`}
           >
             Claim workspace
           </Link>

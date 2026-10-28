@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
+import { curateHref } from "@/lib/curate-surface";
 
 /**
  * Case track home (shell). Neo4j case graph SoT — Claim Catalog is not used here.
@@ -43,10 +44,10 @@ export default function CurateCasesPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/cases/extract">Case Extract</Link>
+              <Link href={curateHref("cases/extract")}>Case Extract</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/curate/cases/review">Case Review</Link>
+              <Link href={curateHref("cases/review")}>Case Review</Link>
             </Button>
           </div>
         </CardContent>

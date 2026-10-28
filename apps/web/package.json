@@ -49,9 +49,11 @@
   "scripts": {
     "dev": "vite dev --port 43127 --host 127.0.0.1",
     "build": "APP_BASE_PATH=/app vite build",
+    "build:curate": "CURATE_WORKER=1 CURATE_SURFACE=1 APP_BASE_PATH=/curate vite build",
     "start": "vite preview --port 43127 --host 127.0.0.1",
     "deploy": "vinext-cloudflare deploy",
     "deploy:ci": "node ./scripts/deploy-ci.mjs",
+    "deploy:ci:curate": "node ./scripts/deploy-ci-curate.mjs",
     "test": "vitest run"
   }
 }

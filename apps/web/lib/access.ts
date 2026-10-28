@@ -1,7 +1,23 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import {
+  getAccessSurface,
+  type AccessSurface,
+} from "./curate-surface";
 
-/** Paths that must sit behind Cloudflare Access (pathname without APP_BASE_PATH). */
-export function isAccessProtectedPath(pathname: string): boolean {
+/**
+ * Paths that must sit behind Cloudflare Access (pathname without APP_BASE_PATH).
+ *
+ * - **app** surface (Map Worker, base `/app`): nested `/curate` + `/api/curate`.
+ * - **curate** surface (Curate Worker, base `/curate`): remounted `/`, `/inbox`,
+ *   `/api/…` — the whole Worker is curator-only, so every matched path is protected.
+ */
+export function isAccessProtectedPath(
+  pathname: string,
+  surface: AccessSurface = getAccessSurface(),
+): boolean {
+  if (surface === "curate") {
+    return true;
+  }
   return (
     pathname === "/curate" ||
     pathname.startsWith("/curate/") ||

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import type { ConflictView } from "@/lib/data-types";
 import { curateTableFeatures } from "./curate-table-features";
+import { curateHref } from "@/lib/curate-surface";
 
 const columns: Array<ColumnDef<typeof curateTableFeatures, ConflictView>> = [
   {
@@ -42,7 +43,7 @@ const columns: Array<ColumnDef<typeof curateTableFeatures, ConflictView>> = [
     cell: () => (
       <div className="text-right">
         <Link
-          href="/curate/conflicts"
+          href={curateHref("conflicts")}
           className="text-xs text-blue-700 hover:underline dark:text-blue-400"
         >
           Resolve

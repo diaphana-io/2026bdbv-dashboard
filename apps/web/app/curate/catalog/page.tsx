@@ -4,6 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { CatalogClaimsTable } from "../../../components/curate/catalog-claims-table";
 import { CatalogSourcesTable } from "../../../components/curate/catalog-sources-table";
+import { curateHref } from "@/lib/curate-surface";
 import {
   getCatalogSources,
   getSourceCatalogDetail,
@@ -34,7 +35,7 @@ export default async function CurateCatalogPage({
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/curate/catalog">Back to Catalog</Link>
+            <Link href={curateHref("catalog")}>Back to Catalog</Link>
           </Button>
         </main>
       );
@@ -51,7 +52,7 @@ export default async function CurateCatalogPage({
           <div className="min-w-0">
             <div className="mb-1">
               <Button variant="ghost" size="xs" asChild>
-                <Link href="/curate/catalog">← Catalog</Link>
+                <Link href={curateHref("catalog")}>← Catalog</Link>
               </Button>
             </div>
             <h1 className="text-lg font-semibold">
@@ -69,7 +70,7 @@ export default async function CurateCatalogPage({
             )}
             <Button variant="outline" size="sm" asChild>
               <Link
-                href={`/curate/source?url=${encodeURIComponent(source.url)}`}
+                href={`${curateHref("source")}?url=${encodeURIComponent(source.url)}`}
               >
                 Open Claim workspace
               </Link>

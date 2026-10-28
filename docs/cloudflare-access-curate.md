@@ -12,7 +12,18 @@ Provisioned for production:
 
 ## Paths to protect
 
-Production base path is `/app` (`APP_BASE_PATH`) on host `2026bdbv.diaphana.io`. Access paths must include that prefix.
+### Target (Curate Worker seam — Phase 1+)
+
+Curate Worker uses `APP_BASE_PATH=/curate`. Protect the mount (covers UI and `/curate/api/*`):
+
+| Public hostname | Path |
+|-----------------|------|
+| `2026bdbv.diaphana.io` | `/curate` |
+| `2026bdbv.diaphana.io` | `/curate/*` |
+
+Provision: `ACCESS_MOUNT=/curate bash scripts/provision-access-curate.sh` (do not re-run if the app already exists — update destinations in the dashboard instead).
+
+### Legacy (nested under Map Worker `/app`)
 
 | Public hostname | Path |
 |-----------------|------|
@@ -22,6 +33,8 @@ Production base path is `/app` (`APP_BASE_PATH`) on host `2026bdbv.diaphana.io`.
 | `2026bdbv.diaphana.io` | `/app/api/curate/*` |
 
 Parent and child paths must both be listed: `…/curate/*` does **not** cover `…/curate` ([application paths](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/)).
+
+On the Map Worker after strip, `/app/curate` redirects to `/curate` and `/app/api/curate/*` returns 404.
 
 ## Preview / staging
 
@@ -65,7 +78,7 @@ Access login and Worker JWT middleware must **not** await Neo4j. Graph reads for
 
 ## Verify
 
-1. Unauthenticated: `https://2026bdbv.diaphana.io/app/curate` → Access login.
+1. Unauthenticated: `https://2026bdbv.diaphana.io/curate` → Access login (legacy `/app/curate` should 308 → `/curate`).
 2. Authenticated curator: Curate UI loads; resolve/dismiss/review APIs succeed (graph persist needs Neo4j secrets separately). Opening Curate must not intermittent-1101 when Aura flaps.
-3. Public: `https://2026bdbv.diaphana.io/app/` stays reachable without login (Map). There is no `/app/cases` route today.
+3. Public: `https://2026bdbv.diaphana.io/app/` stays reachable without login (Map). Mutate against `/app/api/curate/*` → 404.
 4. After a preview deploy: Access login on preview Curate → no middleware 401 from AUD mismatch.
